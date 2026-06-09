@@ -8,15 +8,15 @@
 
 ## Overview
 
-A person responsible for a team's agentic-AI setup needs to register an HTTP(S) server as a source of skills and agents, so that Sauron can watch it and keep the team's targets in sync. This feature covers registering and validating that source only; selecting, scheduling, and delivering its artifacts are out of scope.
+A person responsible for a team's agentic-AI setup needs to register an HTTP(S) server as a source of skills and agents, so that Sauron can watch it and keep the team's targets in sync with its latest contents.
 
 ## Requirements
 
 ### Ubiquitous
 
 - **FR-001**: Sauron shall provide the ability to register an HTTP(S) server as a repository source of skills and agents.
-- **FR-002**: Every registered repository shall have a name unique across all repositories, regardless of kind.
-- **FR-003**: Every registered repository shall have a priority unique across all repositories, regardless of kind.
+- **FR-002**: Every registered repository shall have a name that is unique across all repositories, regardless of kind.
+- **FR-003**: Every registered repository shall have a priority that is unique across all repositories, regardless of kind.
 
 ### Event-driven (*When*)
 
@@ -27,6 +27,7 @@ A person responsible for a team's agentic-AI setup needs to register an HTTP(S) 
 - **FR-008**: When a repository is registered, Sauron shall identify it by its name.
 - **FR-009**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.json`) so it becomes a watched source.
 - **FR-010**: When a repository is successfully registered, Sauron shall report success.
+- **FR-025**: When the `HEAD` reachability probe (and future fetches) run, Sauron shall bound them by the configured timeout (default 30s).
 
 ### State-driven (*While*)
 
@@ -47,6 +48,7 @@ A person responsible for a team's agentic-AI setup needs to register an HTTP(S) 
 - **FR-022**: If a `${env:VAR}` reference names a variable that is not set at add time, then Sauron shall reject the request and report that the variable is unset.
 - **FR-023**: If a referenced CA, client-cert, or client-key file cannot be read, then Sauron shall reject the request and report that the file cannot be accessed.
 - **FR-024**: If any HTTP-only flag (`--username`, `--password`, `--skip-tls-verify`, `--ca-cert`, `--client-cert`, `--client-key`) is used with a non-`http` kind, then Sauron shall reject the request and report that the flag applies only to `http`.
+- **FR-026**: If `--timeout` is not a valid positive duration, then Sauron shall reject the request and report that a valid timeout is required.
 
 ## Key Entities
 
@@ -56,6 +58,7 @@ A person responsible for a team's agentic-AI setup needs to register an HTTP(S) 
   - **url** — the `http`/`https` location. Not required to be unique.
   - **auth** (optional) — HTTP Basic credentials, where username and password are each an `${env:VAR}` reference resolved at use time (never a stored secret; see ADR-0001).
   - **tls** (optional) — skip-verify flag (default false), a CA bundle path (server trust), and a client cert + key path pair (mutual TLS).
+  - **timeout** — a duration bounding the reachability probe and fetches; defaults to 30s.
 
 ## Decision Records
 

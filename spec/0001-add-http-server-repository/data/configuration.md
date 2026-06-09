@@ -29,6 +29,7 @@ HTTP Repository entry:
 | `url` | string | Yes | http/https URL | Server location. May repeat. Realizes FR-005. |
 | `auth` | object | No | see below | HTTP Basic credentials (env references). |
 | `tls` | object | No | see below | TLS / mutual-TLS settings. |
+| `timeout` | string | No | duration; default 30s | Bounds the HEAD probe and fetches. Realizes FR-025. |
 
 `auth` object:
 
@@ -80,7 +81,8 @@ Per ADR-0001, `auth.username` / `auth.password` hold only an `${env:VAR}` refere
         "caCert": "/home/user/.sauron/ca.pem",
         "clientCert": "/home/user/.sauron/client.pem",
         "clientKey": "/home/user/.sauron/client.key"
-      }
+      },
+      "timeout": "30s"
     }
   ]
 }

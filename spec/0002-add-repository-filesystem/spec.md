@@ -8,7 +8,7 @@
 
 ## Overview
 
-A person responsible for a team's agentic-AI setup needs to register a filesystem directory as a source of skills and agents, so that Sauron can watch it and keep the team's targets in sync with its latest contents. This feature covers registering and validating that source only; selecting, scheduling, and delivering its artifacts are out of scope.
+A person responsible for a team's agentic-AI setup needs to register a filesystem directory as a source of skills and agents, so that Sauron can watch it and keep the team's targets in sync with its latest contents.
 
 ## Requirements
 

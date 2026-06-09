@@ -11,6 +11,7 @@ Defines the command-line interface for registering an HTTP(S) server as a reposi
 sauron add repository [--kind http] --priority <n> \
   [--username ${env:VAR}] [--password ${env:VAR}] [--skip-tls-verify] \
   [--ca-cert <path>] [--client-cert <path>] [--client-key <path>] \
+  [--timeout <duration>] \
   <name> <url>
 ```
 
@@ -35,6 +36,7 @@ Command hierarchy: `sauron` (root) → `add` (group) → `repository` (subcomman
 | `--ca-cert` | No | — | path | CA bundle to trust the server. Realizes FR-006, FR-023. |
 | `--client-cert` | No | — | path | Client cert for mutual TLS; requires `--client-key`. Realizes FR-006, FR-020, FR-023. |
 | `--client-key` | No | — | path | Client key for mutual TLS; requires `--client-cert`. Realizes FR-006, FR-020, FR-023. |
+| `--timeout` | No | 30s | duration | Bounds the HEAD probe and fetches. Realizes FR-006, FR-025, FR-026. |
 
 ## Output
 
@@ -46,8 +48,8 @@ Command hierarchy: `sauron` (root) → `add` (group) → `repository` (subcomman
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Repository registered | FR-009, FR-010 |
-| `2` | Usage error — missing `<name>`/`<url>`, invalid name, missing/invalid `--priority`, unsupported `--kind`, raw (non-env) credential, unpaired `--client-cert`/`--client-key`, or an http-only flag on another kind | FR-004, FR-012, FR-015, FR-016, FR-017, FR-020, FR-021, FR-024 |
-| `1` | Validation error — invalid URL, server unreachable, duplicate name, duplicate priority, unset `${env:VAR}`, or unreadable cert/key file | FR-013, FR-014, FR-018, FR-019, FR-022, FR-023 |
+| `2` | Usage error — missing `<name>`/`<url>`, invalid name, invalid URL, missing/invalid `--priority`, invalid `--timeout`, unsupported `--kind`, raw (non-env) credential, unpaired `--client-cert`/`--client-key`, or an http-only flag on another kind | FR-004, FR-012, FR-013, FR-015, FR-016, FR-017, FR-020, FR-021, FR-024, FR-026 |
+| `1` | Validation error — server unreachable, duplicate name, duplicate priority, unset `${env:VAR}`, or unreadable cert/key file | FR-014, FR-018, FR-019, FR-022, FR-023 |
 
 ## Examples
 
@@ -76,8 +78,12 @@ Error: --username supports only the ${env:VAR} form
 $ sauron add repository --priority 5 bad ftp://nope.example.com
 Error: invalid URL; must be http:// or https://
 
+# Custom timeout
+$ sauron add repository --priority 6 --timeout 10s slow https://slow.example.com
+Registered repository 'slow': https://slow.example.com
+
 # Unreachable server (validation error, exit 1)
-$ sauron add repository --priority 6 down https://down.example.com
+$ sauron add repository --priority 7 down https://down.example.com
 Error: repository cannot be reached: https://down.example.com
 
 # Unset env reference (validation error, exit 1)
