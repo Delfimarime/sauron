@@ -17,7 +17,7 @@ Claude has a marketplace, and other providers have their own, but each is restri
 .skills/[skill name]
 ```
 
-**Persona** — A role, such as Platform Engineer, Frontend Developer, or Backend Developer. It describes a group of people who share the same set of agents and skills. Personas are optional: you can specify one or more to deliver only the subsets relevant to those roles (the union of their artifacts), or omit them entirely to deliver everything available.
+**Persona** — It describes a group of people who share the same set of agents and skills. 
 
 **Target** — The destination agentic AI provider. The target determines where skills and agents are persisted, since each provider stores them differently.
 
