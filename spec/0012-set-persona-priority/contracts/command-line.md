@@ -3,15 +3,15 @@
 **Spec**: `../spec.md` (Set Persona Priority)
 **Status**: Draft
 
-Defines the command-line interface for changing a persona's priority. This is the user-facing contract only. The `set-priority` group leaves room for other nouns (e.g. a future `set-priority repository`).
+Defines the command-line interface for changing a persona's priority. This is the user-facing contract only. The `set priority` group also covers `repository` (`0013-set-repository-priority`).
 
 ## Synopsis
 
 ```
-sauron set-priority persona <name> <value>
+sauron set priority persona <name> <value>
 ```
 
-Command hierarchy: `sauron` (root) → `set-priority` (group) → `persona` (subcommand).
+Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → `persona` (subcommand). The sibling `sauron set priority repository` is covered by `0013-set-repository-priority`.
 
 ## Arguments
 
@@ -41,26 +41,26 @@ None.
 
 ```
 # Success
-$ sauron set-priority persona qa-engineer 2
+$ sauron set priority persona qa-engineer 2
 Set priority of persona 'qa-engineer' to 2
 
 # Same value (no-op, exit 0)
-$ sauron set-priority persona qa-engineer 2
+$ sauron set priority persona qa-engineer 2
 Priority of persona 'qa-engineer' is already 2
 
 # Only one persona exists (validation error, exit 1)
-$ sauron set-priority persona backend-developer 5
+$ sauron set priority persona backend-developer 5
 Error: cannot change priority while only one persona exists; it keeps priority 0
 
 # Priority taken (validation error, exit 1)
-$ sauron set-priority persona designer 0
+$ sauron set priority persona designer 0
 Error: priority 0 is already in use
 
 # Persona not found (validation error, exit 1)
-$ sauron set-priority persona ghost 3
+$ sauron set priority persona ghost 3
 Error: no persona named 'ghost'
 
 # Invalid value (usage error, exit 2)
-$ sauron set-priority persona designer high
+$ sauron set priority persona designer high
 Error: priority must be a non-negative integer
 ```

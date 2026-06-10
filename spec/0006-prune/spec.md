@@ -22,7 +22,7 @@ A person responsible for a team's agentic-AI setup needs to remove skills and ag
 - **FR-003**: When the user runs prune with `skills` or `agents`, Sauron shall consider only that type.
 - **FR-004**: When pruning, Sauron shall identify installed artifacts, recorded in `~/.sauron/track.yaml`, whose source repository is not among the currently registered repositories.
 - **FR-005**: When an orphaned artifact is identified, Sauron shall delete it from its target location and remove its entry from `~/.sauron/track.yaml`.
-- **FR-006**: When pruning completes, Sauron shall report what was removed (the count and the names).
+- **FR-006**: When pruning completes, Sauron shall report what was removed, grouped by skills and agents with a `-` for each removed artifact (the same plan format as sync).
 - **FR-007**: When `--dry-run` is provided, Sauron shall report what would be removed without deleting anything or modifying `~/.sauron/track.yaml`.
 
 ### State-driven (*While*)

@@ -11,6 +11,7 @@ Read-only for sync:
 
 - `repositories[]` — the sources of artifacts; the `priority` field resolves same-named artifacts (ADR-0001).
 - `personas[]` — the persona definitions that scope the desired set; persona ordering follows `0007-import-persona` ADR-0001.
+- `target` — the active provider to deliver to (`claude` by default; managed by `0014-set-target`). Realizes FR-009.
 
 ## Tracking record — `~/.sauron/track.yaml`
 
@@ -32,7 +33,7 @@ Installed Artifact entry:
 |-------|------|----------|-------------|
 | `type` | string | Yes | `skill` or `agent`. |
 | `name` | string | Yes | Artifact name, as installed. |
-| `target` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). Realizes FR-009. |
+| `target` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). |
 | `path` | string | Yes | Where it was installed (the target's location for this artifact). |
 | `repository` | string | Yes | Name of the source repository (provenance; the conflict winner per ADR-0001). |
 | `persona` | string | No | Persona that brought the artifact into the desired set; when several do, the highest-precedence persona; absent when synced without personas. Realizes FR-007. |
@@ -41,7 +42,7 @@ An entry is identified by (`target`, `type`, `name`) — the same artifact deliv
 
 ## Operation
 
-- The desired set is computed per FR-002–FR-005 and compared against the entries whose `target` matches the chosen provider; the difference is the plan. Realizes FR-006.
+- The desired set is computed per FR-002–FR-005 and compared against the entries whose `target` matches the active global target; the difference is the plan. Realizes FR-006.
 - Applying the plan installs/updates artifacts at their `path`, removes tracked artifacts no longer desired, and rewrites their entries. Only tracked artifacts are ever removed. Realizes FR-007, FR-011.
 - With `--dry-run`, neither the environment nor `track.yaml` is touched. Realizes FR-008.
 

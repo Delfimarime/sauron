@@ -19,7 +19,7 @@ A YAML document supplied by the user via `<path>`:
 
 \* At least one entry is required across `agents` and `skills` combined. Realizes FR-016.
 
-The file never carries a priority — priority comes from `--priority` at import and is managed afterwards by `set-priority persona` (see ADR-0001).
+The file never carries a priority — priority comes from `--priority` at import and is managed afterwards by `set priority persona` (see ADR-0001).
 
 Example:
 

@@ -22,7 +22,7 @@ A person responsible for a team's agentic-AI setup needs to revise a persona's d
 - **FR-003**: When a persona definition file is submitted, Sauron shall validate the same shape as import: a `name` (slug), a `description`, optional `tags`, and at least one entry across `agents` and `skills`.
 - **FR-004**: When the definition is valid, Sauron shall locate the persona by the `name` in the file — the name is the key.
 - **FR-005**: When the persona is found, Sauron shall replace its `description`, `tags`, `agents`, and `skills` with the values from the file.
-- **FR-006**: When updating, Sauron shall preserve the persona's priority unchanged, whether defined or undefined; the definition file never carries a priority, and priority is managed by `set-priority persona` (`0012-set-persona-priority`; see `0007-import-persona` ADR-0001).
+- **FR-006**: When updating, Sauron shall preserve the persona's priority unchanged, whether defined or undefined; the definition file never carries a priority, and priority is managed by `set priority persona` (`0012-set-persona-priority`; see `0007-import-persona` ADR-0001).
 - **FR-007**: When the update succeeds, Sauron shall persist the updated configuration and report success.
 
 ### State-driven (*While*)

@@ -18,7 +18,7 @@ Persona priority is **zero-anchored and optional**:
 - **Subsequent imports** may pass `--priority <n>` with an integer ≥ 1 that is not in use, or omit it entirely — an omitted priority is stored as **undefined**.
 - Uniqueness applies to **defined values only**; any number of personas may have undefined priority at the same time.
 - **Ordering**: defined priorities rank first, ascending (`0` is the highest precedence); personas with undefined priority rank after all defined ones, ordered by name among themselves.
-- Priorities are adjusted later with `set-priority persona` (`0012-set-persona-priority`), which is blocked while only one persona exists — that persona keeps `0`. `0` can be reassigned via `set-priority` only when no persona holds it (e.g. after the original first persona was deleted); there is no invariant that some persona must hold `0`.
+- Priorities are adjusted later with `set priority persona` (`0012-set-persona-priority`), which is blocked while only one persona exists — that persona keeps `0`. `0` can be reassigned via `set priority` only when no persona holds it (e.g. after the original first persona was deleted); there is no invariant that some persona must hold `0`.
 
 ## Consequences
 

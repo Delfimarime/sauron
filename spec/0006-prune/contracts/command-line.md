@@ -27,7 +27,7 @@ Command hierarchy: `sauron` (root) → `prune` (command).
 
 ## Output
 
-- **Success**: a summary on stdout naming the removed (or, with `--dry-run`, the would-be-removed) skills and agents, with a count. When nothing is orphaned, a single message.
+- **Plan/summary**: grouped by `skills:` and `agents:`, one artifact per line with `-` (prune only removes). With `--dry-run` it is the plan only; otherwise it is what was removed, followed by a count line. When nothing is orphaned, a single message.
 - **Failure**: a single human-readable message on stderr; per-artifact deletion failures are reported but do not stop the run.
 
 ## Exit codes
@@ -43,18 +43,26 @@ Command hierarchy: `sauron` (root) → `prune` (command).
 ```
 # Prune both skills and agents
 $ sauron prune
+skills:
+- code-review
+- release-notes
+agents:
+- triager
 Pruned 3 artifacts (2 skills, 1 agent) from 1 unregistered repository.
 
 # Prune only agents
 $ sauron prune agents
+agents:
+- triager
 Pruned 1 agent.
 
 # Preview without deleting
 $ sauron prune --dry-run
-Would prune 3 artifacts (2 skills, 1 agent):
-  skill  code-review     (from removed repo 'team-deploy')
-  skill  release-notes   (from removed repo 'team-deploy')
-  agent  triager         (from removed repo 'old-http')
+skills:
+- code-review
+- release-notes
+agents:
+- triager
 
 # Nothing orphaned (exit 0)
 $ sauron prune
