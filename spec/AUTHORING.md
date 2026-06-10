@@ -1,10 +1,11 @@
 # Spec Authoring Rules
 
 Normative rules for authoring and organizing specifications in this repository.
-Domain concepts live in [the spec README](README.md); CLI-wide behavior lives in
-[the CLI contract](contracts/cli.md); project principles live in
-[CONSTITUTION.md](../CONSTITUTION.md). When authoring specs in this repo, the
-`authoring-specs` skill loads and points here.
+Domain concepts live in [the spec README](README.md); the conventions every CLI
+command obeys are defined in [ CLI conventions](#cli-conventions) below, and the
+compiled per-command reference lives in [contracts/cli.md](contracts/cli.md);
+project principles live in [CONSTITUTION.md](../CONSTITUTION.md). When authoring
+specs in this repo, the `authoring-specs` skill loads and points here.
 
 ## Spec types
 
@@ -47,7 +48,7 @@ Every spec declares one of two types:
   ```
 
 - Global, cross-feature contracts live in `spec/contracts/`
-  (e.g. [the CLI contract](contracts/cli.md)).
+  (e.g. the compiled [CLI command reference](contracts/cli.md)).
 
 ## Required sections
 
@@ -114,8 +115,61 @@ Shared semantics use these sentences verbatim (entity substituted):
 - Failure output: `If a command fails, then Sauron shall write exactly one
   human-readable message to stderr.`
 
-## CLI policy
+## CLI conventions
 
 Command grammar, shared flags, exit-status semantics, and output discipline are
-owned by [the CLI contract](contracts/cli.md). Per-feature contracts may refine
-which conditions map to which exit code; they may not redefine the meanings.
+normative here. Every command's `contracts/command-line.md` conforms to them,
+and the compiled [CLI command reference](contracts/cli.md) summarizes each
+command. Per-feature contracts may refine which conditions map to which exit
+code; they may not redefine the meanings.
+
+### Command grammar
+
+```
+sauron <verb> [<noun> [<noun>]] [flags] <args...>
+```
+
+- Verb–noun hierarchy: `add repository`, `list personas`,
+  `set priority repository`, `cron sync`.
+- Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
+  otherwise. Repeatable flags are marked `...` in synopses.
+- Positional arguments follow flags in synopses and are written `<name>`.
+
+### Shared flags
+
+These flags mean the same thing in every command that accepts them. A feature
+contract may narrow a shared flag (e.g. restrict `--sort` values) but may not
+contradict it.
+
+| Flag | Meaning |
+|---|---|
+| `--dry-run` | Print the plan without changing the environment or the track file |
+| `--priority <n>` | Integer precedence; lower value wins; unique within its namespace |
+| `--kind <kind>` | Repository kind: `http` (default), `filesystem`, or `git` |
+| `--search <term>` | Case-insensitive substring filter |
+| `--sort <field>` | Sort field for list output |
+| `--order <asc\|desc>` | Sort direction, default `asc` |
+| `--persona <name>` | Scope the operation to one persona's artifacts |
+| `--timeout <duration>` | Bound on network operations, default `30s` |
+
+### Exit status
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — including idempotent no-ops: deleting an absent resource, an empty list, an already-up-to-date sync, an already-set value, and any `--dry-run` run |
+| `2` | Usage error — invalid or missing arguments/flags; nothing was executed |
+| `1` | Runtime error — validation failure, unreadable configuration or track file, unreachable external resource, or a failed artifact operation |
+
+Feature contracts may only refine *which conditions* map to each code; they
+never redefine these meanings.
+
+### Output discipline
+
+- Results (confirmations, tables, plans) go to stdout.
+- A failing command writes exactly one human-readable message to stderr and
+  produces no partial output.
+- Commands that apply changes in bulk (`sync`, `prune`, `clear`, `set target`)
+  print a shared plan/report format: artifacts grouped under `skills:` and
+  `agents:` headings, one artifact per line, prefixed `+` for additions/updates
+  and `-` for removals, followed by a summary count line when changes are
+  applied. Per-artifact failures are reported without stopping the run.

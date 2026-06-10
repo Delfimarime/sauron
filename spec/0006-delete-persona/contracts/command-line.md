@@ -1,6 +1,6 @@
 # Contract: Command Line — Delete Persona
 
-Conventions: [CLI contract](../../contracts/cli.md).
+Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [Delete Persona](../spec.md)
 
@@ -31,7 +31,7 @@ None.
 
 ## Exit codes
 
-Exit-status meanings are owned by the [CLI contract](../../contracts/cli.md);
+Exit-status meanings are owned by the [CLI conventions](../../AUTHORING.md);
 this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |

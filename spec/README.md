@@ -68,7 +68,9 @@ Sauron is a command-line application that orchestrates delivery. It watches the 
 ## Further reading
 
 - [Spec authoring rules](AUTHORING.md) — spec types, numbering, required
-  sections, EARS templates, glossary, and cross-link form.
-- [Command line interface contract](contracts/cli.md) — command grammar,
-  shared flags, exit status, output discipline, and the command index.
+  sections, EARS templates, glossary, cross-link form, and the CLI conventions
+  (command grammar, shared flags, exit status, output discipline).
+- [Command line interface reference](contracts/cli.md) — the compiled list of
+  every command, with its synopsis, intent, key flags, and a link to the
+  feature contract that owns it.
 - [Constitution](../CONSTITUTION.md) — project and implementation principles.

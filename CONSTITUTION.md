@@ -1,9 +1,9 @@
 # Constitution
 
 Project-governing principles for sauron. These constrain how features are
-specified, planned, and implemented. Authoring mechanics live in
-[spec/AUTHORING.md](spec/AUTHORING.md); CLI conventions in
-[spec/contracts/cli.md](spec/contracts/cli.md).
+specified, planned, and implemented. Authoring mechanics and CLI conventions
+live in [spec/AUTHORING.md](spec/AUTHORING.md); the compiled command reference
+in [spec/contracts/cli.md](spec/contracts/cli.md).
 
 > Status: initial draft — refine as implementation begins.
 
@@ -27,9 +27,10 @@ capabilities that enable them. A capability has no CLI surface of its own.
 ## Article IV — Contract-first CLI
 
 Every command's behavior is defined in its `contracts/command-line.md` and
-conforms to the global [CLI contract](spec/contracts/cli.md) — command grammar,
-shared flags, exit-status semantics, and output discipline — before it is
-implemented.
+conforms to the [CLI conventions](spec/AUTHORING.md#cli-conventions) — command
+grammar, shared flags, exit-status semantics, and output discipline — before it
+is implemented. The compiled [command reference](spec/contracts/cli.md)
+summarizes every command in one place.
 
 ## Article V — Implementation standards
 

@@ -1,7 +1,8 @@
 # Contract: Command Line — Cron Sync
 
-**Spec**: `../spec.md` (Cron Sync)
-**Status**: Draft
+Conventions: [CLI conventions](../../AUTHORING.md).
+
+**Spec**: [Cron Sync](../spec.md)
 
 Defines the command-line interface for scheduling `sauron sync` via the operating system's cron. This is the user-facing contract only.
 
@@ -32,6 +33,9 @@ Command hierarchy: `sauron` (root) → `cron` (group) → `sync` (subcommand).
 - **Failure**: a single human-readable message on stderr.
 
 ## Exit codes
+
+Exit-status meanings are owned by the [CLI conventions](../../AUTHORING.md);
+this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |
 |------|---------|----------|

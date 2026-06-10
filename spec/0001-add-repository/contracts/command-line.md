@@ -1,6 +1,6 @@
 # Contract: Command Line — Add Repository
 
-Conventions: [CLI contract](../../contracts/cli.md).
+Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [Add Repository](../spec.md)
 
@@ -58,7 +58,7 @@ Realizes [spec](../spec.md) FR-017.
 
 ## Exit codes
 
-Exit-status meanings are owned by the [CLI contract](../../contracts/cli.md);
+Exit-status meanings are owned by the [CLI conventions](../../AUTHORING.md);
 this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |

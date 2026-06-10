@@ -1,6 +1,6 @@
 # Contract: Command Line — Import Persona
 
-Conventions: [CLI contract](../../contracts/cli.md).
+Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [Import Persona](../spec.md)
 
@@ -33,7 +33,7 @@ Command hierarchy: `sauron` (root) → `import` (group) → `persona` (subcomman
 
 ## Exit codes
 
-Exit-status meanings are owned by the [CLI contract](../../contracts/cli.md);
+Exit-status meanings are owned by the [CLI conventions](../../AUTHORING.md);
 this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |

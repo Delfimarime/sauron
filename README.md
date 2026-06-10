@@ -11,6 +11,6 @@ sync — manually via `sauron sync` or on a schedule via `sauron cron sync`.
 ## Documentation
 
 - [Domain model and concepts](spec/README.md)
-- [Command line interface contract](spec/contracts/cli.md)
+- [Command line interface reference](spec/contracts/cli.md)
 - [Spec authoring rules](spec/AUTHORING.md)
 - [Constitution](CONSTITUTION.md)
