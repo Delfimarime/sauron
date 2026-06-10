@@ -549,7 +549,6 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/windows,linux,macos,goland+all,intellij+all,visualstudiocode,python,node
 
 .zencoder/
-CLAUDE.md
 docs/
 .docs/
 .claude/settings.local.json
