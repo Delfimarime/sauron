@@ -64,3 +64,11 @@ Claude has a marketplace, and other providers have their own, but each is restri
 ## How It Works
 
 Sauron is a command-line application that orchestrates delivery. It watches the configured repositories and keeps each target's skills and agents in sync with the latest versions. It can also register a cron job, so the whole process runs automatically on a schedule.
+
+## Further reading
+
+- [Spec authoring rules](AUTHORING.md) — spec types, numbering, required
+  sections, EARS templates, glossary, and cross-link form.
+- [Command line interface contract](contracts/cli.md) — command grammar,
+  shared flags, exit status, output discipline, and the command index.
+- [Constitution](../CONSTITUTION.md) — project and implementation principles.
