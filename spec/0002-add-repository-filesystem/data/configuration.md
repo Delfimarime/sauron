@@ -7,8 +7,8 @@ Describes the persisted configuration that the Add Filesystem Repository feature
 
 ## Location & format
 
-- **Path**: `~/.sauron/settings.json` (home directory resolved per platform).
-- **Format**: a single JSON document.
+- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
+- **Format**: a single YAML document.
 - **Lifecycle**: created on first successful write if absent. Realizes FR-006.
 
 ## Schema
@@ -35,15 +35,18 @@ A repository is identified by its `name`. `name` and `priority` are each unique 
 ## Write semantics
 
 - The whole document is loaded, the new entry appended, and the document written back only after all validation passes. The file is left untouched on any failure. Realizes FR-008.
-- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.json`.
+- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
 
 ## Example
 
-```json
-{
-  "repositories": [
-    { "kind": "filesystem", "name": "team-skills",   "priority": 1, "path": "/home/user/team-skills" },
-    { "kind": "filesystem", "name": "shared-agents", "priority": 2, "path": "/opt/shared/agents" }
-  ]
-}
+```yaml
+repositories:
+  - kind: filesystem
+    name: team-skills
+    priority: 1
+    path: /home/user/team-skills
+  - kind: filesystem
+    name: shared-agents
+    priority: 2
+    path: /opt/shared/agents
 ```

@@ -25,7 +25,7 @@ A person responsible for a team's agentic-AI setup needs to register a Git repos
 - **FR-006**: When a user submits a git URI, Sauron shall verify the remote is reachable and authentication succeeds by running `git ls-remote` — honoring the configured timeout and SSH key — before registering it.
 - **FR-007**: When `--ssh-key` is provided, Sauron shall authenticate with that private key; when it is absent, Sauron shall use the system's regular SSH credentials (agent, `~/.ssh/config`, default keys).
 - **FR-008**: When a repository is registered, Sauron shall identify it by its name.
-- **FR-009**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.json`) so it becomes a watched source.
+- **FR-009**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.yaml`) so it becomes a watched source.
 - **FR-010**: When a repository is successfully registered, Sauron shall report success.
 - **FR-011**: When a network operation runs (e.g. `git ls-remote`), Sauron shall bound it by the configured timeout (default 30s).
 

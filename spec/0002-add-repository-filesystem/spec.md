@@ -24,7 +24,7 @@ A person responsible for a team's agentic-AI setup needs to register a filesyste
 - **FR-003**: When a user submits a directory path, Sauron shall verify that the directory exists and is accessible before registering it.
 - **FR-004**: When a user submits a directory path, Sauron shall verify that the directory contains at least one artifact under `.agents/` or `.skills/` before registering it.
 - **FR-005**: When a repository is registered, Sauron shall identify it by its name.
-- **FR-006**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.json`) so that it becomes a watched source in subsequent runs.
+- **FR-006**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.yaml`) so that it becomes a watched source in subsequent runs.
 - **FR-007**: When a repository is successfully registered, Sauron shall report success to the user.
 - **FR-016**: When a repository is registered, Sauron shall record its name and priority alongside its kind and path.
 

@@ -7,8 +7,8 @@ Describes the persisted configuration that the Add Git Repository feature reads 
 
 ## Location & format
 
-- **Path**: `~/.sauron/settings.json` (home directory resolved per platform).
-- **Format**: a single JSON document.
+- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
+- **Format**: a single YAML document.
 - **Lifecycle**: created on first successful write if absent.
 
 ## Schema
@@ -47,21 +47,17 @@ Per ADR-0001, only SSH git URIs are supported. `ssh.keyPath` stores a **file pat
 ## Write semantics
 
 - The whole document is loaded, the new entry appended, and written back only after all validation passes. The file is left untouched on any failure.
-- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.json`.
+- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
 
 ## Example
 
-```json
-{
-  "repositories": [
-    {
-      "kind": "git",
-      "name": "team-deploy",
-      "priority": 2,
-      "uri": "ssh://git@github.com/acme/agents.git",
-      "ssh": { "keyPath": "/home/user/.ssh/deploy_ed25519" },
-      "timeout": "30s"
-    }
-  ]
-}
+```yaml
+repositories:
+  - kind: git
+    name: team-deploy
+    priority: 2
+    uri: ssh://git@github.com/acme/agents.git
+    ssh:
+      keyPath: /home/user/.ssh/deploy_ed25519
+    timeout: 30s
 ```

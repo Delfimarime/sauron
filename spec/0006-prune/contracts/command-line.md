@@ -23,7 +23,7 @@ Command hierarchy: `sauron` (root) → `prune` (command).
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
-| `--dry-run` | No | false | Report what would be pruned without deleting anything or modifying `track.json`. Realizes FR-007. |
+| `--dry-run` | No | false | Report what would be pruned without deleting anything or modifying `track.yaml`. Realizes FR-007. |
 
 ## Output
 
@@ -36,7 +36,7 @@ Command hierarchy: `sauron` (root) → `prune` (command).
 |------|---------|----------|
 | `0` | Pruned, or nothing to prune (including `--dry-run`) | FR-005, FR-006, FR-007, FR-010 |
 | `2` | Usage error — type other than `skills` or `agents` | FR-009 |
-| `1` | `settings.json`/`track.json` unreadable, or one or more artifacts could not be deleted | FR-011, FR-012 |
+| `1` | `settings.yaml`/`track.yaml` unreadable, or one or more artifacts could not be deleted | FR-011, FR-012 |
 
 ## Examples
 

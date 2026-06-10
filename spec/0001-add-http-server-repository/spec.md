@@ -25,7 +25,7 @@ A person responsible for a team's agentic-AI setup needs to register an HTTP(S) 
 - **FR-006**: When a user submits a URL, Sauron shall verify the server is reachable by issuing an HTTP `HEAD` request — honoring the supplied authentication and TLS options — before registering it.
 - **FR-007**: When a username or password is supplied, Sauron shall accept only the `${env:VAR}` form, persist the reference literally, and resolve it from the environment at use time. (See ADR-0001.)
 - **FR-008**: When a repository is registered, Sauron shall identify it by its name.
-- **FR-009**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.json`) so it becomes a watched source.
+- **FR-009**: When a repository passes validation, Sauron shall persist it to its configuration (`~/.sauron/settings.yaml`) so it becomes a watched source.
 - **FR-010**: When a repository is successfully registered, Sauron shall report success.
 - **FR-025**: When the `HEAD` reachability probe (and future fetches) run, Sauron shall bound them by the configured timeout (default 30s).
 

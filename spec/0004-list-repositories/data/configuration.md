@@ -7,8 +7,8 @@ Describes the configuration that the List Repositories feature reads. Listing ne
 
 ## Location & format
 
-- **Path**: `~/.sauron/settings.json` (home directory resolved per platform).
-- **Format**: a single JSON document. A missing file is treated as no repositories.
+- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
+- **Format**: a single YAML document. A missing file is treated as no repositories.
 
 ## Read shape
 

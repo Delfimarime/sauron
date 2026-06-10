@@ -12,7 +12,7 @@ Deleting a repository could mean one of two things: unregister the source so Sau
 
 ## Decision
 
-Deletion **unregisters the source only**. The repository entry is removed from `~/.sauron/settings.json`; skills and agents already installed from it are left untouched (FR-003). Cleaning up delivered artifacts is a separate concern — a future uninstall/sync operation — not part of deleting the source.
+Deletion **unregisters the source only**. The repository entry is removed from `~/.sauron/settings.yaml`; skills and agents already installed from it are left untouched (FR-003). Cleaning up delivered artifacts is a separate concern — a future uninstall/sync operation — not part of deleting the source.
 
 ## Consequences
 

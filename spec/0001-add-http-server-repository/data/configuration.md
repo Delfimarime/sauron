@@ -7,8 +7,8 @@ Describes the persisted configuration that the Add HTTP Server Repository featur
 
 ## Location & format
 
-- **Path**: `~/.sauron/settings.json` (home directory resolved per platform).
-- **Format**: a single JSON document.
+- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
+- **Format**: a single YAML document.
 - **Lifecycle**: created on first successful write if absent.
 
 ## Schema
@@ -59,31 +59,24 @@ Per ADR-0001, `auth.username` / `auth.password` hold only an `${env:VAR}` refere
 ## Write semantics
 
 - The whole document is loaded, the new entry appended, and written back only after all validation passes. The file is left untouched on any failure.
-- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.json`.
+- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
 
 ## Example
 
-```json
-{
-  "repositories": [
-    {
-      "kind": "http",
-      "name": "team-secure",
-      "priority": 2,
-      "url": "https://secure.example.com",
-      "auth": {
-        "type": "basic",
-        "username": "${env:SKILLS_USER}",
-        "password": "${env:SKILLS_PASS}"
-      },
-      "tls": {
-        "skipVerify": false,
-        "caCert": "/home/user/.sauron/ca.pem",
-        "clientCert": "/home/user/.sauron/client.pem",
-        "clientKey": "/home/user/.sauron/client.key"
-      },
-      "timeout": "30s"
-    }
-  ]
-}
+```yaml
+repositories:
+  - kind: http
+    name: team-secure
+    priority: 2
+    url: https://secure.example.com
+    auth:
+      type: basic
+      username: ${env:SKILLS_USER}
+      password: ${env:SKILLS_PASS}
+    tls:
+      skipVerify: false
+      caCert: /home/user/.sauron/ca.pem
+      clientCert: /home/user/.sauron/client.pem
+      clientKey: /home/user/.sauron/client.key
+    timeout: 30s
 ```
