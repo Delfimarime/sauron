@@ -38,12 +38,12 @@ A person responsible for a team's agentic-AI setup needs to remove skills and ag
 
 ## Key Entities
 
-- **Installed Artifact**: a skill or agent that Sauron has delivered to a target, recorded in `~/.sauron/track.yaml`. It has a type (skill or agent), a target location, and a source repository (its provenance).
+- **Installed Artifact**: a skill or agent that Sauron has delivered to a target, recorded in `~/.sauron/track.yaml`. It has a type (skill or agent), a target provider, an installed path, a source repository (its provenance), and optionally the persona that brought it into scope.
 - **Orphaned Artifact**: an installed artifact whose source repository is no longer among the registered repositories. Prune's subject.
 
 ## Notes
 
-- `~/.sauron/track.yaml` is populated by the deliver/install feature; prune reads it and removes entries for the artifacts it prunes. See `data/configuration.md`.
+- `~/.sauron/track.yaml` is populated by the sync feature (`0011-sync`); prune reads it and removes entries for the artifacts it prunes. See `data/configuration.md`.
 
 ## Decision Records
 

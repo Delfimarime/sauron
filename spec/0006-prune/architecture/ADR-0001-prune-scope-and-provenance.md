@@ -14,7 +14,7 @@ Deleting a repository unregisters the source but keeps its installed artifacts (
 
 Prune removes only category (a): installed skills/agents whose **source repository is not among the currently registered repositories**. Drift within a still-registered repository is out of scope and belongs to a future sync operation.
 
-Provenance comes from `~/.sauron/track.yaml` — the installed-artifact record that associates each delivered artifact with its source repository. That file is produced and maintained by the deliver/install feature; prune reads it and removes entries for the artifacts it prunes.
+Provenance comes from `~/.sauron/track.yaml` — the installed-artifact record that associates each delivered artifact with its source repository. That file is produced and maintained by the sync feature (`0011-sync`); prune reads it and removes entries for the artifacts it prunes.
 
 ## Consequences
 

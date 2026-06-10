@@ -13,7 +13,7 @@ Read-only for prune. The set of names in `repositories[]` is the registered set;
 
 ### Tracking record — `~/.sauron/track.yaml`
 
-The record of installed artifacts and their provenance. Created and maintained by the deliver/install feature; prune reads it and removes entries for pruned artifacts.
+The record of installed artifacts and their provenance. Created and maintained by the sync feature (`0011-sync`, which owns the full schema); prune reads it and removes entries for pruned artifacts.
 
 - **Path**: `~/.sauron/track.yaml` (home directory resolved per platform).
 - **Format**: a single YAML document.
@@ -30,13 +30,15 @@ Installed Artifact entry:
 |-------|------|----------|-------------|
 | `type` | string | Yes | `skill` or `agent`. |
 | `name` | string | Yes | Artifact name, as installed. |
-| `target` | string | Yes | Where it was installed (target location). |
+| `target` | string | Yes | Provider the artifact was delivered to (e.g. `claude`, `zencoder`). |
+| `path` | string | Yes | Where it was installed. |
 | `repository` | string | Yes | Name of the source repository (provenance). |
+| `persona` | string | No | Persona that brought the artifact into scope; absent when synced without personas. Not used by prune's orphan test. |
 
 ## Operation
 
 - For each installed artifact of the requested type(s), if its `repository` is not in the registered set, the artifact is orphaned. Realizes FR-004.
-- Orphaned artifacts are deleted from their `target` and their entries removed from `installed[]`. Realizes FR-005. With `--dry-run`, nothing is deleted or written. Realizes FR-007.
+- Orphaned artifacts are deleted from their `path` and their entries removed from `installed[]`. Realizes FR-005. With `--dry-run`, nothing is deleted or written. Realizes FR-007.
 - Artifacts whose `repository` is still registered are left untouched. Realizes FR-008.
 
 ## Write semantics
@@ -50,10 +52,13 @@ Installed Artifact entry:
 installed:
   - type: skill
     name: code-review
-    target: ~/.claude/skills/code-review
+    target: claude
+    path: ~/.claude/skills/code-review
     repository: team-deploy
+    persona: backend-developer
   - type: agent
     name: triager
-    target: ~/.claude/agents/triager.md
+    target: claude
+    path: ~/.claude/agents/triager.md
     repository: old-http
 ```
