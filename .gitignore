@@ -551,3 +551,5 @@ $RECYCLE.BIN/
 .claude/
 .zencoder/
 CLAUDE.md
+docs/
+.docs/
