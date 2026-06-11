@@ -102,6 +102,33 @@ Implementation follows the project's Go conventions (uberfx architecture, cobra
 CLI, Uber style, cognitive complexity ≤15) and is test-first with a 90%
 coverage target.
 
+### Article 2 — Standard project layout
+
+Sauron is a Go 1.26 project following
+[golang-standards/project-layout](https://github.com/golang-standards/project-layout),
+with module path `github.com/delfimarime/sauron`. The directory structure,
+package responsibilities, and build variables (`AppName`, `AppVersion`,
+`AppHash`) are fixed by the
+[architecture contract](spec/contracts/architecture.md).
+
+### Article 3 — Ports and adapters
+
+Public behavioral interfaces live under `pkg/` (`pkg/repository`,
+`pkg/provider`) and are implemented by adapters under `internal/`
+(`internal/repository/{fs,git,http}`, `internal/provider/{claude,zencoder}`).
+Each adapter family exposes its wiring through an uberfx
+`NewFxOptions() fx.Option`. The interfaces are a public surface: external code
+may implement new repositories or providers against them.
+
+### Article 4 — Dependency & license discipline
+
+The dependency set is deliberately small and vetted. Adding a dependency
+requires scrutiny of its maturity, maintenance, and license — which must be
+permissive and compatible with the project's Apache-2.0 license. The approved
+dependencies and their licenses are enumerated in the
+[architecture contract](spec/contracts/architecture.md); nothing outside that
+list is used without amending it.
+
 ## Chapter IV — Governance & Traceability
 
 The cross-cutting rule that keeps spec, plan, and code in agreement.

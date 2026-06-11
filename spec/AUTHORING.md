@@ -47,8 +47,9 @@ Every spec declares one of two types:
   └── architecture/ADR-NNNN-*.md   optional decision records
   ```
 
-- Global, cross-feature contracts live in `spec/contracts/`
-  (e.g. the compiled [CLI command reference](contracts/cli.md)).
+- Global, cross-feature contracts live in `spec/contracts/` — e.g. the compiled
+  [CLI command reference](contracts/cli.md) and the
+  [architecture contract](contracts/architecture.md).
 
 Each file has a fixed purpose and a section that defines how its content is
 written:
