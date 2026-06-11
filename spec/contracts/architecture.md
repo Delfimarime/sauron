@@ -24,6 +24,8 @@ internal/
     helper.go              builds the uberfx application the commands use
     <sub-command>.go       one file per command
   config/                  spf13/viper init and configuration management
+  telemetry/
+    constants.go           shared ECS log/trace field keys
   repository/
     fx.go                  exposes NewFxOptions() fx.Option
     fs/                    filesystem repository adapter
@@ -51,6 +53,53 @@ depend on the `pkg/` interfaces, not on a concrete adapter.
 - `cmd/main.go` bootstraps the binary; `internal/cmd/helper.go` assembles the
   `fx.Option`s into the application that the commands execute.
 
+## Coding standards
+
+Go code follows the [Uber Go Style Guide](https://github.com/uber-go/guide). In
+addition:
+
+- **Design principles.** DRY, SOLID, and YAGNI are first-class concerns in both
+  production and test code.
+- **No global mutable state.** Dependencies are supplied through uberfx
+  (`fx.Option`s), not package-level variables.
+- **Parameter structs.** A function that would take more than seven parameters
+  takes a single parameter struct instead. `context.Context` is never moved into
+  that struct — it stays an explicit parameter (conventionally first). In tests,
+  ambient values such as `*testing.T` may likewise remain in the signature
+  rather than the struct.
+- **Cognitive complexity.** Each function stays at or below 15 (measured with
+  `gocognit`); a higher value may be suppressed only with a comment that
+  justifies it. A function below 3 is questionable — a trivial helper is not
+  extracted unless it is reused by more than three callers, to avoid
+  fragmentation.
+
+## Telemetry & logging
+
+Logging is structured: `go.uber.org/zap` encoded for Elastic Common Schema via
+`go.elastic.co/ecszap`, conforming to the
+[ECS field reference](https://www.elastic.co/docs/reference/ecs). Shared field
+keys are defined once as constants in `internal/telemetry/constants.go` and
+referenced from there — never written as scattered string literals. The
+`internal/telemetry` package owns logger construction and its fx wiring.
+
+## Testing
+
+- Tests use the **Arrange / Act / Assert** structure.
+- **Table-driven** tests are the encouraged default: one `Test<Subject>`
+  function whose cases are parametrized, covering both successful and negative
+  paths in the same table. Each case carries a comment stating its intent.
+- Assertions use `testify` `assert`/`require`; collaborators are substituted
+  with `testify` `mock` where applicable.
+- **Mocks** live in the same package that defines the interface they implement,
+  are named `MockBased<Interface>`, and reside in a file named
+  `mock_based_<interface>.go`.
+- **Coverage** is 90% per package as the ideal; a lower figure is permitted only
+  when justified, and never falls below 75%.
+- **Command testability.** Each command is split into a public `Serve()` that
+  builds the `*cobra.Command` (the cobra wiring) and a private `serve()` — the
+  same name, unexported — that holds the command's logic, decoupled from the
+  cobra API, so the logic is unit tested without constructing a command.
+
 ## Approved dependencies
 
 Only these are used. Adding a dependency requires a license review and a new row
@@ -70,6 +119,7 @@ recorded as verified at vetting time.
 | `go.uber.org/fx` | Dependency injection & lifecycle | MIT |
 | `go.uber.org/zap` | Structured logging | MIT |
 | `go.elastic.co/ecszap` | ECS-formatted zap encoder | Apache-2.0 |
+| `github.com/stretchr/testify` | Test assertions and mocks (test scope) | MIT |
 
 ## Notes
 

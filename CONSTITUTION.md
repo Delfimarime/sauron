@@ -98,9 +98,11 @@ How the code that satisfies the contracts is written.
 
 ### Article 1 — Implementation standards
 
-Implementation follows the project's Go conventions (uberfx architecture, cobra
-CLI, Uber style, cognitive complexity ≤15) and is test-first with a 90%
-coverage target.
+Implementation follows the project's Go conventions — uberfx wiring, cobra CLI,
+the Uber Go Style Guide, structured zap + ECS logging, and cognitive complexity
+≤15 — and is test-first to a 90% coverage target. The full coding, telemetry,
+and testing practices are fixed by the
+[architecture contract](spec/contracts/architecture.md).
 
 ### Article 2 — Standard project layout
 
