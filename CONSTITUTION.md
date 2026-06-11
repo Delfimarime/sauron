@@ -26,26 +26,26 @@ the single normative source for spec structure, the
 state the principles; AUTHORING.md states how to satisfy them, and a spec that
 violates it is not approvable.
 
-### Article I — Spec-driven
+### Article 1 — Spec-driven
 
 Every feature begins as an approved spec under `spec/`. No implementation is
 written without a spec, and each change traces back to the requirements (FR ids)
 it realizes.
 
-### Article II — EARS requirements
+### Article 2 — EARS requirements
 
 Requirements are expressed in EARS, following the
 [EARS templates](spec/AUTHORING.md#ears-templates-normative) in AUTHORING.md.
 They describe observable behavior, not implementation.
 
-### Article III — Feature/capability separation
+### Article 3 — Feature/capability separation
 
 User-observable features are specified separately from the technical
 capabilities that enable them, per the
 [spec types](spec/AUTHORING.md#spec-types) in AUTHORING.md. A capability has no
 CLI surface of its own.
 
-### Article VIII — Decisions recorded as ADRs
+### Article 4 — Decisions recorded as ADRs
 
 Every significant technical decision — one not dictated by a requirement — is
 captured as an Architecture Decision Record under the feature's `architecture/`
@@ -55,7 +55,7 @@ coded, never made implicitly in source. Authoring mechanics (the
 `ADR-NNNN-<slug>.md` naming and layout) live in the
 [ADR structure](spec/AUTHORING.md#adr-structure) of AUTHORING.md.
 
-### Article IX — ADR structure and lifecycle
+### Article 5 — ADR structure and lifecycle
 
 Each ADR carries a **Status**, **Date**, and **Feature** header, then states its
 **Context**, the **Decision**, its **Consequences**, and a **Revisit when**
@@ -65,11 +65,11 @@ ADR is not rewritten; a decision is changed by recording a new ADR that
 supersedes the old one, so the history of why the system is shaped as it is
 remains intact.
 
-### Article X — No implementation with open questions
+### Article 6 — No implementation with open questions
 
 A spec is not ready for implementation while it carries an open or pending
 question. Every ambiguity or deferred decision is clarified first — and where
-the answer constrains the design, recorded as an ADR (Article VIII) — so that
+the answer constrains the design, recorded as an ADR (Article 4) — so that
 implementation proceeds only from a spec with nothing left unresolved. When a
 question surfaces mid-implementation, work pauses until it is answered rather
 than resolved by guesswork in code.
@@ -78,7 +78,7 @@ than resolved by guesswork in code.
 
 The command surface and the observable behavior every command must honor.
 
-### Article IV — Contract-first CLI
+### Article 1 — Contract-first CLI
 
 Every command's behavior is defined in its `contracts/command-line.md` and
 conforms to the [CLI conventions](spec/AUTHORING.md#cli-conventions) — command
@@ -86,7 +86,7 @@ grammar, shared flags, exit-status semantics, and output discipline — before i
 is implemented. The compiled [command reference](spec/contracts/cli.md)
 summarizes every command in one place.
 
-### Article VI — Safety and idempotency
+### Article 2 — Safety and idempotency
 
 Commands are idempotent where reasonable. Unregistering or deleting a source
 preserves already-installed artifacts. Destructive operations support
@@ -96,7 +96,7 @@ preserves already-installed artifacts. Destructive operations support
 
 How the code that satisfies the contracts is written.
 
-### Article V — Implementation standards
+### Article 1 — Implementation standards
 
 Implementation follows the project's Go conventions (uberfx architecture, cobra
 CLI, Uber style, cognitive complexity ≤15) and is test-first with a 90%
@@ -106,7 +106,7 @@ coverage target.
 
 The cross-cutting rule that keeps spec, plan, and code in agreement.
 
-### Article VII — Traceability
+### Article 1 — Traceability
 
 Plans and implementation reference the spec and FRs they fulfill, so every unit
 of behavior maps back to an approved requirement.
