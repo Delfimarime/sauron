@@ -2,10 +2,10 @@
 
 Normative rules for authoring and organizing specifications in this repository.
 Domain concepts live in [the spec README](README.md); the conventions every CLI
-command obeys are defined in [ CLI conventions](#cli-conventions) below, and the
-compiled per-command reference lives in [contracts/cli.md](contracts/cli.md);
-project principles live in [CONSTITUTION.md](../CONSTITUTION.md). When authoring
-specs in this repo, the `authoring-specs` skill loads and points here.
+command obeys are defined in [CLI conventions](#cli-conventions) below, and the
+compiled per-command reference lives in [contracts/cli.md](contracts/cli.md).
+When authoring specs in this repo, the `authoring-specs` skill loads and points
+here.
 
 ## Spec types
 
@@ -50,6 +50,17 @@ Every spec declares one of two types:
 - Global, cross-feature contracts live in `spec/contracts/`
   (e.g. the compiled [CLI command reference](contracts/cli.md)).
 
+Each file has a fixed purpose and a section that defines how its content is
+written:
+
+| Path | Present when | Holds | Content rules |
+|---|---|---|---|
+| `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
+| `contracts/command-line.md` | the feature owns a command | the command's synopsis, arguments, flags, output, and exit codes | [CLI conventions](#cli-conventions) (and the `authoring-cli-contracts` skill) |
+| `data/configuration.md` | the feature reads or writes config | the `settings`/`track file` schema the feature touches: location, format, schema, write semantics | [Glossary](#glossary) terms `settings` and `track file` |
+| `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
+| `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
+
 ## Required sections
 
 `spec.md`, in this order:
@@ -80,6 +91,34 @@ One sentence shape per pattern:
 - State-driven: `While <state>, Sauron shall <behavior>.`
 - Unwanted behavior: `If <condition>, then Sauron shall <behavior>.`
 - Optional: `Where <option applies>, Sauron shall <behavior>.`
+
+## ADR structure
+
+An Architecture Decision Record captures one significant technical decision for
+its feature. Files are named `architecture/ADR-NNNN-<kebab-slug>.md`, where
+`NNNN` is sequential **within the feature** (each feature's ADRs start at
+`0001`) and never reused. Every ADR is linked from the spec's
+`## Decision Records` section.
+
+Structure, in this order:
+
+1. `# ADR-NNNN: <decision as a short declarative title>`
+2. Header fields, one per line:
+   - `**Status**:` — `Accepted`, or `Superseded by [ADR-NNNN](ADR-NNNN-<slug>.md)`
+     once replaced.
+   - `**Date**:` — `YYYY-MM-DD`.
+   - `**Feature**:` — the feature's human-readable name.
+3. `## Context` — the forces, constraints, and problem that make a decision
+   necessary.
+4. `## Decision` — what was decided, in the present tense; reference the
+   `FR-NNN` ids it satisfies where relevant.
+5. `## Consequences` — the results of the decision, grouped under `**Positive**`
+   and `**Negative**`.
+6. `## Revisit when` — the condition that would reopen the decision.
+
+An accepted ADR is not rewritten: a changed decision is recorded as a new ADR
+that supersedes it, and the old one's `**Status**` is updated to point at the
+replacement.
 
 ## Glossary
 

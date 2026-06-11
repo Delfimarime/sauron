@@ -2,10 +2,8 @@
 
 The compiled reference for the `sauron` CLI: every command with its synopsis,
 intent, and key flags, each linking to the feature contract that owns its full
-behavior. The conventions every command obeys — command grammar, shared flags,
-exit-status semantics, and output discipline — are defined in
-[spec/AUTHORING.md § CLI conventions](../AUTHORING.md#cli-conventions). Project
-principles live in [CONSTITUTION.md](../../CONSTITUTION.md).
+behavior. Every command obeys the same command grammar, shared flags,
+exit-status semantics, and output discipline.
 
 ## add repository
 
