@@ -21,12 +21,14 @@ cmd/
 internal/
   cmd/
     root.go                root cobra command
-    helper.go              builds the uberfx application the commands use
+    helper.go              NewApp() builder and common command helpers
     helper_flags.go        shared flag structs and their bind functions
     <sub-command>.go       one file per command
     <sub-command>_capability_<name>.go   a capability of a command
-  config/                  spf13/viper init and configuration management
+  config/
+    fx.go                  NewFxOptions() fx.Option; exposes the Configuration struct
   telemetry/
+    fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     constants.go           shared ECS log/trace field keys
   repository/
     fx.go                  exposes NewFxOptions() fx.Option
@@ -49,11 +51,21 @@ depend on the `pkg/` interfaces, not on a concrete adapter.
 
 ## Dependency wiring (uberfx)
 
-- Each adapter family package owns an `fx.go` exposing
-  `NewFxOptions() fx.Option` (`internal/repository/fx.go`,
-  `internal/provider/fx.go`).
-- `cmd/main.go` bootstraps the binary; `internal/cmd/helper.go` assembles the
-  `fx.Option`s into the application that the commands execute.
+- Module packages own an `fx.go` exposing `NewFxOptions() fx.Option`
+  (`internal/config/fx.go`, `internal/telemetry/fx.go`,
+  `internal/repository/fx.go`, `internal/provider/fx.go`). Configuration is
+  loaded with viper, but only the resulting `Configuration` struct is provided
+  into the container — `*viper.Viper` is never placed in the fx graph.
+- `internal/cmd/helper.go` provides
+  `NewApp(ctx context.Context, opts ...fx.Option) *fx.App`. It **builds but does
+  not start** a minimal app wired with the modules transversal to every command
+  (telemetry, configuration, and the like), supplies the command's context
+  (`cmd.Context()`) into the container, sets `fx.WithLogger` from the
+  DI-provided zap logger (constructed by `internal/telemetry`), and appends the
+  caller's `opts`.
+- Each command owns its `fx.Option`s — constructing them directly or via
+  `<package>.NewFxOptions()` — and passes them to `NewApp` from its `Serve()`.
+  `cmd/main.go` bootstraps the binary.
 
 ## Command flags
 
