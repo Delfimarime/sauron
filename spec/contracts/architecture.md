@@ -22,7 +22,9 @@ internal/
   cmd/
     root.go                root cobra command
     helper.go              builds the uberfx application the commands use
+    helper_flags.go        shared flag structs and their bind functions
     <sub-command>.go       one file per command
+    <sub-command>_capability_<name>.go   a capability of a command
   config/                  spf13/viper init and configuration management
   telemetry/
     constants.go           shared ECS log/trace field keys
@@ -52,6 +54,26 @@ depend on the `pkg/` interfaces, not on a concrete adapter.
   `internal/provider/fx.go`).
 - `cmd/main.go` bootstraps the binary; `internal/cmd/helper.go` assembles the
   `fx.Option`s into the application that the commands execute.
+
+## Command flags
+
+Flags are bound into structs in package `internal/cmd`; command logic never
+reads flags off the `*cobra.Command`.
+
+- Flags shared across commands are defined once as small, concern-grouped
+  structs (e.g. listing, dry-run, timeout) in
+  `internal/cmd/helper_flags.go`, each paired with a `bind<Group>Flags` function
+  that registers the flags and binds them to the struct. These are the shared
+  flags defined by the CLI conventions.
+- Each command declares its own `<command>Flags` struct that embeds the common
+  group structs for the flags it shares and adds any command-specific fields.
+- A command's public `Serve()` registers the flags into its `<command>Flags`
+  value via the bind functions; the private `serve()` receives that populated
+  struct — alongside the `context.Context` and the command's positional
+  arguments — so the logic is tested without cobra.
+- Flag values are not bound to viper; there is no flag→viper binding. Flags pass
+  directly to `serve()`, independent of the persisted configuration in
+  `internal/config`.
 
 ## Coding standards
 
