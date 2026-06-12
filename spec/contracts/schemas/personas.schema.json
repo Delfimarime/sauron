@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sauron.dev/schemas/personas.schema.json",
+  "title": "Sauron personas.yaml",
+  "description": "The installed personas, each stored with its full definition. See spec/contracts/configuration.md#personasyaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "items"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/persona" }
+    }
+  },
+  "$defs": {
+    "persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "priority"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "priority": { "type": "integer", "minimum": 0 },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "agents": { "type": "array", "items": { "type": "string" } },
+        "last_modified_at": { "type": "string", "format": "date-time" },
+        "last_synced_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
