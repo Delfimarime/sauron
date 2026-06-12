@@ -26,9 +26,14 @@ call for, at their latest versions.
   installed, Sauron shall use all artifacts from all registered registries as
   the desired set.
 - **FR-004**: When the same artifact name is provided by more than one
-  registry, Sauron shall take it from the registry with the higher
-  precedence (lower priority value) (see
+  registry and is not pinned, Sauron shall take it from the registry with the
+  higher precedence (lower priority value) (see
   [ADR-0001](architecture/ADR-0001-conflict-resolution-by-registry-priority.md)).
+- **FR-018**: When an artifact is pinned to a registry (its track entry's
+  `pinned` is `true`, set by [pin artifact](../0020-pin-artifact/spec.md)), Sauron
+  shall take it from the pinned registry, overriding priority-based conflict
+  resolution (see
+  [ADR-0002](architecture/ADR-0002-pins-override-priority.md)).
 - **FR-005**: When computing changes, Sauron shall compare the desired set
   against the artifacts recorded for the active provider in the track file
   (`~/.sauron/track.yaml`) and produce a plan of additions/updates and
@@ -98,6 +103,8 @@ call for, at their latest versions.
 
 - [Conflict resolution by registry priority](architecture/ADR-0001-conflict-resolution-by-registry-priority.md)
   — same-named artifacts resolve by registry priority.
+- [Pins override priority](architecture/ADR-0002-pins-override-priority.md)
+  — a pinned artifact is taken from its pinned registry, above priority.
 
 ## Notes
 

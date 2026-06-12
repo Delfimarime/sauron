@@ -143,6 +143,7 @@ One canonical term per concept; specs do not use synonyms for these:
 | installed persona | A persona activated locally via `set persona`, stored with its definition in `personas.yaml`; it participates in artifact sync and carries a priority. An *available* persona is one the backend offers live but that is not installed |
 | provider | The provider destination (e.g. `claude`, `zencoder`) |
 | priority | Integer precedence; lower value wins |
+| pin | A user-declared binding of an artifact to a specific registry that overrides priority-based conflict resolution; recorded as `pinned` on the artifact's `track file` entry |
 | sync | The operation that reconciles the provider with registries/personas |
 | plan | The printed list of pending additions/removals (`+`/`-` lines) |
 | track file | `track.yaml`, recording installed artifacts and provenance |
@@ -180,10 +181,11 @@ sauron <verb> [<noun> [<noun>]] [flags] <args...>
 
 - Verb–noun hierarchy: `add registry`, `list personas`,
   `set priority registry`, `unset backend`, `describe persona`,
-  `schedule sync artifacts`. `unset` is the inverse of `set` (clears a setting or
-  selection, as opposed to `delete`, which destroys an owned resource);
-  `unschedule` is the inverse of `schedule` (removes a scheduled job); `describe`
-  shows a single resource's detail.
+  `schedule sync artifacts`, `pin skill`. `unset` is the inverse of `set` (clears
+  a setting or selection, as opposed to `delete`, which destroys an owned
+  resource); `unschedule` is the inverse of `schedule` (removes a scheduled job);
+  `unpin` is the inverse of `pin` (removes an artifact's registry binding);
+  `describe` shows a single resource's detail.
 - Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
   otherwise. Repeatable flags are marked `...` in synopses.
 - Positional arguments follow flags in synopses and are written `<name>`.
@@ -205,6 +207,7 @@ contradict it.
 | `--persona <name>` | Scope the operation to one persona's artifacts |
 | `--fields <list>` | Comma-separated columns to display, in order, for `list` and `describe`; the identity field is always present and first. Each contract defines its valid field set |
 | `--force` | Re-pull authoritatively, reconciling away local entries no longer present upstream |
+| `--reconcile` | Apply the change immediately by reconciling the affected artifacts (a scoped sync), instead of only recording it |
 | `--timeout <duration>` | Bound on network operations, default `30s` |
 
 ### Exit status

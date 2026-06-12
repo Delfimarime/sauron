@@ -303,8 +303,9 @@ Installed Artifact entry:
 | `name` | string | Yes | Artifact name, as installed. |
 | `provider` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). |
 | `path` | string | Yes | Where it was installed (the provider's location for this artifact). |
-| `registry` | string | Yes | Source registry name — the conflict winner per [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md). |
+| `registry` | string | Yes | Source registry name — the winning registry, resolved by pin then priority per [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md) and [ADR-0002](../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md). |
 | `persona` | string | No | Installed persona that brought the artifact into the desired set; the highest-precedence one when several do; absent when synced without personas. |
+| `pinned` | boolean | No | `true` when `registry` is a user pin set by [pin artifact](../0020-pin-artifact/spec.md) rather than the priority-resolved winner; absent or `false` otherwise. |
 
 An entry is identified by (`provider`, `type`, `name`): the same artifact
 delivered to two providers yields two entries.
@@ -318,6 +319,7 @@ items:
     path: /home/user/.claude/skills/code-review
     registry: team-deploy
     persona: backend-developer
+    pinned: true
 ```
 
 ## Live persona view

@@ -11,9 +11,11 @@ document does not restate it.
 
 ## Reads
 
-- `registries.yaml` `items`: the sources of artifacts; `priority`
-  resolves same-named artifacts
+- `registries.yaml` `items`: the sources of artifacts; same-named artifacts
+  resolve by pin then `priority` — a `track.yaml` entry's `pinned` registry wins
+  over priority
   ([ADR-0001](../architecture/ADR-0001-conflict-resolution-by-registry-priority.md),
+  [ADR-0002](../architecture/ADR-0002-pins-override-priority.md),
   [#registriesyaml](../../contracts/configuration.md#registriesyaml)).
 - `personas.yaml` `items`: the installed personas and their stored
   definitions — the desired set when no `--persona` narrows it; persona ordering
@@ -27,10 +29,11 @@ document does not restate it.
 ## Owns
 
 - `track.yaml` `items`: the delivered artifacts and their provenance —
-  `type`, `name`, `provider`, `path`, `registry`, and (when personas are in
-  play) `persona`, the highest-precedence installed persona that brought the
-  artifact into the desired set. Realizes [spec](../spec.md) FR-006. Created on
-  the first successful run if absent.
+  `type`, `name`, `provider`, `path`, `registry`, `pinned` (true when `registry`
+  is a user pin per [ADR-0002](../architecture/ADR-0002-pins-override-priority.md)),
+  and (when personas are in play) `persona`, the highest-precedence installed
+  persona that brought the artifact into the desired set. Realizes
+  [spec](../spec.md) FR-006, FR-018. Created on the first successful run if absent.
 
 ## Writes
 

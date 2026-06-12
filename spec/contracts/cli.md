@@ -245,3 +245,41 @@ removes it. (Remove every schedule at once with `unschedule sync`.)
 
 - Required arg: `<expression>` (cron) for `schedule`.
 - Full contract → [0019-schedule-sync-personas](../0019-schedule-sync-personas/contracts/command-line.md).
+
+## pin skill / pin agent
+
+```
+sauron pin skill <name> <registry> [--reconcile]
+sauron pin agent <name> <registry> [--reconcile]
+sauron unpin skill <name> [--reconcile] [--dry-run]
+sauron unpin agent <name> [--reconcile] [--dry-run]
+```
+
+Bind an artifact to a registry, overriding priority; `unpin` removes the binding.
+
+- Key flags: `--reconcile` (apply now via a scoped sync), `--dry-run` (`unpin` preview).
+- Full contract → [0020-pin-artifact](../0020-pin-artifact/contracts/command-line.md).
+
+## list skills / list agents
+
+```
+sauron list skills [--available] [--registry <name>] [--search <term>] [--fields <list>] [--sort <name|registry|type>] [--order <asc|desc>]
+sauron list agents [--available] [--registry <name>] [--search <term>] [--fields <list>] [--sort <name|registry|type>] [--order <asc|desc>]
+```
+
+List managed skills/agents; `--available` shows a registry's offerings or the resolved catalog.
+
+- Key flags: `--available`, `--registry`, `--search`, `--fields` (incl. `source`, `pinned`), `--sort`, `--order`.
+- Full contract → [0021-list-artifacts](../0021-list-artifacts/contracts/command-line.md).
+
+## describe skill / describe agent
+
+```
+sauron describe skill <name> [--fields <list>]
+sauron describe agent <name> [--fields <list>]
+```
+
+Show one managed skill's or agent's detail.
+
+- Key flags: `--fields` (incl. `source`, `pinned`).
+- Full contract → [0022-describe-artifact](../0022-describe-artifact/contracts/command-line.md).

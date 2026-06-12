@@ -64,7 +64,8 @@ treats it as a source like any other.
   the installed artifacts to the new provider's directories.
 - **Priority** — integer precedence, lower value wins. When two registries
   offer the same artifact name, registry priority resolves the conflict;
-  persona priority orders personas the same way.
+  persona priority orders personas the same way. A **pin** binds a specific
+  artifact to a chosen registry, overriding priority for that artifact.
 - **Sync & Plan** — sync computes the desired artifact set from registries
   and personas, prints a **plan** (`+` additions, `-` removals), and
   reconciles the provider to it. A dry run prints the plan and stops, changing

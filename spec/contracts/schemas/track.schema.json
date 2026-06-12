@@ -24,7 +24,8 @@
         "provider": { "enum": ["claude", "zencoder"] },
         "path": { "type": "string", "minLength": 1 },
         "registry": { "type": "string", "minLength": 1 },
-        "persona": { "type": "string" }
+        "persona": { "type": "string" },
+        "pinned": { "type": "boolean" }
       }
     }
   }
