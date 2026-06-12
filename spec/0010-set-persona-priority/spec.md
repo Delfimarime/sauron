@@ -7,8 +7,10 @@
 
 A person responsible for a team's agentic-AI setup needs to change a persona's
 priority, so that the precedence order among personas reflects the team's
-intent. Persona priority follows the model decided in
-[import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md).
+intent. Persona priority follows the unified model decided in
+[import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md):
+a persona's priority is always defined and unique within its kind, a lower value
+wins, and the first or only persona holds `0`.
 
 ## Requirements
 
@@ -25,10 +27,10 @@ intent. Persona priority follows the model decided in
   persona's defined priority and persist the updated settings.
 - **FR-004**: When the value equals the persona's current priority, Sauron
   shall make no change and report success (no-op).
-- **FR-005**: When the persona's priority is undefined, Sauron shall accept
-  the request and give it the defined value (per
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md),
-  this moves it from the undefined tier into the defined order).
+- **FR-005**: When the request changes the persona's priority, Sauron shall
+  replace its current value with the new value and re-establish the unique
+  precedence order (per
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)).
 
 ### State-driven
 
@@ -45,7 +47,7 @@ intent. Persona priority follows the model decided in
 - **FR-009**: If only one persona exists, then Sauron shall reject the request
   and report that priority cannot be changed while a single persona exists —
   it keeps priority `0` (see
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)).
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)).
 - **FR-010**: If no persona with the given name exists, then Sauron shall
   reject the request and report that the persona is not found.
 - **FR-011**: If the value is already used by another persona, then Sauron
@@ -59,7 +61,8 @@ intent. Persona priority follows the model decided in
 
 - **Persona**: a registered named set of artifacts (see
   [import persona](../0005-import-persona/spec.md)), identified by its name.
-  Its priority follows the model in
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)
-  — zero-anchored, optional, defined values unique, undefined ranks last; this
-  feature is the only way to change it after import.
+  Its priority follows the unified model in
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)
+  — always defined and unique within its kind, a lower value wins, and the
+  first or only persona holds `0`; this feature is the only way to change it
+  after import.

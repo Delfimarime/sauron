@@ -12,8 +12,8 @@ Describes how the Set Persona Priority feature modifies the persisted configurat
 ## Operation
 
 - The `priority` field of the persona whose `name` matches the argument is set to the given value; all other fields and all other personas are preserved unchanged. Realizes [spec](../spec.md) FR-003.
-- A persona with undefined priority gains a `priority` field; an existing value is replaced. Realizes [spec](../spec.md) FR-005.
-- Uniqueness is enforced over defined values only — the new value must not be held by another persona. `0` is assignable only when free (see [import persona ADR-0001](../../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)). Realizes [spec](../spec.md) FR-011.
+- The persona's existing `priority` value is replaced with the new value. Realizes [spec](../spec.md) FR-005.
+- Uniqueness is enforced over all personas — the new value must not be held by another persona. `0` is assignable only when free (see [import persona ADR-0002](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)). Realizes [spec](../spec.md) FR-011.
 - The request is rejected while only one persona exists; that persona keeps `0`. Realizes [spec](../spec.md) FR-009.
 
 ## Write semantics

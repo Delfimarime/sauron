@@ -19,7 +19,7 @@ Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → 
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `<name>` | Yes | Name of the repository. Realizes [spec](../spec.md) FR-002, FR-006, FR-008. |
-| `<value>` | Yes | New priority — a positive integer (`1` or greater) not used by another repository. Realizes [spec](../spec.md) FR-002, FR-007, FR-009. |
+| `<value>` | Yes | New priority — a non-negative integer not used by another repository (`0` is assignable only when no repository holds it). See the [unified priority model](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md). Realizes [spec](../spec.md) FR-002, FR-007, FR-009. |
 
 ## Flags
 
@@ -38,8 +38,8 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Priority set (including the no-op case) | [spec](../spec.md) FR-003, FR-004 |
-| `2` | Usage error — missing `<name>`/`<value>`, or `<value>` not a positive integer | [spec](../spec.md) FR-006, FR-007 |
-| `1` | Validation error — repository not found, priority taken, or the settings unreadable | [spec](../spec.md) FR-008, FR-009, FR-010 |
+| `2` | Usage error — missing `<name>`/`<value>`, or `<value>` not a non-negative integer | [spec](../spec.md) FR-006, FR-007 |
+| `1` | Runtime error — repository not found, priority taken, only a single repository exists, or the settings unreadable | [spec](../spec.md) FR-008, FR-009, FR-010, FR-011 |
 
 ## Examples
 
@@ -56,11 +56,15 @@ Priority of repository 'team-http' is already 5
 $ sauron set priority repository team-http 1
 Error: priority 1 is already in use
 
-# Repository not found (validation error, exit 1)
+# Repository not found (runtime error, exit 1)
 $ sauron set priority repository ghost 3
 Error: no repository named 'ghost'
 
+# Single repository (runtime error, exit 1)
+$ sauron set priority repository only-repo 2
+Error: priority cannot be changed while a single repository exists
+
 # Invalid value (usage error, exit 2)
-$ sauron set priority repository team-http 0
-Error: priority must be a positive integer (1 or greater)
+$ sauron set priority repository team-http -1
+Error: priority must be a non-negative integer
 ```

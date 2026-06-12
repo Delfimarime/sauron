@@ -20,7 +20,7 @@ The persona entry whose `name` matches the definition file's `name` is updated i
 | `tags` | Replaced with the file's value (removed when the file omits it). Realizes [spec](../spec.md) FR-005. |
 | `agents` | Replaced with the file's value. Realizes [spec](../spec.md) FR-005. |
 | `skills` | Replaced with the file's value. Realizes [spec](../spec.md) FR-005. |
-| `priority` | Preserved exactly — defined or undefined. Realizes [spec](../spec.md) FR-006. |
+| `priority` | Preserved unchanged by update; managed by [set priority persona](../../0010-set-persona-priority/spec.md) (see [import persona ADR-0002](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)). Realizes [spec](../spec.md) FR-006. |
 
 All other personas are preserved unchanged.
 

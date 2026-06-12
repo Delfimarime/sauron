@@ -37,25 +37,28 @@ resolution during [sync](../0009-sync/spec.md).
 
 - **FR-006**: If the name or the value is missing, then Sauron shall reject
   the request and report what is required.
-- **FR-007**: If the value is not a positive integer (`1` or greater), then
-  Sauron shall reject the request and report that a positive integer is
-  required.
+- **FR-007**: If the value is not a non-negative integer, then Sauron shall
+  reject the request and report that a non-negative integer is required.
 - **FR-008**: If no repository with the given name exists, then Sauron shall
   reject the request and report that the repository is not found.
 - **FR-009**: If the value is already used by another repository, then Sauron
   shall reject the request, leave the configuration unchanged, and report that
-  the priority must be unique.
+  the priority must be unique (`0` is assignable only when no repository holds
+  it).
 - **FR-010**: If the settings cannot be read or parsed, then Sauron shall
   reject the request and report that the settings cannot be read.
+- **FR-011**: If only one repository exists, then Sauron shall reject the
+  request and report that priority cannot be changed while a single repository
+  exists — it keeps priority `0` (see
+  [unified priority model](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)).
 
 ## Key Entities
 
 - **Repository**: a registered source of artifacts (see
   [add repository](../0001-add-repository/spec.md)), identified by its name.
-  Its priority is a positive integer, unique across all repositories
-  regardless of kind, where a lower value means higher precedence. Unlike
-  persona priority (see
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)),
-  repository priority is always defined — there is no zero-anchor, no
-  undefined value, and no single-repository guard; this feature is the only
-  way to change it after the repository is added.
+  Its priority follows the unified model in
+  [unified priority model](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)
+  — an optional non-negative integer, unique across all repositories
+  regardless of kind, where the first repository is `0` and a lower value means
+  higher precedence; this feature is the only way to change it after the
+  repository is added.

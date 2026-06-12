@@ -24,12 +24,12 @@ None.
 |------|----------|---------|--------|-------------|
 | `--search` | No | — | text | Case-insensitive substring; keeps personas whose name or description contains it. Realizes [spec](../spec.md) FR-010. |
 | `--tag` | No | — | text (repeatable) | Keeps personas carrying every given tag (all-match). Realizes [spec](../spec.md) FR-011. |
-| `--sort` | No | priority | name, priority | Attribute to order by. Realizes [spec](../spec.md) FR-013, FR-008. |
+| `--sort` | No | priority | name, priority | Attribute to order by; `priority` orders ascending by priority. Realizes [spec](../spec.md) FR-013, FR-008. |
 | `--order` | No | asc | asc, desc | Sort direction. Realizes [spec](../spec.md) FR-014, FR-009. |
 
 ## Output
 
-- **Success**: a table on stdout with columns NAME, PRIORITY, TAGS, SKILLS, AGENTS (the last two as counts; PRIORITY shows `-` when undefined), ordered by the chosen attribute and direction. When nothing is registered or nothing matches, a single message instead of a table.
+- **Success**: a table on stdout with columns NAME, PRIORITY, TAGS, SKILLS, AGENTS (the last two as counts; PRIORITY is always a defined non-negative integer), ordered by the chosen attribute and direction. When nothing is registered or nothing matches, a single message instead of a table.
 - **Failure**: a single human-readable message on stderr.
 
 ## Exit codes
@@ -46,12 +46,12 @@ this table refines which conditions map to each code.
 ## Examples
 
 ```
-# List all (default: priority ascending; undefined priorities last)
+# List all (default: priority ascending)
 $ sauron list personas
 NAME               PRIORITY  TAGS             SKILLS  AGENTS
 backend-developer  0         backend, golang  2       1
 qa-engineer        1         qa               1       0
-designer           -         design           1       1
+designer           2         design           1       1
 
 # Filter by tags (all must match)
 $ sauron list personas --tag backend --tag golang
@@ -67,7 +67,7 @@ qa-engineer  1         qa    1       0
 $ sauron list personas --sort name --order desc
 NAME               PRIORITY  TAGS             SKILLS  AGENTS
 qa-engineer        1         qa               1       0
-designer           -         design           1       1
+designer           2         design           1       1
 backend-developer  0         backend, golang  2       1
 
 # Nothing registered (exit 0)

@@ -18,7 +18,7 @@ A YAML document supplied by the user via `<path>`:
 
 \* At least one entry is required across `agents` and `skills` combined. Realizes [spec](../spec.md) FR-015.
 
-The file never carries a priority — priority comes from `--priority` at import and is managed afterwards by [set priority persona](../../0010-set-persona-priority/spec.md) (see [ADR-0001](../architecture/ADR-0001-persona-priority-model.md)).
+The file never carries a priority — priority comes from `--priority` at import and is managed afterwards by [set priority persona](../../0010-set-persona-priority/spec.md) (see [ADR-0002](../architecture/ADR-0002-unified-priority-model.md)).
 
 Example:
 
@@ -56,11 +56,11 @@ Persona entry:
 | `tags` | list of string | No | — | From the definition file. |
 | `agents` | list of string | No* | — | From the definition file. |
 | `skills` | list of string | No* | — | From the definition file. |
-| `priority` | integer | No | `0` for the first persona; ≥ 1 and unique among defined values otherwise; absent = undefined | Precedence; lower = higher. Realizes [spec](../spec.md) FR-003, FR-006, FR-020, FR-007. |
+| `priority` | integer | No | non-negative; unique across personas; `0` for the first persona; `max + 1` when omitted on a later import. Always present once written. | Precedence; lower = higher. Realizes [spec](../spec.md) FR-003, FR-006, FR-020, FR-007. |
 
 ## Identity
 
-A persona is identified by its `name`, unique across all personas. Defined priorities are unique among personas; undefined priorities may repeat (see [ADR-0001](../architecture/ADR-0001-persona-priority-model.md)).
+A persona is identified by its `name`, unique across all personas. Every persona priority is defined and unique across personas (see [ADR-0002](../architecture/ADR-0002-unified-priority-model.md)).
 
 ## Write semantics
 
@@ -77,8 +77,9 @@ personas:
     tags: [backend, golang]
     agents: [software-engineer]
     skills: [design-oas3, code-review]
-  - name: qa-engineer              # imported without --priority
+  - name: qa-engineer              # imported without --priority → assigned max + 1
     description: QA engineers validating releases
+    priority: 1
     tags: [qa]
     skills: [test-plan]
 ```

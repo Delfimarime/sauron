@@ -22,10 +22,9 @@ listing is read-only.
 - **FR-002**: When a user lists personas, Sauron shall read the registered
   personas from the settings and display each one's name, priority, tags, and
   number of skills and agents.
-- **FR-003**: When ordering by priority, Sauron shall rank defined priorities
-  first, ascending (`0` first), followed by personas with undefined priority
-  ordered by name among themselves (per
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md));
+- **FR-003**: When ordering by priority, Sauron shall rank personas by priority
+  ascending (`0` first), since every persona has a defined, unique priority (per
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md));
   descending reverses that order.
 
 ### Unwanted behavior
@@ -62,4 +61,4 @@ listing is read-only.
 
 - **Persona**: a registered named set of artifacts (see
   [import persona](../0005-import-persona/spec.md)), shown by its name,
-  priority (`-` when undefined), tags, and skill/agent counts.
+  priority, tags, and skill/agent counts.

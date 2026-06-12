@@ -9,7 +9,7 @@ Describes the data sync reads and the tracking record it owns. Sync reads `setti
 Read-only for sync:
 
 - `repositories[]` — the sources of artifacts; the `priority` field resolves same-named artifacts ([ADR-0001](../architecture/ADR-0001-conflict-resolution-by-repository-priority.md)).
-- `personas[]` — the persona definitions that scope the desired set; persona ordering follows [import persona ADR-0001](../../0005-import-persona/architecture/ADR-0001-persona-priority-model.md).
+- `personas[]` — the persona definitions that scope the desired set; persona ordering follows [import persona ADR-0002](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md).
 - `target` — the active provider to deliver to (`claude` by default; managed by [set target](../../0012-set-target/spec.md)). Realizes [spec](../spec.md) FR-007.
 
 ## Tracking record — `~/.sauron/track.yaml`

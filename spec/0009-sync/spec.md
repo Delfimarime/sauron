@@ -39,7 +39,7 @@ at their latest versions.
   with its source repository, the persona that brought it into the desired set
   (when personas are in play; when several do, the highest-precedence persona
   per
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)),
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)),
   the target, and the installed path.
 - **FR-007**: When sync runs, Sauron shall deliver to the configured global
   target (`claude` by default; set with

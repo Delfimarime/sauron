@@ -13,7 +13,7 @@ and [git](../capabilities/git.md) capabilities.
 ## Synopsis
 
 ```
-sauron add repository [--kind <http|filesystem|git>] --priority <n>
+sauron add repository [--kind <http|filesystem|git>] [--priority <n>]
   [--username ${env:VAR}] [--password ${env:VAR}] [--skip-tls-verify]
   [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
   [--ssh-key <path>] [--timeout <duration>]
@@ -28,18 +28,18 @@ selected explicitly.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | Yes | Unique slug `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across all kinds. Realizes [spec](../spec.md) FR-002, FR-004, FR-005, FR-010, FR-011, FR-014. |
-| `<location>` | Yes | The artifact source, by kind: an `http`/`https` URL ([http](../capabilities/http.md)), a directory path resolved to an absolute, symlink-resolved path before use ([filesystem](../capabilities/filesystem.md)), or an SSH-based git URI — scp-like or `ssh://` ([git](../capabilities/git.md)). Realizes [spec](../spec.md) FR-004, FR-012, FR-016. |
+| `<name>` | Yes | Unique slug `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across all kinds. Realizes [spec](../spec.md) FR-002, FR-004, FR-005, FR-012, FR-013, FR-016. |
+| `<location>` | Yes | The artifact source, by kind: an `http`/`https` URL ([http](../capabilities/http.md)), a directory path resolved to an absolute, symlink-resolved path before use ([filesystem](../capabilities/filesystem.md)), or an SSH-based git URI — scp-like or `ssh://` ([git](../capabilities/git.md)). Realizes [spec](../spec.md) FR-004, FR-014, FR-018. |
 
 ## Flags
 
 A kind-scoped flag passed with a different kind is a usage error (exit `2`).
-Realizes [spec](../spec.md) FR-017.
+Realizes [spec](../spec.md) FR-019.
 
 | Flag | Scope | Required | Default | Values | Description |
 |------|-------|----------|---------|--------|-------------|
 | `--kind` | all | No | `http` | `http`, `filesystem`, `git` | Repository kind; defaults to `http`, so `filesystem` and `git` must be given explicitly. Realizes [spec](../spec.md) FR-004. |
-| `--priority` | all | Yes | — | positive int | Unique across all kinds, lower = higher precedence. Realizes [spec](../spec.md) FR-003, FR-004, FR-013, FR-015. |
+| `--priority` | all | No | first repo `0`, else `max + 1` | non-negative int | Optional; unique across all kinds, lower = higher precedence. The first repository takes `0`; an omitted value appends at the end (`max + 1`). See the [unified priority model](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md). Realizes [spec](../spec.md) FR-003, FR-004, FR-009, FR-010, FR-015, FR-017, FR-022. |
 | `--username` | http | No | — | `${env:VAR}` only | Basic-auth user, env reference only. Realizes [http](../capabilities/http.md) FR-004, FR-009, FR-010. |
 | `--password` | http | No | — | `${env:VAR}` only | Basic-auth password, env reference only. Realizes [http](../capabilities/http.md) FR-004, FR-009, FR-010. |
 | `--skip-tls-verify` | http | No | false | — | Skip server cert verification. Realizes [http](../capabilities/http.md) FR-003. |
@@ -54,7 +54,7 @@ Realizes [spec](../spec.md) FR-017.
 - **Success**: a single confirmation line on stdout naming the registered
   repository name and location. Realizes [spec](../spec.md) FR-008.
 - **Failure**: a single human-readable message on stderr. No partial output,
-  no stack traces. Realizes [spec](../spec.md) FR-019.
+  no stack traces. Realizes [spec](../spec.md) FR-021.
 
 ## Exit codes
 
@@ -64,8 +64,8 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Repository registered | [spec](../spec.md) FR-006, FR-008 |
-| `2` | Usage error — missing `<name>`/`<location>`, invalid name, missing/invalid `--priority`, unknown `--kind`, invalid `--timeout`, a kind-scoped flag on a different kind; **http**: invalid (non-`http`/`https`) URL, raw (non-env) credential, unpaired `--client-cert`/`--client-key`; **git**: non-SSH or malformed git URI | [spec](../spec.md) FR-010, FR-011, FR-012, FR-013, FR-017, FR-018; [http](../capabilities/http.md) FR-006, FR-008, FR-009, FR-012; [git](../capabilities/git.md) FR-005, FR-008 |
-| `1` | Validation error — duplicate name, duplicate priority; **http**: server unreachable (connection, TLS, or non-success `HEAD`), unset `${env:VAR}`, unreadable CA/cert/key file; **filesystem**: directory not accessible, no artifacts under `.skills/` or `.agents/`; **git**: remote unreachable or authentication failed, unreadable `--ssh-key` file | [spec](../spec.md) FR-014, FR-015; [http](../capabilities/http.md) FR-007, FR-010, FR-011; [filesystem](../capabilities/filesystem.md) FR-005, FR-006; [git](../capabilities/git.md) FR-006, FR-007 |
+| `2` | Usage error — missing `<name>`/`<location>`, invalid name, a `--priority` that is not a non-negative integer, a non-`0` `--priority` for the first repository, unknown `--kind`, invalid `--timeout`, a kind-scoped flag on a different kind; **http**: invalid (non-`http`/`https`) URL, raw (non-env) credential, unpaired `--client-cert`/`--client-key`; **git**: non-SSH or malformed git URI | [spec](../spec.md) FR-012, FR-013, FR-014, FR-015, FR-019, FR-020, FR-022; [http](../capabilities/http.md) FR-006, FR-008, FR-009, FR-012; [git](../capabilities/git.md) FR-005, FR-008 |
+| `1` | Validation error — duplicate name, duplicate priority; **http**: server unreachable (connection, TLS, or non-success `HEAD`), unset `${env:VAR}`, unreadable CA/cert/key file; **filesystem**: directory not accessible, no artifacts under `.skills/` or `.agents/`; **git**: remote unreachable or authentication failed, unreadable `--ssh-key` file | [spec](../spec.md) FR-016, FR-017; [http](../capabilities/http.md) FR-007, FR-010, FR-011; [filesystem](../capabilities/filesystem.md) FR-005, FR-006; [git](../capabilities/git.md) FR-006, FR-007 |
 
 ## Examples
 
@@ -73,6 +73,14 @@ this table refines which conditions map to each code.
 # http (kind defaults to http)
 $ sauron add repository --priority 1 team-http https://skills.example.com
 Registered repository 'team-http': https://skills.example.com
+
+# First repository, --priority omitted (assigned 0)
+$ sauron add repository team-base https://base.example.com
+Registered repository 'team-base': https://base.example.com
+
+# Later repository, --priority omitted (appended at the end, max + 1)
+$ sauron add repository --kind filesystem team-extra ./team-extra
+Registered repository 'team-extra': /home/user/team-extra
 
 # http with basic auth via environment references
 $ sauron add repository --priority 2 \

@@ -8,12 +8,12 @@ exit-status semantics, and output discipline.
 ## add repository
 
 ```
-sauron add repository [--kind <kind>] --priority <n> [kind-scoped flags] <name> <location>
+sauron add repository [--kind <kind>] [--priority <n>] [kind-scoped flags] <name> <location>
 ```
 
 Register an artifact source of any kind.
 
-- Key flags: `--kind` (default `http`), `--priority` (required), `--timeout`
+- Key flags: `--kind` (default `http`), `--priority` (optional; first repo `0`, else `max + 1`), `--timeout`
   (http/git); kind-scoped auth/TLS flags (`--username`/`--password`,
   `--skip-tls-verify`, `--ca-cert`, `--client-cert`/`--client-key`, `--ssh-key`).
 - Full contract → [0001-add-repository](../0001-add-repository/contracts/command-line.md).

@@ -184,7 +184,7 @@ contradict it.
 | Flag | Meaning |
 |---|---|
 | `--dry-run` | Print the plan without changing the environment or the track file |
-| `--priority <n>` | Integer precedence; lower value wins; unique within its namespace |
+| `--priority <n>` | Optional integer precedence (lower value wins), unique within its kind; the first resource is `0`, an omitted value appends at the end (`max + 1`). See the [priority model](0005-import-persona/architecture/ADR-0002-unified-priority-model.md) |
 | `--kind <kind>` | Repository kind: `http` (default), `filesystem`, or `git` |
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |

@@ -16,7 +16,7 @@ Every repository already carries a priority that is unique across all repositori
 
 When the desired set contains an artifact name that more than one repository provides, sync takes it from the **repository with the lowest priority value** (highest precedence). The same rule applies regardless of repository kind. The chosen repository is recorded as the artifact's provenance in `~/.sauron/track.yaml`.
 
-Persona priority plays a different role: it does not select artifact contents (two personas naming the same artifact get the same resolved artifact); it only determines which persona is recorded as provenance when several bring the same artifact into the desired set ([import persona ADR-0001](../../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)).
+Persona priority plays a different role: it does not select artifact contents (two personas naming the same artifact get the same resolved artifact); it only determines which persona is recorded as provenance when several bring the same artifact into the desired set ([import persona ADR-0002](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)).
 
 ## Consequences
 

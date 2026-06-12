@@ -16,7 +16,7 @@ Top-level `personas` array; each entry contributes the columns shown:
 | Column | Source field | Notes |
 |--------|--------------|-------|
 | NAME | `name` | Identity; sortable. |
-| PRIORITY | `priority` | Sortable; default sort attribute; shown as `-` when undefined. |
+| PRIORITY | `priority` | Sortable; default sort attribute; always a defined non-negative integer. |
 | TAGS | `tags` | Comma-separated; empty when absent. |
 | SKILLS | `skills` | Count of entries. |
 | AGENTS | `agents` | Count of entries. |
@@ -25,7 +25,7 @@ Top-level `personas` array; each entry contributes the columns shown:
 
 - `--sort` selects the attribute: `name` or `priority` (default). Realizes [spec](../spec.md) FR-013.
 - `--order` selects the direction: `asc` (default) or `desc`. Realizes [spec](../spec.md) FR-014.
-- Priority ordering follows [import persona ADR-0001](../../0005-import-persona/architecture/ADR-0001-persona-priority-model.md): defined values first, ascending (`0` first); undefined priorities after all defined ones, ordered by name among themselves. Realizes [spec](../spec.md) FR-003.
+- Priority ordering follows [import persona ADR-0002](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md): every persona has a defined, unique priority, ordered ascending (`0` first). Realizes [spec](../spec.md) FR-003.
 
 ## Filtering
 

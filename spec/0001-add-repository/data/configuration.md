@@ -26,8 +26,8 @@ Repository entry — common fields (all kinds):
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
 | `kind` | string | Yes | enum: `http`, `filesystem`, `git` | Repository kind; selects which kind-scoped fields apply. Realizes [spec](../spec.md) FR-004. |
-| `name` | string | Yes | slug `^[a-z0-9]+(-[a-z0-9]+)*$`; unique across all kinds | Repository identity. Realizes [spec](../spec.md) FR-002, FR-005, FR-014. |
-| `priority` | integer | Yes | positive; unique across all kinds; lower = higher precedence | Repository ordering. Realizes [spec](../spec.md) FR-003, FR-015. |
+| `name` | string | Yes | slug `^[a-z0-9]+(-[a-z0-9]+)*$`; unique across all kinds | Repository identity. Realizes [spec](../spec.md) FR-002, FR-005, FR-016. |
+| `priority` | integer | No | non-negative; unique across all kinds; `0` for the first repository, `max + 1` when omitted on a later add; lower = higher precedence. See the [unified priority model](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md). | Repository ordering. Realizes [spec](../spec.md) FR-003, FR-009, FR-010, FR-017. |
 
 Kind-scoped fields — `http` ([http](../capabilities/http.md)):
 
@@ -79,9 +79,11 @@ Kind-scoped fields — `git` ([git](../capabilities/git.md)):
 ## Identity
 
 A repository is identified by its `name`. `name` and `priority` are each
-unique across all repositories regardless of kind. The location field (`url`,
-`path`, or `uri`) is not an identity key — entries may share a location.
-Realizes [spec](../spec.md) FR-016.
+unique across all repositories regardless of kind; `priority` is always a
+defined, non-negative integer per the
+[unified priority model](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md).
+The location field (`url`, `path`, or `uri`) is not an identity key — entries
+may share a location. Realizes [spec](../spec.md) FR-018.
 
 ## Credentials & transport
 
@@ -97,7 +99,7 @@ Realizes [spec](../spec.md) FR-016.
 
 - The whole document is loaded, the new entry appended, and written back only
   after all validation passes. The file is left untouched on any failure.
-  Realizes [spec](../spec.md) FR-006, FR-009.
+  Realizes [spec](../spec.md) FR-006, FR-011.
 - Writes are atomic: serialize to a temporary file in `~/.sauron/`, then
   rename over `settings.yaml`.
 
@@ -125,9 +127,13 @@ repositories:
     path: /home/user/team-skills
   - kind: git
     name: team-deploy
-    priority: 3
+    priority: 3 # added without --priority; appended at the end (max + 1)
     uri: ssh://git@github.com/acme/agents.git
     ssh:
       keyPath: /home/user/.ssh/deploy_ed25519
     timeout: 30s
 ```
+
+Every `priority` is stored as a concrete non-negative integer; an entry added
+without `--priority` is persisted with its assigned value (`0` for the first
+repository, `max + 1` for a later one), never left blank.

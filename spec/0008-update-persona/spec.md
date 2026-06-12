@@ -31,10 +31,10 @@ the key.
 - **FR-005**: When the persona is found, Sauron shall replace its
   `description`, `tags`, `agents`, and `skills` with the values from the file.
 - **FR-006**: When updating, Sauron shall preserve the persona's priority
-  unchanged, whether defined or undefined; the definition file never carries a
-  priority, and priority is managed by
+  unchanged; the definition file never carries a priority, and priority is
+  managed by
   [set priority persona](../0010-set-persona-priority/spec.md) (see
-  [import persona ADR-0001](../0005-import-persona/architecture/ADR-0001-persona-priority-model.md)).
+  [import persona ADR-0002](../0005-import-persona/architecture/ADR-0002-unified-priority-model.md)).
 - **FR-007**: When the update succeeds, Sauron shall persist the updated
   settings and report success.
 

@@ -16,9 +16,9 @@ deliver the same artifacts to everyone in that group.
   definition file.
 - **FR-002**: Sauron shall require every persona to have a name that is unique
   across all personas.
-- **FR-003**: Sauron shall require every persona with a defined priority to
-  have a priority that is unique across all personas (see
-  [ADR-0001](architecture/ADR-0001-persona-priority-model.md)).
+- **FR-003**: Sauron shall require every persona to have a priority that is
+  unique across all personas (see
+  [ADR-0002](architecture/ADR-0002-unified-priority-model.md)).
 
 ### Event-driven
 
@@ -30,10 +30,11 @@ deliver the same artifacts to everyone in that group.
   `agents`/`skills` lists containing at least one entry across the two.
 - **FR-006**: When the first persona is imported (no personas registered yet),
   Sauron shall assign it priority `0` (see
-  [ADR-0001](architecture/ADR-0001-persona-priority-model.md)).
+  [ADR-0002](architecture/ADR-0002-unified-priority-model.md)).
 - **FR-007**: When `--priority` is omitted and personas already exist, Sauron
-  shall register the persona without a priority (undefined) (see
-  [ADR-0001](architecture/ADR-0001-persona-priority-model.md)).
+  shall assign the next priority one greater than the highest existing persona
+  priority (`max + 1`) (see
+  [ADR-0002](architecture/ADR-0002-unified-priority-model.md)).
 - **FR-008**: When a persona passes validation, Sauron shall persist it to the
   settings (`~/.sauron/settings.yaml`).
 - **FR-009**: When a persona is successfully imported, Sauron shall report
@@ -64,9 +65,8 @@ deliver the same artifacts to everyone in that group.
 - **FR-017**: If `--priority` is provided when no personas exist, then Sauron
   shall reject the request and report that the first persona always takes
   priority `0`.
-- **FR-018**: If `--priority` is not an integer of `1` or greater, then Sauron
-  shall reject the request and report that a valid priority is required (`0`
-  belongs to the first persona).
+- **FR-018**: If a provided `--priority` is not a non-negative integer, then
+  Sauron shall reject the request and report that a valid priority is required.
 - **FR-019**: If `--priority` is already used by another persona, then Sauron
   shall reject the request, leave the configuration unchanged, and report that
   the priority must be unique.
@@ -74,8 +74,8 @@ deliver the same artifacts to everyone in that group.
 ### Optional
 
 - **FR-020**: Where `--priority` is provided and personas already exist,
-  Sauron shall require an integer of `1` or greater that is not used by
-  another persona.
+  Sauron shall require a non-negative integer that is not used by another
+  persona.
 
 ## Key Entities
 
@@ -86,15 +86,20 @@ deliver the same artifacts to everyone in that group.
   - **tags** (optional) — labels used for filtering.
   - **agents** / **skills** — names of the artifacts the persona delivers; at
     least one entry across the two lists.
-  - **priority** — `0` for the first persona (forced), an integer ≥ 1 unique
-    among personas when set, or undefined when imported without `--priority`.
-    Undefined ranks after all defined priorities (see
-    [ADR-0001](architecture/ADR-0001-persona-priority-model.md)).
+  - **priority** — an optional non-negative integer, always defined and unique
+    across personas; lower value wins. `0` for the first persona; an omitted
+    `--priority` on a later import appends `max + 1` (one greater than the
+    highest existing persona priority) (see
+    [ADR-0002](architecture/ADR-0002-unified-priority-model.md)).
 
 ## Decision Records
 
+- [Unified priority model](architecture/ADR-0002-unified-priority-model.md) —
+  repositories and personas share one priority model: `--priority` is optional,
+  the first resource is `0`, an omitted value appends `max + 1`, and every
+  priority is defined and unique within its kind.
 - [Persona priority model](architecture/ADR-0001-persona-priority-model.md) —
-  persona priority is zero-anchored, optional, and undefined ranks last.
+  superseded by [ADR-0002](architecture/ADR-0002-unified-priority-model.md).
 
 ## Notes
 

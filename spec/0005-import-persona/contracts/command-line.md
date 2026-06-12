@@ -24,11 +24,11 @@ Command hierarchy: `sauron` (root) → `import` (group) → `persona` (subcomman
 
 | Flag | Required | Default | Values | Description |
 |------|----------|---------|--------|-------------|
-| `--priority` | No | — | integer ≥ 1 | Persona priority; allowed only when at least one persona already exists, and must be unused. Omitted = undefined priority. The first persona always takes `0`. Realizes [spec](../spec.md) FR-006, FR-020, FR-007, FR-017, FR-018, FR-019. |
+| `--priority` | No | first persona `0`, else `max + 1` | non-negative integer | Persona priority (lower wins, unique across personas). On the first import it must be `0`; on a later import it must be unused. Omitted assigns `0` for the first persona, else `max + 1`. Realizes [spec](../spec.md) FR-006, FR-020, FR-007, FR-017, FR-018, FR-019. |
 
 ## Output
 
-- **Success**: a single confirmation line on stdout naming the imported persona (and its priority when defined).
+- **Success**: a single confirmation line on stdout naming the imported persona and its priority.
 - **Failure**: a single human-readable message on stderr. No partial output, no stack traces.
 
 ## Exit codes
@@ -39,13 +39,13 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Persona imported | [spec](../spec.md) FR-008, FR-009 |
-| `2` | Usage error — missing `<path>`, `--priority` on the first import, or `--priority` not an integer ≥ 1 | [spec](../spec.md) FR-011, FR-017, FR-018 |
+| `2` | Usage error — missing `<path>`, `--priority` other than `0` on the first import, or `--priority` not a non-negative integer | [spec](../spec.md) FR-011, FR-017, FR-018 |
 | `1` | Validation error — definition unreadable/malformed, invalid or missing name, missing description, no artifacts, duplicate name, or priority taken | [spec](../spec.md) FR-012, FR-013, FR-014, FR-015, FR-016, FR-019 |
 
 ## Examples
 
 ```
-# First persona (forced priority 0)
+# First persona, omitting --priority (assigned 0)
 $ sauron import persona ./backend-developer.yaml
 Imported persona 'backend-developer' (priority 0)
 
@@ -53,13 +53,13 @@ Imported persona 'backend-developer' (priority 0)
 $ sauron import persona --priority 1 ./qa-engineer.yaml
 Imported persona 'qa-engineer' (priority 1)
 
-# Subsequent persona without priority (undefined)
+# Subsequent persona omitting --priority (appended at the end, max + 1)
 $ sauron import persona ./designer.yaml
-Imported persona 'designer'
+Imported persona 'designer' (priority 2)
 
-# Priority on first import (usage error, exit 2)
+# Non-zero priority on first import (usage error, exit 2)
 $ sauron import persona --priority 1 ./backend-developer.yaml
-Error: the first persona always takes priority 0; omit --priority
+Error: the first persona always takes priority 0; omit --priority or pass --priority 0
 
 # Duplicate name (validation error, exit 1)
 $ sauron import persona ./backend-developer.yaml

@@ -12,8 +12,8 @@ Describes how the Set Repository Priority feature modifies the persisted configu
 ## Operation
 
 - The `priority` field of the repository whose `name` matches the argument is set to the given value; all other fields and all other repositories are preserved unchanged. Realizes [spec](../spec.md) FR-003.
-- The new value must be a positive integer not held by another repository (unique across all kinds). Realizes [spec](../spec.md) FR-007, FR-009.
-- There is no undefined priority and no zero-anchor for repositories — every repository always has a defined, unique, positive priority.
+- The new value must be a non-negative integer not held by another repository (unique across all kinds; `0` is assignable only when no repository holds it). Realizes [spec](../spec.md) FR-007, FR-009.
+- Repository priority follows the [unified priority model](../../0005-import-persona/architecture/ADR-0002-unified-priority-model.md): always defined and unique, the first repository is `0`, and a lower value wins.
 
 ## Write semantics
 

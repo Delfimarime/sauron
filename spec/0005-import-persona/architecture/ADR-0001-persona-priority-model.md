@@ -1,6 +1,6 @@
 # ADR-0001: Persona priority is zero-anchored, optional, and undefined ranks last
 
-**Status**: Accepted
+**Status**: Superseded by [ADR-0002](ADR-0002-unified-priority-model.md)
 
 **Date**: 2026-06-10
 
