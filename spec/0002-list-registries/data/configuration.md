@@ -1,30 +1,23 @@
-# Data Model: Configuration — Sauron Settings (Listing)
+# Data Model: Configuration — List Registries (registries.yaml)
 
 **Spec**: [List Registries](../spec.md)
 
-Describes the configuration that the List Registries feature reads. Listing never writes.
+This feature reads `registries.yaml`'s `items` block — each entry's
+`name`, `kind`, `priority`, and `uri` — to render the listing; it never writes.
+The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#registriesyaml);
+this document does not restate it.
 
-## Location & format
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document. A missing file is treated as no registries.
+- `registries.yaml` `items`: `name`, `kind`, `priority`, `uri` — the
+  columns shown by the listing. `--search` matches case-insensitively against
+  `name` and `uri`; `--sort` orders by `name`, `priority`, or `kind`.
 
-## Read shape
+## Owns
 
-Top-level `registries` array; each entry contributes the columns shown:
+- Nothing.
 
-| Column | Source field | Notes |
-|--------|--------------|-------|
-| NAME | `name` | Identity; sortable. |
-| KIND | `kind` | filesystem, http, or git; sortable. |
-| PRIORITY | `priority` | Sortable; default sort attribute. |
-| LOCATION | `path` / `url` / `uri` | Kind-appropriate locator. Realizes [spec](../spec.md) FR-003. |
+## Writes
 
-## Sorting
-
-- `--sort` selects the attribute: `name`, `priority` (default), or `kind`. Realizes [spec](../spec.md) FR-011.
-- `--order` selects the direction: `asc` (default) or `desc`. Realizes [spec](../spec.md) FR-012.
-
-## Search
-
-`--search` compares its term, case-insensitively, against NAME and LOCATION only. Realizes [spec](../spec.md) FR-010.
+- Nothing. Listing is read-only.

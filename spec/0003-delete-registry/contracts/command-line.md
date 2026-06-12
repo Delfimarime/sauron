@@ -38,7 +38,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Registry deleted, or no registry with that name existed (idempotent) | [spec](../spec.md) FR-004, FR-005 |
 | `2` | Usage error — missing `<name>` | [spec](../spec.md) FR-007 |
-| `1` | Runtime error — the settings cannot be read or parsed | [spec](../spec.md) FR-008 |
+| `1` | Runtime error — `registries.yaml` cannot be read or parsed | [spec](../spec.md) FR-008 |
 
 ## Examples
 

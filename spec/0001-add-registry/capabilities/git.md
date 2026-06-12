@@ -21,11 +21,11 @@ is owned by the [feature spec](../spec.md).
 
 ### Event-driven
 
-- **FR-002**: When a user submits a git URI, Sauron shall verify it is a valid
+- **FR-002**: When a user submits a `uri`, Sauron shall verify it is a valid
   SSH-based git URI (scp-like `user@host:path` or an `ssh://` URL) before
   registering it (see
   [SSH-only remotes](../architecture/ADR-0002-ssh-only-remotes.md)).
-- **FR-003**: When a user submits a git URI, Sauron shall verify the remote is
+- **FR-003**: When a user submits a `uri`, Sauron shall verify the remote is
   reachable and authentication succeeds by running `git ls-remote` — honoring
   the configured timeout and SSH key — before registering it.
 - **FR-004**: When a network operation runs (e.g. `git ls-remote`), Sauron
@@ -33,7 +33,7 @@ is owned by the [feature spec](../spec.md).
 
 ### Unwanted behavior
 
-- **FR-005**: If the URI is not a valid SSH-based git URI (e.g. an
+- **FR-005**: If the `uri` is not a valid SSH-based git URI (e.g. an
   `http(s)://`, `git://`, or `file://` scheme, or a malformed address), then
   Sauron shall reject the request and report that an SSH-based git URI is
   required (see

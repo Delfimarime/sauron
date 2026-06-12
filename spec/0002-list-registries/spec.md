@@ -21,11 +21,10 @@ spans all kinds.
 ### Event-driven
 
 - **FR-002**: When a user lists registries, Sauron shall read the registered
-  registries from the settings and display each one's name, kind, priority,
+  registries from `registries.yaml` and display each one's name, kind, priority,
   and location.
 - **FR-003**: When displaying a registry's location, Sauron shall use the
-  kind-appropriate locator field — `path` for `filesystem`, `url` for `http`,
-  `uri` for `git`.
+  registry's `uri` field, which holds the kind-shaped locator.
 
 ### Unwanted behavior
 
@@ -33,10 +32,10 @@ spans all kinds.
   none are registered and exit successfully.
 - **FR-005**: If `--search` matches no registries, then Sauron shall report
   that none match and exit successfully.
-- **FR-006**: If the settings file does not exist, then Sauron shall treat it
+- **FR-006**: If `registries.yaml` does not exist, then Sauron shall treat it
   as no registries registered.
-- **FR-007**: If the settings exist but cannot be read or parsed, then Sauron
-  shall reject the request and report that the settings cannot be read.
+- **FR-007**: If `registries.yaml` exists but cannot be read or parsed, then
+  Sauron shall reject the request and report that it cannot be read.
 - **FR-008**: If `--sort` is not one of `name`, `priority`, or `kind`, then
   Sauron shall reject the request and report the allowed sort attributes.
 - **FR-009**: If `--order` is not `asc` or `desc`, then Sauron shall reject the
@@ -63,5 +62,11 @@ spans all kinds.
 
 - **Registry**: a registered source of artifacts (see
   [add registry](../0001-add-registry/spec.md)), shown by its name, kind,
-  priority, and location. The location is the kind's locator
-  (`path`/`url`/`uri`). Listing spans all kinds.
+  priority, and location. The location is the registry's `uri`, which holds the
+  kind-shaped locator. Listing spans all kinds.
+
+## Notes
+
+- Configuration is now split across files per the
+  [configuration data contract](../contracts/configuration.md); file
+  references updated accordingly.

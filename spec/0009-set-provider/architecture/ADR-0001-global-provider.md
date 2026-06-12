@@ -8,7 +8,7 @@
 
 ## Context
 
-The Provider concept (`spec/README.md`) is the provider destination where artifacts are persisted — each provider stores skills and agents differently. An earlier draft of sync took a per-invocation `--provider` flag, but that left the "current" provider ambiguous across commands (sync, prune, clear, cron) and forced every caller to repeat it. A team realistically delivers to one provider at a time.
+The Provider concept (`spec/README.md`) is the provider destination where artifacts are persisted — each provider stores skills and agents differently. An earlier draft of sync took a per-invocation `--provider` flag, but that left the "current" provider ambiguous across commands (sync, prune, delete artifacts, cron) and forced every caller to repeat it. A team realistically delivers to one provider at a time.
 
 There is no Provider registration feature yet, but Sauron must deliver somewhere concrete to be implementable.
 
@@ -24,7 +24,7 @@ Changing the provider with `sauron set provider <value>` **migrates installed ar
 
 **Positive**
 
-- One unambiguous active provider; sync, prune, clear, and cron all agree without repeating a flag.
+- One unambiguous active provider; sync, prune, delete artifacts, and cron all agree without repeating a flag.
 - Switching providers is a single, explicit operation with a clear migration story.
 - `--copy-only` supports running two providers side by side during a transition.
 

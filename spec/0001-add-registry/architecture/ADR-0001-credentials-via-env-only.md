@@ -8,7 +8,7 @@
 
 ## Context
 
-An HTTP registry may sit behind HTTP Basic auth, so the user needs a way to supply a username and password. Persisting raw credentials in `~/.sauron/settings.yaml` would require secret management — encryption at rest (e.g. AES-GCM), a key, and a place to keep that key (key file or OS keychain). That machinery is non-trivial and easy to get subtly wrong.
+An HTTP registry may sit behind HTTP Basic auth, so the user needs a way to supply a username and password. Persisting raw credentials in `~/.sauron/registries.yaml` would require secret management — encryption at rest (e.g. AES-GCM), a key, and a place to keep that key (key file or OS keychain). That machinery is non-trivial and easy to get subtly wrong.
 
 At this stage, **simplicity is the priority and secret management is explicitly not a concern**. We want the feature to support authenticated sources without owning any secret material.
 

@@ -6,21 +6,28 @@
 ## Overview
 
 A person responsible for a team's agentic-AI setup needs to declare which
-catalog personas are installed on this instance, so that only the intended
-personas participate in artifact sync and in the right precedence order. The
-catalog — the local read-only mirror of persona definitions — is owned by the
-[backend](../0012-backend/spec.md) and refreshed by
-[sync personas](../0013-sync-personas/spec.md); this feature does not change the
-catalog, only which of its entries are active locally.
+personas are installed on this instance, so that only the intended personas
+participate in artifact sync and in the right precedence order. Sauron persists
+no catalog: the set of *available* personas is the live view computed at command
+time from the installed personas plus a live fetch from the
+[backend](../0012-backend/spec.md) (see the
+[live persona view](../contracts/configuration.md#live-persona-view)). This
+feature declares which of those personas are installed locally, and at install
+time stores each installed persona's full definition into
+[personas.yaml](../contracts/configuration.md#personasyaml) so that
+[sync artifacts](../0006-sync-artifacts/spec.md) works offline afterward.
 
 This feature owns two commands. `set persona <name>...` declares the exact set
 of installed personas in one shot — the listed names *become* the installed set,
 and their position in the argument list fixes their priority (the first listed
 is highest precedence) under the unified priority model
-([priority model](../AUTHORING.md#priority-model)).
+([priority model](../AUTHORING.md#priority-model)). It validates every given
+name against a live fetch from the
+[backend](../0012-backend/spec.md) before any write, and stores each installed
+persona's full definition from that fetch.
 `unset persona [<name>...]` uninstalls named personas, or all of them when no
-name is given, leaving the catalog definitions in place. Adjusting a persona's
-priority after installation is a separate concern, owned by
+name is given, without contacting the backend. Adjusting a persona's priority
+after installation is a separate concern, owned by
 [set priority persona](../0007-set-persona-priority/spec.md).
 
 ## Requirements
@@ -28,9 +35,9 @@ priority after installation is a separate concern, owned by
 ### Ubiquitous
 
 - **FR-001**: Sauron shall provide the ability to declare the installed set of
-  catalog personas with `set persona <name>...`.
+  personas with `set persona <name>...`.
 - **FR-002**: Sauron shall provide the ability to uninstall personas with
-  `unset persona [<name>...]`, leaving their catalog definitions available.
+  `unset persona [<name>...]`.
 
 ### Event-driven
 
@@ -52,54 +59,63 @@ priority after installation is a separate concern, owned by
   discarding any prior [set priority persona](../0007-set-persona-priority/spec.md)
   adjustment (intended).
 - **FR-008**: When a user runs `unset persona` with one or more names, Sauron
-  shall uninstall each named persona while leaving its catalog definition
-  available, and report the personas that were uninstalled.
+  shall uninstall each named persona without contacting the backend, and report
+  the personas that were uninstalled.
 - **FR-009**: When a user runs `unset persona` with no name, Sauron shall
-  uninstall every installed persona while leaving their catalog definitions
-  available, and report the personas that were uninstalled.
+  uninstall every installed persona without contacting the backend, and report
+  the personas that were uninstalled.
+- **FR-017**: When `set persona` succeeds, Sauron shall store each installed
+  persona's full definition fetched from the
+  [backend](../0012-backend/spec.md) — its description, tags, skills, agents,
+  `last_modified_at`, and `last_synced_at` — into
+  [personas.yaml](../contracts/configuration.md#personasyaml), so that
+  [sync artifacts](../0006-sync-artifacts/spec.md) works offline afterward.
 
 ### State-driven
 
 - **FR-010**: While a persona name is being validated, Sauron shall leave the
   existing configuration unchanged until validation succeeds.
 - **FR-011**: While applying `set persona`, Sauron shall validate that every
-  given name exists in the catalog before changing anything, and shall apply the
-  new installed set only when all names are valid (transactional, all-or-nothing).
+  given name is offered by a live fetch from the
+  [backend](../0012-backend/spec.md) before changing anything, and shall apply
+  the new installed set only when all names are valid (transactional,
+  all-or-nothing).
 
 ### Unwanted behavior
 
 - **FR-012**: If a user runs `set persona` with no name, then Sauron shall exit
   with code 2 without executing the command and report that
   [unset persona](contracts/command-line.md) clears the installed set.
-- **FR-013**: If any name given to `set persona` is not present in the catalog,
-  then Sauron shall reject the whole command, leave the configuration unchanged,
-  and report that [sync personas](../0013-sync-personas/spec.md) should be run
-  first to refresh the catalog.
+- **FR-013**: If any name given to `set persona` is not offered by the live
+  fetch from the [backend](../0012-backend/spec.md), then Sauron shall reject the
+  whole command, leave the installed personas unchanged, and report which name is
+  not available.
+- **FR-018**: If the backend is unreachable, then Sauron shall not change the
+  installed personas and exit with a runtime error.
 - **FR-014**: If a user runs `unset persona` for a persona that is not
   installed, then Sauron shall exit successfully and report that nothing was
   deleted.
-- **FR-015**: If the settings cannot be read or parsed, then Sauron shall reject
-  the request and report that the settings cannot be read.
+- **FR-015**: If the installed personas cannot be read or parsed, then Sauron
+  shall reject the request and report that the installed personas cannot be read.
 - **FR-016**: If a command fails, then Sauron shall write exactly one
   human-readable message to stderr.
 
 ## Key Entities
 
-- **Catalog persona**: an entry in the catalog — the local read-only mirror of
-  persona definitions pulled from the
-  [backend](../0012-backend/spec.md) and refreshed by
-  [sync personas](../0013-sync-personas/spec.md). It is *available* until
-  installed.
-- **Installed persona**: a catalog persona activated locally by `set persona`.
-  It participates in artifact sync and carries a priority assigned positionally
-  by `set persona` and adjustable afterward only through
+- **Available persona**: a persona offered by the live fetch from the
+  [backend](../0012-backend/spec.md) but not installed. It is part of the
+  [live persona view](../contracts/configuration.md#live-persona-view), which
+  Sauron never persists.
+- **Installed persona**: a persona activated locally by `set persona`, stored
+  with its full definition in
+  [personas.yaml](../contracts/configuration.md#personasyaml). It participates in
+  artifact sync and carries a priority assigned positionally by `set persona` and
+  adjustable afterward only through
   [set priority persona](../0007-set-persona-priority/spec.md). Its priority
   follows the unified model
   ([priority model](../AUTHORING.md#priority-model))
   — a non-negative integer, unique within its kind, where the first installed
-  persona is `0` and a lower value means higher precedence. The installed set is
-  persisted as the `installed` block of `settings.yaml` (see
-  [configuration](data/configuration.md)).
+  persona is `0` and a lower value means higher precedence.
 
 ## Notes
 
@@ -109,6 +125,17 @@ priority after installation is a separate concern, owned by
   priorities and discards prior
   [set priority persona](../0007-set-persona-priority/spec.md) adjustments; this
   is intended (FR-007).
-- Installing or uninstalling a persona never alters the catalog. Catalog content
-  is owned by the [backend](../0012-backend/spec.md) and
-  changes only through [sync personas](../0013-sync-personas/spec.md).
+- **Redesign (no persisted catalog):** this feature previously validated names
+  against a persisted catalog (a local read-only mirror of persona definitions)
+  and stored the installed set in `settings.yaml`. There is now no persisted
+  catalog: `set persona` validates names against a live fetch from the
+  [backend](../0012-backend/spec.md) and the installed set lives in
+  [personas.yaml](../contracts/configuration.md#personasyaml). FR-011 and FR-013
+  were redefined from catalog lookup to live-fetch validation, and FR-015 from
+  reading settings to reading the installed personas.
+- **Redesign (store definition at install):** `set persona` now stores each
+  installed persona's full definition fetched from the backend into
+  [personas.yaml](../contracts/configuration.md#personasyaml) (FR-017), which is
+  why installing requires the backend reachable (FR-018) and why
+  [sync artifacts](../0006-sync-artifacts/spec.md) works offline afterward.
+  `unset persona` contacts no backend (FR-008, FR-009).

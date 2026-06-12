@@ -22,10 +22,10 @@ priority, persistence, transactionality) is owned by the
 
 ### Event-driven
 
-- **FR-002**: When a user submits a URL, Sauron shall verify it is a
+- **FR-002**: When a user submits a `uri`, Sauron shall verify it is a
   syntactically valid URL whose scheme is `http` or `https` before registering
   it.
-- **FR-003**: When a user submits a URL, Sauron shall verify the server is
+- **FR-003**: When a user submits a `uri`, Sauron shall verify the server is
   reachable by issuing an HTTP `HEAD` request — honoring the supplied
   authentication and TLS options — before registering it.
 - **FR-004**: When a username or password is supplied, Sauron shall accept only
@@ -37,8 +37,8 @@ priority, persistence, transactionality) is owned by the
 
 ### Unwanted behavior
 
-- **FR-006**: If the URL is not a valid `http`/`https` URL, then Sauron shall
-  reject the request and report that the URL is invalid.
+- **FR-006**: If the `uri` is not a valid `http`/`https` URL, then Sauron shall
+  reject the request and report that the `uri` is invalid.
 - **FR-007**: If the server cannot be reached (connection, TLS, or non-success
   `HEAD` response), then Sauron shall reject the request, leave the
   configuration unchanged, and report that the registry cannot be reached.

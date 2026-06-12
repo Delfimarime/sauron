@@ -27,9 +27,9 @@ transactionality, teardown) is owned by the [feature spec](../spec.md).
 - **FR-003**: When a user submits a directory path, Sauron shall resolve it to
   an absolute, symlink-resolved path and record that resolved path, so that
   configuring the same directory again yields the same recorded location.
-- **FR-004**: When the catalog is refreshed, Sauron shall derive each persona's
-  last-modified timestamp from the modification time (mtime) of that persona's
-  definition file.
+- **FR-004**: When the installed personas' definitions are refreshed from the
+  backend, Sauron shall derive each persona's last-modified timestamp from the
+  modification time (mtime) of that persona's definition file.
 
 ### Unwanted behavior
 

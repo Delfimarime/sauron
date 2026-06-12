@@ -9,8 +9,8 @@ A person responsible for a team's agentic-AI setup needs to change an installed
 persona's priority, so that the precedence order among installed personas
 reflects the team's intent. Persona priority is assigned subscribe-time:
 positionally by [select personas](../0014-select-personas/spec.md) when
-`set persona` declares the installed set (the catalog persona's position fixes
-its priority). This command adjusts the priority of one already-installed
+`set persona` declares the installed set (the persona's position in the argument
+list fixes its priority). This command adjusts the priority of one already-installed
 persona afterward; the override persists until the next `set persona`
 redeclaration, which resets positional priorities. Persona priority follows the
 unified model decided in
@@ -30,7 +30,7 @@ lower value wins, and the first or only installed persona holds `0`.
 - **FR-002**: When a user sets a priority, Sauron shall require an installed
   persona name and a priority value.
 - **FR-003**: When the request is valid, Sauron shall assign the value as the
-  installed persona's defined priority and persist the updated settings.
+  installed persona's defined priority and persist the updated `personas.yaml`.
 - **FR-004**: When the value equals the installed persona's current priority,
   Sauron shall make no change and report success (no-op).
 - **FR-005**: When the request changes the installed persona's priority, Sauron
@@ -41,7 +41,7 @@ lower value wins, and the first or only installed persona holds `0`.
 ### State-driven
 
 - **FR-006**: While setting a priority, Sauron shall leave the existing
-  configuration unchanged until the change is persisted; the settings are left
+  configuration unchanged until the change is persisted; `personas.yaml` is left
   untouched on any failure.
 
 ### Unwanted behavior
@@ -60,12 +60,12 @@ lower value wins, and the first or only installed persona holds `0`.
   Sauron shall reject the request, leave the configuration unchanged, and report
   that the priority must be unique (`0` is assignable only when no installed
   persona holds it).
-- **FR-012**: If the settings cannot be read or parsed, then Sauron shall
-  reject the request and report that the settings cannot be read.
+- **FR-012**: If `personas.yaml` cannot be read or parsed, then Sauron shall
+  reject the request and report that the installed personas cannot be read.
 
 ## Key Entities
 
-- **Installed persona**: a catalog persona activated locally by `set persona`
+- **Installed persona**: a persona activated locally by `set persona`
   (see [select personas](../0014-select-personas/spec.md)), identified by its
   name and participating in artifact sync. Its priority is assigned positionally
   at install time and follows the unified model in
@@ -75,3 +75,9 @@ lower value wins, and the first or only installed persona holds `0`.
   installed persona's priority after installation; the override persists until
   the next [select personas](../0014-select-personas/spec.md) `set persona`
   redeclaration resets positional priorities.
+
+## Notes
+
+Configuration is now split across files per the
+[configuration data contract](../contracts/configuration.md); file references
+updated accordingly.

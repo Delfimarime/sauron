@@ -1,75 +1,43 @@
-# Data Model: Configuration — Sauron Settings (Sync)
+# Data Model: Configuration — Sync Artifacts (track.yaml, registries.yaml, personas.yaml, settings.yaml)
 
 **Spec**: [Sync](../spec.md)
 
-Describes the data sync artifacts reads and the tracking record it owns. Sync artifacts reads `settings.yaml` (registries and installed personas), delivers artifacts to the provider's locations, and maintains `track.yaml`.
+This feature owns `track.yaml` — it creates and maintains the record of
+installed artifacts and their provenance — and reads `registries.yaml`,
+`personas.yaml`, and `settings.yaml` to compute the desired set and the active
+provider. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#trackyaml); this
+document does not restate it.
 
-## Inputs — `~/.sauron/settings.yaml`
+## Reads
 
-Read-only for sync artifacts:
+- `registries.yaml` `items`: the sources of artifacts; `priority`
+  resolves same-named artifacts
+  ([ADR-0001](../architecture/ADR-0001-conflict-resolution-by-registry-priority.md),
+  [#registriesyaml](../../contracts/configuration.md#registriesyaml)).
+- `personas.yaml` `items`: the installed personas and their stored
+  definitions — the desired set when no `--persona` narrows it; persona ordering
+  follows the [priority model](../../AUTHORING.md#priority-model)
+  ([#personasyaml](../../contracts/configuration.md#personasyaml)).
+- `settings.yaml` `provider`: the active provider to deliver to (`claude` by
+  default; managed by [set provider](../../0009-set-provider/spec.md)). Realizes
+  [spec](../spec.md) FR-007
+  ([#settingsyaml](../../contracts/configuration.md#settingsyaml)).
 
-- `registries[]` — the sources of artifacts; the `priority` field resolves same-named artifacts ([ADR-0001](../architecture/ADR-0001-conflict-resolution-by-registry-priority.md)).
-- `personas[]` — the installed persona definitions that scope the desired set; persona ordering follows [priority model](../../AUTHORING.md#priority-model).
-- `provider` — the active provider to deliver to (`claude` by default; managed by [set provider](../../0009-set-provider/spec.md)). Realizes [spec](../spec.md) FR-007.
+## Owns
 
-## Tracking record — `~/.sauron/track.yaml`
+- `track.yaml` `items`: the delivered artifacts and their provenance —
+  `type`, `name`, `provider`, `path`, `registry`, and (when personas are in
+  play) `persona`, the highest-precedence installed persona that brought the
+  artifact into the desired set. Realizes [spec](../spec.md) FR-006. Created on
+  the first successful run if absent.
 
-The record of installed artifacts and their provenance. **Sync artifacts creates and maintains this file**; other features (e.g. [prune](../../0004-prune/spec.md)) read it.
+## Writes
 
-- **Path**: `~/.sauron/track.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document.
-- **Lifecycle**: created on the first successful sync artifacts run if absent.
-
-Top-level document:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `installed` | array of Installed Artifact | Yes | Delivered artifacts. Empty array when none. |
-
-Installed Artifact entry:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | `skill` or `agent`. |
-| `name` | string | Yes | Artifact name, as installed. |
-| `provider` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). |
-| `path` | string | Yes | Where it was installed (the provider's location for this artifact). |
-| `registry` | string | Yes | Name of the source registry (provenance; the conflict winner per [ADR-0001](../architecture/ADR-0001-conflict-resolution-by-registry-priority.md)). |
-| `persona` | string | No | Installed persona that brought the artifact into the desired set; when several do, the highest-precedence installed persona; absent when synced without personas. Realizes [spec](../spec.md) FR-006. |
-
-An entry is identified by (`provider`, `type`, `name`) — the same artifact delivered to two providers yields two entries.
-
-## Operation
-
-- The desired set is computed per [spec](../spec.md) FR-002–FR-004 and FR-016, and compared against the entries whose `provider` matches the active global provider; the difference is the plan. Realizes [spec](../spec.md) FR-005.
-- Applying the plan installs/updates artifacts at their `path`, removes tracked artifacts no longer desired, and rewrites their entries. Only tracked artifacts are ever removed. Realizes [spec](../spec.md) FR-006, FR-009.
-- With `--dry-run`, neither the environment nor `track.yaml` is touched. Realizes [spec](../spec.md) FR-017.
-
-## Write semantics
-
-- Sync artifacts writes only `track.yaml`, never `settings.yaml`.
-- Updates are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `track.yaml`.
-
-## Example (`track.yaml`)
-
-```yaml
-installed:
-  - type: skill
-    name: design-oas3
-    provider: zencoder
-    path: /home/user/.zencoder/skills/design-oas3
-    registry: team-deploy
-    persona: backend-developer
-  - type: agent
-    name: software-engineer
-    provider: zencoder
-    path: /home/user/.zencoder/agents/software-engineer
-    registry: team-deploy
-    persona: backend-developer
-  - type: skill
-    name: code-review
-    provider: claude
-    path: /home/user/.claude/skills/code-review
-    registry: team-deploy
-    persona: backend-developer
-```
+- `track.yaml` `items`: records installed/updated artifacts, removes
+  entries for tracked artifacts no longer desired; only tracked artifacts are
+  ever removed. With `--dry-run`, neither the environment nor `track.yaml` is
+  touched. Realizes [spec](../spec.md) FR-005, FR-006, FR-009, FR-017. Atomic
+  single-file write per the
+  [configuration data contract](../../contracts/configuration.md#cross-file-write-semantics);
+  no other configuration file is written.

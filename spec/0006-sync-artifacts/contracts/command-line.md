@@ -40,7 +40,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Synced, or already up to date (including `--dry-run`) | [spec](../spec.md) FR-006, FR-008, FR-015, FR-017 |
 | `2` | Usage error — malformed flags (e.g. `--persona` with no value) | — |
-| `1` | Persona not found; the settings or the track file unreadable; a registry unreachable; a desired artifact missing from every registry; or an artifact failed to install/remove | [spec](../spec.md) FR-010, FR-011, FR-012, FR-013, FR-014 |
+| `1` | Persona not found; the configuration or the track file unreadable; a registry unreachable; a desired artifact missing from every registry; or an artifact failed to install/remove | [spec](../spec.md) FR-010, FR-011, FR-012, FR-013, FR-014 |
 
 ## Examples
 

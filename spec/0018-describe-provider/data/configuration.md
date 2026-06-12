@@ -1,25 +1,27 @@
-# Data Model: Configuration — Describe Provider
+# Data Model: Configuration — Describe Provider (`settings.yaml`)
 
 **Spec**: [Describe Provider](../spec.md)
 
-Describes how the Describe Provider feature reads the persisted configuration. It
-is read-only: it never writes the settings or the track file.
+Describe Provider reads the active `provider` from `settings.yaml`; it never
+writes. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#settingsyaml);
+this document does not restate it.
 
-## Schema
+## Reads
 
-This feature defines no schema of its own. It reads the active provider and that
-provider's skills/agents target locations from the provider schema owned by
-[set provider](../../0009-set-provider/data/configuration.md), which is the
-authoritative source for the `provider` field in `~/.sauron/settings.yaml`, its
-default (`claude`), and where each provider persists skills and agents.
+- The `provider` field of `settings.yaml` — the active provider; an absent value
+  resolves to the default `claude`. Realizes FR-003, FR-005.
 
-## Operation
+## Owns / Writes
 
-- The described provider is the active `provider` value; an absent value
-  resolves to the default `claude`. Realizes [spec](../spec.md) FR-003, FR-005.
-- The `skills-location` and `agents-location` fields are the resolved
-  provider's target locations as defined by
-  [set provider](../../0009-set-provider/data/configuration.md). Realizes
-  [spec](../spec.md) FR-004.
-- If the settings exist but cannot be read or parsed, the request is rejected.
-  Realizes [spec](../spec.md) FR-009.
+- Nothing. Describing is read-only and offline.
+
+## Notes
+
+The displayed `skills-location` and `agents-location` are not persisted fields:
+they are the resolved provider's target locations, derived from the active
+`provider` per [set provider](../../0009-set-provider/spec.md). Realizes FR-004.
+
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.

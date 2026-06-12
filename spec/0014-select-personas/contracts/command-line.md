@@ -5,8 +5,8 @@ Conventions: [CLI conventions](../../AUTHORING.md).
 **Spec**: [Select Personas](../spec.md)
 
 Defines the command-line interface for declaring and clearing the set of
-installed catalog personas. This is the user-facing contract only. This feature
-owns two commands: `set persona` and `unset persona`.
+installed personas. This is the user-facing contract only. This feature owns two
+commands: `set persona` and `unset persona`.
 
 ## Synopsis
 
@@ -25,8 +25,8 @@ persona's priority after installation is the sibling command
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `set persona <name>...` | Yes (one or more) | The exact set of catalog personas to install. Order is significant: it assigns priority positionally (first listed is `0`). Every name must exist in the catalog. Realizes [spec](../spec.md) FR-003, FR-004, FR-005, FR-012, FR-013. |
-| `unset persona [<name>...]` | No | Personas to uninstall. With no name, every installed persona is uninstalled. Realizes [spec](../spec.md) FR-008, FR-009. |
+| `set persona <name>...` | Yes (one or more) | The exact set of personas to install. Order is significant: it assigns priority positionally (first listed is `0`). Every name must be offered by a live fetch from the [backend](../../0012-backend/spec.md); the install stores each persona's full definition from that fetch. Realizes [spec](../spec.md) FR-003, FR-004, FR-005, FR-012, FR-013, FR-017, FR-018. |
+| `unset persona [<name>...]` | No | Personas to uninstall. With no name, every installed persona is uninstalled. Contacts no backend. Realizes [spec](../spec.md) FR-008, FR-009. |
 
 ## Flags
 
@@ -52,7 +52,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Installed set declared, personas uninstalled, or an idempotent `unset` no-op | [spec](../spec.md) FR-004, FR-008, FR-009, FR-014 |
 | `2` | Usage error — `set persona` given no name | [spec](../spec.md) FR-012 |
-| `1` | Runtime error — an unknown persona name given to `set persona`, or the settings unreadable | [spec](../spec.md) FR-013, FR-015 |
+| `1` | Runtime error — a name given to `set persona` not offered by the live backend fetch, the backend unreachable while installing, or the installed personas unreadable | [spec](../spec.md) FR-013, FR-018, FR-015 |
 
 ## Examples
 
@@ -72,15 +72,19 @@ Installed personas:
   1  platform
 Dropped: data
 
-# Unknown persona name (runtime error, exit 1) — config unchanged
+# Name not offered by the backend (runtime error, exit 1) — config unchanged
 $ sauron set persona platform ghost
-Error: persona 'ghost' is not in the catalog; run 'sauron sync personas' first
+Error: persona 'ghost' is not offered by the backend
+
+# Backend unreachable while installing (runtime error, exit 1) — config unchanged
+$ sauron set persona platform security
+Error: backend is unreachable; installed personas unchanged
 
 # No name given (usage error, exit 2)
 $ sauron set persona
 Error: at least one persona name is required; use 'sauron unset persona' to clear the installed set
 
-# Uninstall named personas (success, exit 0); catalog definitions remain
+# Uninstall named personas (success, exit 0); no backend contacted
 $ sauron unset persona data
 Uninstalled persona 'data'
 

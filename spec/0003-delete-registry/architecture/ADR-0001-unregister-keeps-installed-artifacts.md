@@ -12,7 +12,7 @@ Deleting a registry could mean one of two things: unregister the source so Sauro
 
 ## Decision
 
-Deletion **unregisters the source only**. The registry entry is removed from `~/.sauron/settings.yaml`; skills and agents already installed from it are left untouched (FR-003). Cleaning up delivered artifacts is a separate concern — a future uninstall/sync operation — not part of deleting the source.
+Deletion **unregisters the source only**. The registry entry is removed from `~/.sauron/registries.yaml`; skills and agents already installed from it are left untouched (FR-003). Cleaning up delivered artifacts is a separate concern — a future uninstall/sync operation — not part of deleting the source.
 
 ## Consequences
 

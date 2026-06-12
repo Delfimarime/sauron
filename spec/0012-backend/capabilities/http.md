@@ -35,9 +35,10 @@ upsert, persistence, transactionality, teardown) is owned by the
   [Credentials via environment variables only](../../0001-add-registry/architecture/ADR-0001-credentials-via-env-only.md)).
 - **FR-005**: When the `HEAD` reachability probe or a subsequent fetch runs,
   Sauron shall bound it by the configured timeout (default `30s`).
-- **FR-006**: When the catalog is refreshed, Sauron shall derive each persona's
-  last-modified timestamp from the backend's `Last-Modified` response header or
-  the equivalent index metadata for that persona's definition.
+- **FR-006**: When the installed personas' definitions are refreshed from the
+  backend, Sauron shall derive each persona's last-modified timestamp from the
+  backend's `Last-Modified` response header or the equivalent index metadata for
+  that persona's definition.
 
 ### Unwanted behavior
 

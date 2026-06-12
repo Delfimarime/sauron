@@ -1,22 +1,11 @@
-# Data Model: Configuration — Sauron Settings (Describe Backend)
+# Data Model: Configuration — Describe Backend (backend.yaml)
 
 **Spec**: [Describe Backend](../spec.md)
 
-Describes the configuration that the Describe Backend feature reads. This feature
-defines **no schema of its own**: it is read-only and reads the singleton
-backend (`personaRegistry`) and the `catalog` mirror whose schema is owned by
-[backend](../../0012-backend/data/configuration.md). The `installed` count is
-derived from the install records owned by
-[select personas](../../0014-select-personas/spec.md).
+Describe Backend reads the singleton backend connection from `backend.yaml`;
+it never writes. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#backendyaml);
+this document does not restate it. Credentials are redacted on display.
 
-## Location & format
-
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document.
-
-## Write semantics
-
-This feature never writes the settings or the
-[track file](../../0006-sync-artifacts/data/configuration.md). When no backend is
-configured, it reports the absence and exits successfully without writing
-anything. Realizes [spec](../spec.md) FR-002, FR-008.
+## Reads
+- `backend.yaml` (root fields) — the connection (`kind`, `uri`, credentials, `timeout`, `last_synced_at`).

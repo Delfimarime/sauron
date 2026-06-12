@@ -18,9 +18,9 @@ carries only artifacts from currently registered registries.
 
 ### Event-driven
 
-- **FR-002**: When a user runs prune without an artifact type, Sauron shall
-  consider both skills and agents.
-- **FR-003**: When a user runs prune with `skills` or `agents`, Sauron shall
+- **FR-002**: When a user runs `prune artifacts`, Sauron shall consider both
+  skills and agents.
+- **FR-003**: When a user runs `prune skills` or `prune agents`, Sauron shall
   consider only that type.
 - **FR-004**: When pruning, Sauron shall identify installed artifacts,
   recorded in the track file (`~/.sauron/track.yaml`), whose source registry
@@ -38,11 +38,12 @@ carries only artifacts from currently registered registries.
 
 ### Unwanted behavior
 
-- **FR-008**: If a type other than `skills` or `agents` is given, then Sauron
-  shall reject the request and report the allowed types.
+- **FR-008**: If a noun other than `artifacts`, `skills`, or `agents` is given,
+  or none is given, then Sauron shall reject the request and report the allowed
+  nouns.
 - **FR-009**: If no orphaned artifacts are found, then Sauron shall report
   that there is nothing to prune and exit successfully.
-- **FR-010**: If the settings or the track file cannot be read, then Sauron
+- **FR-010**: If `registries.yaml` or the track file cannot be read, then Sauron
   shall reject the request and report that it cannot be read.
 - **FR-011**: If an orphaned artifact cannot be deleted, then Sauron shall
   report the failure, continue pruning the remainder, and exit with an error.
@@ -72,3 +73,6 @@ carries only artifacts from currently registered registries.
 - The track file (`~/.sauron/track.yaml`) is populated by
   [sync artifacts](../0006-sync-artifacts/spec.md); prune reads it and removes entries for the
   artifacts it prunes. See [data/configuration.md](data/configuration.md).
+- Configuration is now split across files per the
+  [configuration data contract](../contracts/configuration.md); file
+  references updated accordingly.

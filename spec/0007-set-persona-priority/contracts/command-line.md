@@ -39,7 +39,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Priority set (including the no-op case) | [spec](../spec.md) FR-003, FR-004, FR-005 |
 | `2` | Usage error — missing `<name>`/`<value>`, or `<value>` not a non-negative integer | [spec](../spec.md) FR-007, FR-008 |
-| `1` | Validation error — only one persona exists, persona not found, priority taken, or the settings unreadable | [spec](../spec.md) FR-009, FR-010, FR-011, FR-012 |
+| `1` | Validation error — only one persona exists, persona not found, priority taken, or `personas.yaml` unreadable | [spec](../spec.md) FR-009, FR-010, FR-011, FR-012 |
 
 ## Examples
 

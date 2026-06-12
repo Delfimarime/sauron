@@ -41,7 +41,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Listed (including an empty list or no matches) | [spec](../spec.md) FR-002, FR-004, FR-005 |
 | `2` | Usage error — `--search` without a value, invalid `--sort`, invalid `--order`, or an unknown `--fields` column | [spec](../spec.md) FR-010, FR-008, FR-009, FR-014 |
-| `1` | Runtime error — the settings cannot be read or parsed | [spec](../spec.md) FR-007 |
+| `1` | Runtime error — `registries.yaml` cannot be read or parsed | [spec](../spec.md) FR-007 |
 
 ## Examples
 

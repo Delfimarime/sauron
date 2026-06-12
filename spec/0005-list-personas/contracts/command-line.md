@@ -4,9 +4,13 @@ Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [List Personas](../spec.md)
 
-Defines the command-line interface for listing the persona catalog and marking
-which entries are installed. This is the user-facing contract only. Listing is
-read-only and works offline against the local catalog.
+Defines the command-line interface for listing the available personas and
+marking which entries are installed. This is the user-facing contract only. The
+available personas are the [installed](../../0014-select-personas/spec.md) ones
+merged with the personas the [backend](../../0012-backend/spec.md) offers,
+fetched live when the command runs. Listing is read-only and never persists a
+catalog. When the backend is unreachable the live fetch is skipped, so only the
+installed personas are listed and the command still succeeds.
 
 ## Synopsis
 
@@ -35,11 +39,14 @@ None.
 
 - **Success**: a table on stdout. Columns: NAME, INSTALLED (`yes`/`no`),
   PRIORITY, TAGS, SKILLS, AGENTS, LAST UPDATED, LAST SYNCED. SKILLS and AGENTS
-  are counts; PRIORITY, LAST UPDATED, and LAST SYNCED show `-` for a
-  not-installed persona, since those values exist only for installed personas.
+  are counts; PRIORITY and LAST SYNCED show `-` for a not-installed persona,
+  since those values exist only for installed personas; LAST UPDATED comes from
+  the backend definition and is shown for the personas the backend offers live.
   `--fields` selects and orders the displayed columns (NAME always first). Rows
-  are ordered by the chosen attribute and direction. When the catalog is empty
-  or nothing matches, a single message is printed instead of a table.
+  are ordered by the chosen attribute and direction. When no personas are
+  available or nothing matches, a single message is printed instead of a table.
+  When the backend is unreachable the live fetch is skipped and only installed
+  personas are listed; the command still succeeds.
 - **Failure**: a single human-readable message on stderr.
 
 ## Exit codes
@@ -49,19 +56,19 @@ this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |
 |------|---------|----------|
-| `0` | Listed (including an empty catalog or no matches) | [spec](../spec.md) FR-002, FR-005, FR-006 |
+| `0` | Listed (including no personas, no matches, or the backend unreachable so only installed personas are listed) | [spec](../spec.md) FR-002, FR-005, FR-006, FR-007 |
 | `2` | Usage error — `--search`/`--tag`/`--installed`/`--fields`/`--sort`/`--order` without a value or with an invalid value, or `--fields` naming an unknown column | [spec](../spec.md) FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015 |
-| `1` | Runtime error — the settings cannot be read or parsed | [spec](../spec.md) FR-008 |
+| `1` | Runtime error — `personas.yaml` cannot be read or parsed | [spec](../spec.md) FR-008 |
 
 ## Examples
 
 ```
-# List the whole catalog (default: priority ascending, installed first, not-installed last)
+# List the available personas (default: priority ascending, installed first, not-installed last)
 $ sauron list personas
 NAME               INSTALLED  PRIORITY  TAGS             SKILLS  AGENTS  LAST UPDATED          LAST SYNCED
 backend-developer  yes        0         backend, golang  2       1       2026-06-11T18:00:00Z  2026-06-12T09:30:00Z
 qa-engineer        yes        1         qa               1       0       2026-06-10T12:00:00Z  2026-06-12T09:30:00Z
-designer           no         -         design           1       1       -                     -
+designer           no         -         design           1       1       2026-06-09T08:00:00Z  -
 
 # Filter by tags (all must match)
 $ sauron list personas --tag backend --tag golang
@@ -73,10 +80,10 @@ $ sauron list personas --search qa
 NAME         INSTALLED  PRIORITY  TAGS  SKILLS  AGENTS  LAST UPDATED          LAST SYNCED
 qa-engineer  yes        1         qa    1       0       2026-06-10T12:00:00Z  2026-06-12T09:30:00Z
 
-# Only not-installed personas
+# Only not-installed personas (offered live by the backend)
 $ sauron list personas --installed false
-NAME      INSTALLED  PRIORITY  TAGS    SKILLS  AGENTS  LAST UPDATED  LAST SYNCED
-designer  no         -         design  1       1       -             -
+NAME      INSTALLED  PRIORITY  TAGS    SKILLS  AGENTS  LAST UPDATED          LAST SYNCED
+designer  no         -         design  1       1       2026-06-09T08:00:00Z  -
 
 # Choose and order columns
 $ sauron list personas --fields installed,tags,skills,agents
@@ -89,12 +96,18 @@ designer           no         design           1       1
 $ sauron list personas --sort name --order desc
 NAME               INSTALLED  PRIORITY  TAGS             SKILLS  AGENTS  LAST UPDATED          LAST SYNCED
 qa-engineer        yes        1         qa               1       0       2026-06-10T12:00:00Z  2026-06-12T09:30:00Z
-designer           no         -         design           1       1       -                     -
+designer           no         -         design           1       1       2026-06-09T08:00:00Z  -
 backend-developer  yes        0         backend, golang  2       1       2026-06-11T18:00:00Z  2026-06-12T09:30:00Z
 
-# Empty catalog (exit 0)
+# Backend unreachable: only installed personas are listed; still exits 0
 $ sauron list personas
-The persona catalog is empty.
+NAME               INSTALLED  PRIORITY  TAGS             SKILLS  AGENTS  LAST UPDATED          LAST SYNCED
+backend-developer  yes        0         backend, golang  2       1       2026-06-11T18:00:00Z  2026-06-12T09:30:00Z
+qa-engineer        yes        1         qa               1       0       2026-06-10T12:00:00Z  2026-06-12T09:30:00Z
+
+# No personas available (nothing installed, backend offers none or is unreachable) — exit 0
+$ sauron list personas
+There are no personas.
 
 # Invalid sort attribute (usage error, exit 2)
 $ sauron list personas --sort tags

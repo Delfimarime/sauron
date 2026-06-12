@@ -6,7 +6,7 @@ Conventions: [CLI conventions](../../AUTHORING.md).
 
 Defines the command-line interface for describing one registered registry. This
 is the user-facing contract only. Describing is read-only and offline: it reads
-the named registry from the settings and contacts no external resource.
+the named registry from `registries.yaml` and contacts no external resource.
 
 ## Synopsis
 
@@ -27,7 +27,7 @@ Command hierarchy: `sauron` (root) → `describe` (group) → `registry`
 
 | Flag | Required | Default | Values | Description |
 |------|----------|---------|--------|-------------|
-| `--fields` | No | all fields | comma-separated `name`, `kind`, `location`, `priority`, `auth`, `tls`, `timeout`, `ssh-key` | Fields to display, in order; `name` is always present and first. Realizes [spec](../spec.md) FR-013, FR-012. |
+| `--fields` | No | all fields | comma-separated `name`, `kind`, `uri`, `priority`, `auth`, `tls`, `timeout`, `ssh-key` | Fields to display, in order; `name` is always present and first. Realizes [spec](../spec.md) FR-013, FR-012. |
 
 ## Output
 
@@ -39,6 +39,10 @@ Command hierarchy: `sauron` (root) → `describe` (group) → `registry`
 - **Failure**: a single human-readable message on stderr. Realizes
   [spec](../spec.md) FR-009, FR-011.
 
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.
+
 ## Exit codes
 
 Exit-status meanings are owned by the [CLI conventions](../../AUTHORING.md);
@@ -48,7 +52,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | The registry was found and described | [spec](../spec.md) FR-003 |
 | `2` | Usage error — `<name>` missing, or an unknown `--fields` value | [spec](../spec.md) FR-008, FR-012 |
-| `1` | Runtime error — the registry was not found, or the settings cannot be read or parsed | [spec](../spec.md) FR-009, FR-010, FR-011 |
+| `1` | Runtime error — the registry was not found, or `registries.yaml` cannot be read or parsed | [spec](../spec.md) FR-009, FR-010, FR-011 |
 
 ## Examples
 
@@ -57,17 +61,17 @@ this table refines which conditions map to each code.
 $ sauron describe registry team-secure
 name: team-secure
 kind: http
-location: https://secure.example.com
+uri: https://secure.example.com
 priority: 2
 auth: ${env:SKILLS_PASS}
-tls: caCert=/home/user/.sauron/ca.pem
+tls: ca_cert=/home/user/.sauron/ca.pem
 timeout: 30s
 ssh-key:
 
 # A subset of fields, in the given order (name always first)
-$ sauron describe registry team-secure --fields location,priority
+$ sauron describe registry team-secure --fields uri,priority
 name: team-secure
-location: https://secure.example.com
+uri: https://secure.example.com
 priority: 2
 
 # Registry not found (runtime error, exit 1)
@@ -80,5 +84,5 @@ Error: a registry name is required
 
 # Unknown field (usage error, exit 2)
 $ sauron describe registry team-secure --fields color
-Error: --fields must name only: name, kind, location, priority, auth, tls, timeout, ssh-key
+Error: --fields must name only: name, kind, uri, priority, auth, tls, timeout, ssh-key
 ```

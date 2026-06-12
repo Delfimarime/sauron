@@ -32,9 +32,9 @@ upsert, persistence, transactionality, teardown) is owned by the
   the configured timeout and SSH key — before configuring it.
 - **FR-004**: When a network operation runs (e.g. `git ls-remote`), Sauron shall
   bound it by the configured timeout (default `30s`).
-- **FR-005**: When the catalog is refreshed, Sauron shall derive each persona's
-  last-modified timestamp from the last commit that touched that persona's
-  definition.
+- **FR-005**: When the installed personas' definitions are refreshed from the
+  backend, Sauron shall derive each persona's last-modified timestamp from the
+  last commit that touched that persona's definition.
 
 ### Unwanted behavior
 

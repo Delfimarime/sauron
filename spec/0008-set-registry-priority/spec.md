@@ -23,15 +23,15 @@ resolution during [sync](../0006-sync-artifacts/spec.md).
 - **FR-002**: When a user sets a priority, Sauron shall require a registry
   name and a priority value.
 - **FR-003**: When the request is valid, Sauron shall assign the value as the
-  registry's priority and persist the updated settings.
+  registry's priority and persist the updated `registries.yaml`.
 - **FR-004**: When the value equals the registry's current priority, Sauron
   shall make no change and report success (no-op).
 
 ### State-driven
 
 - **FR-005**: While setting a priority, Sauron shall leave the existing
-  configuration unchanged until the change is persisted; the settings are left
-  untouched on any failure.
+  configuration unchanged until the change is persisted; `registries.yaml` is
+  left untouched on any failure.
 
 ### Unwanted behavior
 
@@ -45,8 +45,8 @@ resolution during [sync](../0006-sync-artifacts/spec.md).
   shall reject the request, leave the configuration unchanged, and report that
   the priority must be unique (`0` is assignable only when no registry holds
   it).
-- **FR-010**: If the settings cannot be read or parsed, then Sauron shall
-  reject the request and report that the settings cannot be read.
+- **FR-010**: If `registries.yaml` cannot be read or parsed, then Sauron shall
+  reject the request and report that the registries cannot be read.
 - **FR-011**: If only one registry exists, then Sauron shall reject the
   request and report that priority cannot be changed while a single registry
   exists — it keeps priority `0` (see
@@ -62,3 +62,9 @@ resolution during [sync](../0006-sync-artifacts/spec.md).
   regardless of kind, where the first registry is `0` and a lower value means
   higher precedence; this feature is the only way to change it after the
   registry is added.
+
+## Notes
+
+Configuration is now split across files per the
+[configuration data contract](../contracts/configuration.md); file references
+updated accordingly.

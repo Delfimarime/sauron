@@ -8,7 +8,7 @@ exit-status semantics, and output discipline.
 ## add registry
 
 ```
-sauron add registry [--kind <kind>] [--priority <n>] [kind-scoped flags] <name> <location>
+sauron add registry [--kind <kind>] [--priority <n>] [kind-scoped flags] <name> <uri>
 ```
 
 Register an artifact source of any kind.
@@ -43,12 +43,12 @@ Unregister a source, keeping installed artifacts.
 ## prune
 
 ```
-sauron prune [skills|agents] [--dry-run]
+sauron prune (artifacts|skills|agents) [--dry-run]
 ```
 
 Remove artifacts orphaned by unregistered registries.
 
-- Key flags: `--dry-run`; optional `skills`|`agents` positional narrows scope.
+- Required noun: `artifacts` (both), `skills`, or `agents`. Key flags: `--dry-run`.
 - Full contract → [0004-prune](../0004-prune/contracts/command-line.md).
 
 ## list personas
@@ -57,7 +57,7 @@ Remove artifacts orphaned by unregistered registries.
 sauron list personas [--search <term>] [--tag <tag>]... [--installed <true|false>] [--fields <list>] [--sort <name|installed|priority|last-updated|last-synced>] [--order <asc|desc>]
 ```
 
-Review the persona catalog and which personas are installed.
+Review the available personas (installed plus those the backend offers live) and which are installed.
 
 - Key flags: `--search`, `--tag` (repeatable), `--installed`, `--fields`, `--sort`, `--order`.
 - Full contract → [0005-list-personas](../0005-list-personas/contracts/command-line.md).
@@ -106,16 +106,18 @@ Choose the provider destination.
 - Key flags: `--copy-only`.
 - Full contract → [0009-set-provider](../0009-set-provider/contracts/command-line.md).
 
-## clear
+## delete artifacts
 
 ```
-sauron clear [--persona <name>] [--dry-run]
+sauron delete (artifacts|skills|agents) [--persona <name>] [--dry-run]
 ```
 
-Remove all Sauron-installed artifacts.
+Remove all tracked artifacts Sauron installed (optionally scoped to one persona);
+unlike `prune`, which removes only orphans from unregistered registries, this
+removes everything in scope.
 
-- Key flags: `--persona`, `--dry-run`.
-- Full contract → [0010-clear](../0010-clear/contracts/command-line.md).
+- Required noun: `artifacts` (both), `skills`, or `agents`. Key flags: `--persona`, `--dry-run`.
+- Full contract → [0010-delete-artifacts](../0010-delete-artifacts/contracts/command-line.md).
 
 ## cron sync
 
@@ -132,7 +134,7 @@ Schedule automatic `sync artifacts` via the OS crontab.
 ## set backend
 
 ```
-sauron set backend [--kind <http|filesystem|git>] [--username ${env:VAR}] [--password ${env:VAR}] [--timeout <duration>] <location>
+sauron set backend [--kind <http|filesystem|git>] [--username ${env:VAR}] [--password ${env:VAR}] [--timeout <duration>] <uri>
 ```
 
 Configure the singleton backend that owns persona definitions (upsert).
@@ -146,7 +148,7 @@ Configure the singleton backend that owns persona definitions (upsert).
 sauron unset backend [--keep-artifacts]
 ```
 
-Tear down the backend (cascades to catalog, installs, and artifacts).
+Tear down the backend (cascades to installed personas, installs, and artifacts).
 
 - Key flags: `--keep-artifacts` (preserve delivered artifacts).
 - Full contract → [0012-backend](../0012-backend/contracts/command-line.md).
@@ -158,7 +160,7 @@ sauron sync personas [--force]
 sauron sync persona <name> [--force]
 ```
 
-Pull persona definitions from the registry into the local catalog.
+Refresh the definitions of the installed personas from the backend.
 
 - Key flags: `--force` (authoritative re-pull + hard-reconcile).
 - Full contract → [0013-sync-personas](../0013-sync-personas/contracts/command-line.md).

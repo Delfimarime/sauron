@@ -17,7 +17,7 @@ sauron add registry [--kind <http|filesystem|git>] [--priority <n>]
   [--username ${env:VAR}] [--password ${env:VAR}] [--skip-tls-verify]
   [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
   [--ssh-key <path>] [--timeout <duration>]
-  <name> <location>
+  <name> <uri>
 ```
 
 Command hierarchy: `sauron` (root) → `add` (group) → `registry`
@@ -29,7 +29,7 @@ selected explicitly.
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `<name>` | Yes | Unique slug `^[a-z0-9]+(-[a-z0-9]+)*$`, unique across all kinds. Realizes [spec](../spec.md) FR-002, FR-004, FR-005, FR-012, FR-013, FR-016. |
-| `<location>` | Yes | The artifact source, by kind: an `http`/`https` URL ([http](../capabilities/http.md)), a directory path resolved to an absolute, symlink-resolved path before use ([filesystem](../capabilities/filesystem.md)), or an SSH-based git URI — scp-like or `ssh://` ([git](../capabilities/git.md)). Realizes [spec](../spec.md) FR-004, FR-014, FR-018. |
+| `<uri>` | Yes | The artifact source, by kind: an `http`/`https` URL ([http](../capabilities/http.md)), a directory path resolved to an absolute, symlink-resolved path before use ([filesystem](../capabilities/filesystem.md)), or an SSH-based git URI — scp-like or `ssh://` ([git](../capabilities/git.md)). Realizes [spec](../spec.md) FR-004, FR-014, FR-018. |
 
 ## Flags
 
@@ -52,7 +52,7 @@ Realizes [spec](../spec.md) FR-019.
 ## Output
 
 - **Success**: a single confirmation line on stdout naming the registered
-  registry name and location. Realizes [spec](../spec.md) FR-008.
+  registry name and `uri`. Realizes [spec](../spec.md) FR-008.
 - **Failure**: a single human-readable message on stderr. No partial output,
   no stack traces. Realizes [spec](../spec.md) FR-021.
 
@@ -64,7 +64,7 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Registry registered | [spec](../spec.md) FR-006, FR-008 |
-| `2` | Usage error — missing `<name>`/`<location>`, invalid name, a `--priority` that is not a non-negative integer, a non-`0` `--priority` for the first registry, unknown `--kind`, invalid `--timeout`, a kind-scoped flag on a different kind; **http**: invalid (non-`http`/`https`) URL, raw (non-env) credential, unpaired `--client-cert`/`--client-key`; **git**: non-SSH or malformed git URI | [spec](../spec.md) FR-012, FR-013, FR-014, FR-015, FR-019, FR-020, FR-022; [http](../capabilities/http.md) FR-006, FR-008, FR-009, FR-012; [git](../capabilities/git.md) FR-005, FR-008 |
+| `2` | Usage error — missing `<name>`/`<uri>`, invalid name, a `--priority` that is not a non-negative integer, a non-`0` `--priority` for the first registry, unknown `--kind`, invalid `--timeout`, a kind-scoped flag on a different kind; **http**: invalid (non-`http`/`https`) URL, raw (non-env) credential, unpaired `--client-cert`/`--client-key`; **git**: non-SSH or malformed git URI | [spec](../spec.md) FR-012, FR-013, FR-014, FR-015, FR-019, FR-020, FR-022; [http](../capabilities/http.md) FR-006, FR-008, FR-009, FR-012; [git](../capabilities/git.md) FR-005, FR-008 |
 | `1` | Validation error — duplicate name, duplicate priority; **http**: server unreachable (connection, TLS, or non-success `HEAD`), unset `${env:VAR}`, unreadable CA/cert/key file; **filesystem**: directory not accessible, no artifacts under `.skills/` or `.agents/`; **git**: remote unreachable or authentication failed, unreadable `--ssh-key` file | [spec](../spec.md) FR-016, FR-017; [http](../capabilities/http.md) FR-007, FR-010, FR-011; [filesystem](../capabilities/filesystem.md) FR-005, FR-006; [git](../capabilities/git.md) FR-006, FR-007 |
 
 ## Examples

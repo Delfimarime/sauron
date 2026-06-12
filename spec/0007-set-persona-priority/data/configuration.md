@@ -1,24 +1,43 @@
-# Data Model: Configuration — Sauron Settings (Persona Priority)
+# Data Model: Configuration — Set Persona Priority (personas.yaml)
 
 **Spec**: [Set Persona Priority](../spec.md)
 
-Describes how the Set Persona Priority feature modifies the persisted configuration.
+This feature rewrites a single installed persona's `priority` in the `items`
+array of `personas.yaml`. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#personasyaml);
+this document does not restate it.
 
-## Location & format
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document. Installed personas and their priorities live in the `installed` block, owned by [select personas](../../0014-select-personas/spec.md) (which defines its full schema). This feature reads that block and rewrites a single entry's `priority`.
+- `personas.yaml` `items` — to locate the entry by `name`, to check the
+  new value against the other entries' `priority`, and to count how many
+  personas are installed.
 
-## Operation
+## Owns
 
-- The `priority` field of the installed persona whose `name` matches the argument is set to the given value; all other fields and all other installed personas in the `installed` block are preserved unchanged. Realizes [spec](../spec.md) FR-003.
-- The installed persona's existing `priority` value is replaced with the new value. Realizes [spec](../spec.md) FR-005.
-- Uniqueness is enforced over all installed personas — the new value must not be held by another installed persona. `0` is assignable only when free (see [priority model](../../AUTHORING.md#priority-model)). Realizes [spec](../spec.md) FR-011.
-- The request is rejected while only one persona is installed; that persona keeps `0`. Realizes [spec](../spec.md) FR-009.
+- Nothing. The `items` array is owned by
+  [select personas](../../0014-select-personas/spec.md); this feature only
+  adjusts an existing entry's `priority`.
 
-## Write semantics
+## Realizes
 
-- The whole document is loaded, the single `priority` field in the `installed` block changed, and the document written back only after all validation passes. The file is left untouched on any failure. Realizes [spec](../spec.md) FR-006.
-- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
-- When the value equals the current priority, no write is performed (no-op). Realizes [spec](../spec.md) FR-004.
-- The override written here persists until the next [select personas](../../0014-select-personas/spec.md) `set persona` redeclaration rewrites the `installed` block and resets positional priorities.
+- `personas.yaml` `items[].priority` write → [spec](../spec.md) FR-003 (set the
+  new value), FR-006 (transactional — unchanged until the write succeeds),
+  FR-012 (read failure).
+
+## Writes
+
+- `personas.yaml` `items[].priority` — the matched entry's `priority` is
+  set to the given value; all other fields and all other installed personas are
+  preserved. The value must be a unique, non-negative integer (`0` only when no
+  installed persona holds it). No write occurs when the value already equals the
+  current priority, and the request is rejected while a single persona is
+  installed. The override persists until the next
+  [select personas](../../0014-select-personas/spec.md) `set persona`
+  redeclaration resets positional priorities.
+
+## Notes
+
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.

@@ -4,10 +4,14 @@ Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [Describe Persona](../spec.md)
 
-Defines the command-line interface for describing a single persona from the
-catalog. This is the user-facing contract only. Describing is read-only and
-works offline against the local catalog; it never writes the settings or the
-track file.
+Defines the command-line interface for describing a single persona. This is the
+user-facing contract only. Describing is read-only and resolves the persona
+through the [live persona view](../../contracts/configuration.md#live-persona-view):
+an installed persona from
+[personas.yaml](../../contracts/configuration.md#personasyaml) (describable even
+offline), or a not-installed persona fetched live from the
+[backend](../../contracts/configuration.md#backendyaml). It never writes the
+configuration or the track file.
 
 ## Synopsis
 
@@ -22,7 +26,7 @@ Command hierarchy: `sauron` (root) → `describe` (group) → `persona`
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | Yes | Name of the catalog persona to describe; resolved whether it is installed or available. Realizes [spec](../spec.md) FR-001, FR-002, FR-006. |
+| `<name>` | Yes | Name of the persona to describe; resolved from the installed personas when installed, or fetched live from the backend when not. Realizes [spec](../spec.md) FR-001, FR-002, FR-006. |
 
 ## Flags
 
@@ -47,14 +51,14 @@ this table refines which conditions map to each code.
 
 | Code | Meaning | Realizes |
 |------|---------|----------|
-| `0` | Described — the persona was resolved and printed | [spec](../spec.md) FR-002, FR-003, FR-004 |
+| `0` | Described — the persona was resolved (installed, or live from the backend) and printed | [spec](../spec.md) FR-002, FR-003, FR-004 |
 | `2` | Usage error — `<name>` missing, or `--fields` without a value or naming an unknown field | [spec](../spec.md) FR-006, FR-007 |
-| `1` | Runtime error — the persona was not found, or the settings or track file cannot be read or parsed | [spec](../spec.md) FR-005, FR-008, FR-009 |
+| `1` | Runtime error — the persona is neither installed nor offered by a reachable backend (unknown, or not installed and the backend is unreachable), or `personas.yaml` or the track file cannot be read or parsed | [spec](../spec.md) FR-005, FR-008, FR-009 |
 
 ## Examples
 
 ```
-# Describe an installed persona (full field set)
+# Describe an installed persona (full field set; works offline)
 $ sauron describe persona backend-developer
 name: backend-developer
 description: Backend service engineer for Go projects
@@ -67,7 +71,7 @@ registry: team-registry
 last-updated: 2026-06-11T18:00:00Z
 last-synced: 2026-06-12T09:30:00Z
 
-# Describe an available (not-installed) persona — priority and timestamps empty
+# Describe an available (not-installed) persona, fetched live — priority and timestamps empty
 $ sauron describe persona designer
 name: designer
 description: Product and UI design assistant
@@ -86,9 +90,9 @@ name: backend-developer
 priority: 0
 tags: backend, golang
 
-# Persona not found (runtime error, exit 1)
+# Persona could not be resolved — unknown, or not installed with the backend unreachable (runtime error, exit 1)
 $ sauron describe persona ghost
-Error: persona "ghost" not found in the catalog
+Error: persona "ghost" could not be resolved
 
 # Missing name argument (usage error, exit 2)
 $ sauron describe persona

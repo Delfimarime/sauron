@@ -1,63 +1,31 @@
-# Data Model: Configuration — Sauron Settings (Pruning)
+# Data Model: Configuration — Prune (registries.yaml, track.yaml)
 
 **Spec**: [Prune](../spec.md)
 
-Describes the data the Prune feature reads and updates. Prune compares installed artifacts (`track.yaml`) against registered registries (`settings.yaml`) and removes the orphans.
+This feature reads the registered registry names from `registries.yaml` and the
+installed artifacts from `track.yaml`'s `items`, then removes the orphaned
+`track.yaml` entries (and their artifacts); it never writes `registries.yaml`.
+The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#trackyaml); this
+document does not restate it.
 
-## Inputs
+## Reads
 
-### Registered registries — `~/.sauron/settings.yaml`
+- `registries.yaml` `items`: the `name` of each registered registry —
+  the registered set against which orphans are detected
+  ([#registriesyaml](../../contracts/configuration.md#registriesyaml)).
+- `track.yaml` `items`: each installed artifact's `type`, `name`,
+  `provider`, `path`, and `registry`; an entry is orphaned when its `registry`
+  is not in the registered set. Realizes [spec](../spec.md) FR-004.
 
-Read-only for prune. The set of names in `registries[]` is the registered set; an artifact is orphaned when its source registry name is not in this set.
+## Owns
 
-### Tracking record — `~/.sauron/track.yaml`
+- Nothing. `track.yaml` is owned by
+  [sync artifacts](../../0006-sync-artifacts/spec.md).
 
-The record of installed artifacts and their provenance. Created and maintained by [sync artifacts](../../0006-sync-artifacts/spec.md), which owns the full schema; prune reads it and removes entries for pruned artifacts.
+## Writes
 
-- **Path**: `~/.sauron/track.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document.
-
-Top-level document:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `installed` | array of Installed Artifact | Yes | Delivered artifacts. Empty array when none. |
-
-Installed Artifact entry:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | `skill` or `agent`. |
-| `name` | string | Yes | Artifact name, as installed. |
-| `provider` | string | Yes | Provider the artifact was delivered to (e.g. `claude`, `zencoder`). |
-| `path` | string | Yes | Where it was installed. |
-| `registry` | string | Yes | Name of the source registry (provenance). |
-| `persona` | string | No | Persona that brought the artifact into scope; absent when synced without personas. Not used by prune's orphan test. |
-
-## Operation
-
-- For each installed artifact of the requested type(s), if its `registry` is not in the registered set, the artifact is orphaned. Realizes [spec](../spec.md) FR-004.
-- Orphaned artifacts are deleted from their `path` and their entries removed from `installed[]`. Realizes [spec](../spec.md) FR-005. With `--dry-run`, nothing is deleted or written. Realizes [spec](../spec.md) FR-012.
-- Artifacts whose `registry` is still registered are left untouched. Realizes [spec](../spec.md) FR-007.
-
-## Write semantics
-
-- Prune writes only `track.yaml`, never `settings.yaml`.
-- Updates are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `track.yaml`. The file is left untouched on `--dry-run` or when nothing is orphaned.
-
-## Example (`track.yaml`)
-
-```yaml
-installed:
-  - type: skill
-    name: code-review
-    provider: claude
-    path: ~/.claude/skills/code-review
-    registry: team-deploy
-    persona: backend-developer
-  - type: agent
-    name: triager
-    provider: claude
-    path: ~/.claude/agents/triager.md
-    registry: old-http
-```
+- `track.yaml` `items`: removes the orphaned entries and deletes their
+  artifacts from `path`; with `--dry-run` nothing is deleted or written.
+  Realizes [spec](../spec.md) FR-005, FR-012. Atomic single-file write per the
+  [configuration data contract](../../contracts/configuration.md#cross-file-write-semantics).

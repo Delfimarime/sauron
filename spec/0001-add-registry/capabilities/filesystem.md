@@ -10,7 +10,7 @@ under `.skills/` and `.agents/`. This capability defines the
 filesystem-specific behavior of [add registry](../spec.md): directory
 existence and accessibility checks, artifact-presence validation, and stable
 path resolution so re-registering the same directory yields the same recorded
-location. Common registration behavior (name, priority, persistence,
+`uri`. Common registration behavior (name, priority, persistence,
 transactionality) is owned by the [feature spec](../spec.md).
 
 ## Requirements
@@ -22,14 +22,15 @@ transactionality) is owned by the [feature spec](../spec.md).
 
 ### Event-driven
 
-- **FR-002**: When a user submits a directory path, Sauron shall verify that
-  the directory exists and is accessible before registering it.
-- **FR-003**: When a user submits a directory path, Sauron shall verify that
-  the directory contains at least one artifact under `.skills/` or `.agents/`
-  before registering it.
-- **FR-004**: When a user submits a directory path, Sauron shall resolve it to
-  an absolute, symlink-resolved path and record that resolved path, so that
-  registering the same directory again yields the same recorded location.
+- **FR-002**: When a user submits a `uri` (a directory path), Sauron shall
+  verify that the directory exists and is accessible before registering it.
+- **FR-003**: When a user submits a `uri` (a directory path), Sauron shall
+  verify that the directory contains at least one artifact under `.skills/` or
+  `.agents/` before registering it.
+- **FR-004**: When a user submits a `uri` (a directory path), Sauron shall
+  resolve it to an absolute, symlink-resolved path and record that resolved
+  path as the `uri`, so that registering the same directory again yields the
+  same recorded `uri`.
 
 ### Unwanted behavior
 

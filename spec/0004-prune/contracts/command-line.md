@@ -9,16 +9,16 @@ Defines the command-line interface for pruning orphaned artifacts. This is the u
 ## Synopsis
 
 ```
-sauron prune [skills|agents] [--dry-run]
+sauron prune (artifacts|skills|agents) [--dry-run]
 ```
 
-Command hierarchy: `sauron` (root) → `prune` (command).
+Command hierarchy: `sauron` (root) → `prune` (verb) → `(artifacts|skills|agents)` (noun).
 
 ## Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `[type]` | No | `skills` or `agents`. Omitted = both. Realizes [spec](../spec.md) FR-002, FR-003, FR-008. |
+| `(artifacts\|skills\|agents)` | Yes | The artifact scope: `artifacts` (both), `skills`, or `agents`. Realizes [spec](../spec.md) FR-002, FR-003, FR-008. |
 
 ## Flags
 
@@ -39,14 +39,14 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Pruned, or nothing to prune (including `--dry-run`) | [spec](../spec.md) FR-005, FR-006, FR-012, FR-009 |
-| `2` | Usage error — type other than `skills` or `agents` | [spec](../spec.md) FR-008 |
-| `1` | Runtime error — the settings or the track file is unreadable, or one or more artifacts could not be deleted | [spec](../spec.md) FR-010, FR-011 |
+| `2` | Usage error — missing noun, or a noun other than `artifacts`, `skills`, or `agents` | [spec](../spec.md) FR-008 |
+| `1` | Runtime error — `registries.yaml` or the track file is unreadable, or one or more artifacts could not be deleted | [spec](../spec.md) FR-010, FR-011 |
 
 ## Examples
 
 ```
 # Prune both skills and agents
-$ sauron prune
+$ sauron prune artifacts
 skills:
 - code-review
 - release-notes
@@ -61,7 +61,7 @@ agents:
 Pruned 1 agent.
 
 # Preview without deleting
-$ sauron prune --dry-run
+$ sauron prune artifacts --dry-run
 skills:
 - code-review
 - release-notes
@@ -69,10 +69,10 @@ agents:
 - triager
 
 # Nothing orphaned (exit 0)
-$ sauron prune
+$ sauron prune artifacts
 Nothing to prune.
 
-# Invalid type (usage error, exit 2)
-$ sauron prune plugins
-Error: prune accepts only 'skills' or 'agents'
+# Missing or invalid noun (usage error, exit 2)
+$ sauron prune
+Error: prune requires one of 'artifacts', 'skills', or 'agents'
 ```

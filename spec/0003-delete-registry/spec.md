@@ -21,28 +21,28 @@ unregisters the registry only.
 ### Event-driven
 
 - **FR-002**: When a user deletes a registry by name, Sauron shall remove
-  the matching registry from the settings.
+  the matching registry from `registries.yaml`.
 - **FR-003**: When a registry is deleted, Sauron shall leave any artifacts
   previously installed from it in place; deletion unregisters the registry
   only (see
   [ADR-0001](architecture/ADR-0001-unregister-keeps-installed-artifacts.md)).
 - **FR-004**: When the deletion succeeds, Sauron shall persist the updated
-  settings and report success.
+  `registries.yaml` and report success.
 - **FR-005**: When a user deletes a registry that does not exist, Sauron
   shall exit successfully and report that nothing was deleted.
 
 ### State-driven
 
 - **FR-006**: While deleting, Sauron shall leave the existing configuration
-  unchanged until the removal is persisted; the settings are left untouched on
-  any failure.
+  unchanged until the removal is persisted; `registries.yaml` is left untouched
+  on any failure.
 
 ### Unwanted behavior
 
 - **FR-007**: If no name is provided, then Sauron shall reject the request and
   report that a name is required.
-- **FR-008**: If the settings cannot be read or parsed, then Sauron shall
-  reject the request and report that the settings cannot be read.
+- **FR-008**: If `registries.yaml` cannot be read or parsed, then Sauron shall
+  reject the request and report that it cannot be read.
 
 ## Key Entities
 
@@ -56,3 +56,9 @@ unregisters the registry only.
 - [Unregister keeps installed artifacts](architecture/ADR-0001-unregister-keeps-installed-artifacts.md)
   — deleting a registry unregisters the registry only; installed artifacts
   are kept.
+
+## Notes
+
+- Configuration is now split across files per the
+  [configuration data contract](../contracts/configuration.md); file
+  references updated accordingly.

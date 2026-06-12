@@ -10,7 +10,7 @@ artifacts — an HTTP(S) server, a filesystem directory, or a Git repository
 reached over SSH — so that Sauron can watch them and keep the team's provider in
 sync with their latest contents. The `sauron add registry` command registers
 any of these sources under a single interface: the user supplies a name, a
-location, and a kind (defaulting to `http`), optionally a priority, and Sauron
+`uri`, and a kind (defaulting to `http`), optionally a priority, and Sauron
 validates the source before persisting it to the settings. Priority follows the
 [unified priority model](../AUTHORING.md#priority-model):
 it is optional, always defined, and unique across all registries — the first
@@ -35,16 +35,16 @@ Kind-specific validation and transport behavior are defined by the
 ### Event-driven
 
 - **FR-004**: When a user submits a request to add a registry, Sauron shall
-  require a name and a location, treat `--priority` as optional, and default the
+  require a name and a `uri`, treat `--priority` as optional, and default the
   kind to `http` when none is given (so `filesystem` and `git` must be selected
   explicitly via `--kind`).
 - **FR-005**: When a registry is registered, Sauron shall identify it by its
   name.
 - **FR-006**: When a registry passes validation, Sauron shall persist it to
-  the settings (`~/.sauron/settings.yaml`) so it becomes a watched source in
+  `~/.sauron/registries.yaml` so it becomes a watched source in
   subsequent runs.
 - **FR-007**: When a registry is registered, Sauron shall record its name and
-  priority alongside its kind and location.
+  priority alongside its kind and `uri`.
 - **FR-008**: When a registry is successfully registered, Sauron shall report
   success with a single confirmation line on stdout.
 - **FR-009**: When the first registry is registered (none exist yet), Sauron
@@ -69,8 +69,8 @@ Kind-specific validation and transport behavior are defined by the
 - **FR-013**: If the name is not a valid slug (`^[a-z0-9]+(-[a-z0-9]+)*$`),
   then Sauron shall reject the request and report that the name format is
   invalid.
-- **FR-014**: If no location is provided, then Sauron shall reject the request
-  and report that a location is required.
+- **FR-014**: If no `uri` is provided, then Sauron shall reject the request
+  and report that a `uri` is required.
 - **FR-015**: If a `--priority` value is provided and it is not a non-negative
   integer, then Sauron shall reject the request and report that a valid priority
   is required; omitting `--priority` is valid and is never an error.
@@ -82,9 +82,9 @@ Kind-specific validation and transport behavior are defined by the
   unchanged, and report that the priority must be unique across all registries,
   per the
   [unified priority model](../AUTHORING.md#priority-model).
-- **FR-018**: If the submitted location is already used by another registered
+- **FR-018**: If the submitted `uri` is already used by another registered
   registry, then Sauron shall still register the new registry; duplicate
-  locations are permitted and shall not, on their own, cause rejection.
+  `uri` values are permitted and shall not, on their own, cause rejection.
 - **FR-019**: If a kind-scoped flag is used with a kind it does not apply to,
   then Sauron shall reject the request and report that the flag applies only to
   its kind (see the [command-line contract](contracts/command-line.md) for each
@@ -106,7 +106,7 @@ Kind-specific validation and transport behavior are defined by the
     registries regardless of kind.
   - **kind** — `http`, `filesystem`, or `git`; selects which capability
     validates and fetches from the source.
-  - **location** — where the artifacts live: a URL for
+  - **uri** — where the artifacts live: a URL for
     [http](capabilities/http.md), a directory path for
     [filesystem](capabilities/filesystem.md), an SSH git URI for
     [git](capabilities/git.md). Not required to be unique across registries.
@@ -123,3 +123,13 @@ Kind-specific validation and transport behavior are defined by the
 
 - [Credentials via environment variables only](architecture/ADR-0001-credentials-via-env-only.md)
 - [SSH-only remotes](architecture/ADR-0002-ssh-only-remotes.md)
+
+## Notes
+
+- The registry source location is a single field named `uri`, unifying the
+  previously per-kind names (`url` for http, `path` for filesystem, `uri` for
+  git) and the former `<location>` positional argument. The value remains
+  kind-shaped — an `http`/`https` URL for `http`, an absolute symlink-resolved
+  path for `filesystem`, an SSH git URI for `git` — so only the name unifies,
+  not what each kind accepts. The schema for this field is owned by the
+  [configuration data contract](../contracts/configuration.md#registriesyaml).

@@ -28,9 +28,12 @@ Every spec declares one of two types:
   (capability → feature), `Depends on` (feature → feature).
 - **Link form (normative):** every cross-file or cross-feature reference — in
   cross-link declarations, requirement text, Decision Records, and Notes — is a
-  relative markdown link to the provider file, e.g.
-  `Depends on: [sync](../0006-sync-artifacts/spec.md)`. Bare ids or unlinked feature
-  names are not allowed.
+  relative markdown link to the provider file, resolved from the referencing
+  file's own location. For example, a feature's `spec.md` declares
+  `Depends on: [sync](../0006-sync-artifacts/spec.md)`, and a
+  `data/configuration.md` links the schema as
+  `[configuration data contract](../../contracts/configuration.md)`. Bare ids or
+  unlinked feature names are not allowed.
 
 ## Numbering and layout
 
@@ -47,8 +50,10 @@ Every spec declares one of two types:
   └── architecture/ADR-NNNN-*.md   optional decision records
   ```
 
-- Global, cross-feature contracts live in `spec/contracts/` — e.g. the compiled
-  [CLI command reference](contracts/cli.md) and the
+- Global, cross-feature contracts live in `spec/contracts/` — the compiled
+  [CLI command reference](contracts/cli.md), the
+  [configuration data contract](contracts/configuration.md) (the schema of every
+  file Sauron persists), and the
   [architecture contract](contracts/architecture.md).
 
 Each file has a fixed purpose and a section that defines how its content is
@@ -58,7 +63,7 @@ written:
 |---|---|---|---|
 | `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
 | `contracts/command-line.md` | the feature owns a command | the command's synopsis, arguments, flags, output, and exit codes | [CLI conventions](#cli-conventions) (and the `authoring-cli-contracts` skill) |
-| `data/configuration.md` | the feature reads or writes config | the `settings`/`track file` schema the feature touches: location, format, schema, write semantics | [Glossary](#glossary) terms `settings` and `track file` |
+| `data/configuration.md` | the feature reads or writes config | which configuration file(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/configuration.md](contracts/configuration.md) and linked from here | [Glossary](#glossary) terms; link the [configuration data contract](contracts/configuration.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
 
@@ -134,14 +139,15 @@ One canonical term per concept; specs do not use synonyms for these:
 | kind | A registry's type: `http`, `filesystem`, or `git` |
 | persona | A named set of artifacts shared by a group |
 | backend | The backend that owns persona definitions; the persona analog of a `registry` (singleton per instance) |
-| catalog | The local read-only mirror of persona definitions pulled from the backend |
-| installed persona | A catalog persona activated locally via `set persona`; it participates in artifact sync and carries a priority (an *available* persona is in the catalog but not installed) |
+| catalog | The live view of *available* personas, assembled at command time from the installed personas plus a live fetch from the backend; it is never persisted, and the backend portion is omitted when the backend is unreachable |
+| installed persona | A persona activated locally via `set persona`, stored with its definition in `personas.yaml`; it participates in artifact sync and carries a priority. An *available* persona is one the backend offers live but that is not installed |
 | provider | The provider destination (e.g. `claude`, `zencoder`) |
 | priority | Integer precedence; lower value wins |
 | sync | The operation that reconciles the provider with registries/personas |
 | plan | The printed list of pending additions/removals (`+`/`-` lines) |
 | track file | `track.yaml`, recording installed artifacts and provenance |
-| settings | `settings.yaml`, the persisted configuration |
+| configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `backend.yaml`, `personas.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
+| settings | `settings.yaml`, the global settings file: the active `provider` and the sync schedule (`cron`) |
 
 ## Canonical boilerplate
 
@@ -216,7 +222,7 @@ never redefine these meanings.
 - Results (confirmations, tables, plans) go to stdout.
 - A failing command writes exactly one human-readable message to stderr and
   produces no partial output.
-- Commands that apply changes in bulk (`sync artifacts`, `sync personas`, `prune`, `clear`, `set provider`)
+- Commands that apply changes in bulk (`sync artifacts`, `sync personas`, `prune artifacts`, `delete artifacts`, `set provider`)
   print a shared plan/report format: artifacts grouped under `skills:` and
   `agents:` headings, one artifact per line, prefixed `+` for additions/updates
   and `-` for removals, followed by a summary count line when changes are

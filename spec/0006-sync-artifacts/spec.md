@@ -57,8 +57,8 @@ call for, at their latest versions.
 
 - **FR-010**: If `--persona` names a persona that does not exist, then Sauron
   shall reject the request and report that the persona is not found.
-- **FR-011**: If the settings or the track file cannot be read or parsed, then
-  Sauron shall reject the request and report that it cannot be read.
+- **FR-011**: If the configuration or the track file cannot be read or parsed,
+  then Sauron shall reject the request and report that it cannot be read.
 - **FR-012**: If a registry cannot be reached during sync artifacts, then
   Sauron shall report the failure, continue with the remaining registries,
   and exit with an error.
@@ -103,12 +103,15 @@ call for, at their latest versions.
 
 - `sync artifacts` (this command) and
   [sync personas](../0013-sync-personas/spec.md) are independent operations.
-  `sync personas` refreshes the local catalog of persona *definitions* from the
-  backend; `sync artifacts` reconciles the active provider with the
-  artifacts the *installed* personas call for. Installing a persona from the
-  catalog is owned by [select personas](../0014-select-personas/spec.md).
+  `sync personas` refreshes the stored *definitions* of the installed personas
+  from the backend; `sync artifacts` reconciles the active provider with the
+  artifacts the *installed* personas call for. Installing a persona is owned by
+  [select personas](../0014-select-personas/spec.md).
 - The recommended order is therefore
   [sync personas](../0013-sync-personas/spec.md) →
   [select personas](../0014-select-personas/spec.md) → `sync artifacts`: pull
   the latest persona definitions, install the ones that should participate, then
   reconcile the provider with their artifacts.
+- Configuration is now split across files per the
+  [configuration data contract](../contracts/configuration.md); file
+  references updated accordingly.

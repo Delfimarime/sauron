@@ -1,22 +1,28 @@
-# Data Model: Configuration — Sauron Settings (Deletion)
+# Data Model: Configuration — Delete Registry (registries.yaml)
 
 **Spec**: [Delete Registry](../spec.md)
 
-Describes how the Delete Registry feature modifies the persisted configuration.
+This feature mutates `registries.yaml`'s `items` block, removing the
+entry whose `name` matches the argument; installed artifacts are untouched. The
+schema is owned by the
+[configuration data contract](../../contracts/configuration.md#registriesyaml);
+this document does not restate it.
 
-## Location & format
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document with a `registries` array.
+- `registries.yaml` `items`: the entry whose `name` matches the argument.
 
-## Operation
+## Owns
 
-- The entry whose `name` matches the argument is removed from `registries`; all other entries are preserved unchanged. Realizes [spec](../spec.md) FR-002.
-- Identity is `name` (unique across kinds), so at most one entry matches.
-- Installed skills and agents are not referenced or modified — deletion touches only the configuration entry. Realizes [spec](../spec.md) FR-003 (see [ADR-0001](../architecture/ADR-0001-unregister-keeps-installed-artifacts.md)).
+- Nothing. `registries.yaml` is owned by
+  [add registry](../../0001-add-registry/spec.md).
 
-## Write semantics
+## Writes
 
-- The whole document is loaded, the matching entry removed, and the document written back only on success. The file is left untouched on any failure. Realizes [spec](../spec.md) FR-006.
-- Writes are atomic: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
-- When no entry matches, no write is performed (idempotent no-op). Realizes [spec](../spec.md) FR-005.
+- `registries.yaml` `items`: removes the matching entry; all other
+  entries are preserved. When no entry matches, no write is performed
+  (idempotent no-op). Realizes [spec](../spec.md) FR-002, FR-005, FR-006. The
+  cross-file write semantics and atomic single-file write are defined in the
+  [configuration data contract](../../contracts/configuration.md#cross-file-write-semantics).
+  Installed skills and agents are never referenced or modified
+  ([ADR-0001](../architecture/ADR-0001-unregister-keeps-installed-artifacts.md)).

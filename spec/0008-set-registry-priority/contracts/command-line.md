@@ -39,7 +39,7 @@ this table refines which conditions map to each code.
 |------|---------|----------|
 | `0` | Priority set (including the no-op case) | [spec](../spec.md) FR-003, FR-004 |
 | `2` | Usage error — missing `<name>`/`<value>`, or `<value>` not a non-negative integer | [spec](../spec.md) FR-006, FR-007 |
-| `1` | Runtime error — registry not found, priority taken, only a single registry exists, or the settings unreadable | [spec](../spec.md) FR-008, FR-009, FR-010, FR-011 |
+| `1` | Runtime error — registry not found, priority taken, only a single registry exists, or `registries.yaml` unreadable | [spec](../spec.md) FR-008, FR-009, FR-010, FR-011 |
 
 ## Examples
 

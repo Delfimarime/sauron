@@ -1,50 +1,46 @@
-# Data Model: Configuration — Sauron Settings (Cron Sync)
+# Data Model: Configuration — Cron Sync (`settings.yaml`)
 
-**Spec**: `../spec.md` (Cron Sync)
-**Status**: Draft
+**Spec**: [Cron Sync](../spec.md)
 
-Describes how the Cron Sync feature records the schedule and the operating-system crontab entry it manages.
+Cron Sync owns the `cron` block of `settings.yaml` (`cron.expression`), the
+recorded sync schedule, and the managed entry it installs into the operating
+system's crontab. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#settingsyaml);
+this document does not restate it.
 
-## Recorded schedule — `~/.sauron/settings.yaml`
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document.
+- The `cron` block of `settings.yaml`, to determine whether a schedule is
+  currently installed.
 
-Top-level field:
+## Owns / Writes
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cron` | object | No | Scheduling configuration; absent when nothing is scheduled. |
-
-`cron` object:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `sync` | string | No | The cron expression for the scheduled `sauron sync artifacts`. Realizes FR-003. |
-
-Example:
-
-```yaml
-provider: claude
-cron:
-  sync: "0 * * * *"
-```
+- The `cron` block of `settings.yaml` (`cron.expression`) — the recorded sync
+  schedule. Installing or replacing a schedule records the expression; `--disable`
+  removes the block. Realizes FR-002, FR-003, FR-006, FR-007.
 
 ## Managed crontab entry
 
-The user's crontab holds the executable schedule, bracketed by a managed marker so Sauron only touches its own line (see ADR-0001):
+The operating system's crontab is an OS resource, not a configuration file. The
+user's crontab holds the executable schedule, bracketed by a managed marker so
+Sauron only touches its own line (see
+[ADR-0001](../architecture/ADR-0001-cron-via-os-crontab.md)):
 
 ```
 # managed by sauron
 0 * * * * sauron sync artifacts
 ```
 
-- Installing or replacing the schedule rewrites this single entry. Realizes FR-002, FR-007.
-- `--disable` removes both the crontab entry and the `cron` section of `settings.yaml`. Realizes FR-006.
-- The scheduled command is plain `sauron sync artifacts` — it carries no flags and follows the configured global provider and personas. Realizes FR-004.
+- Installing or replacing the schedule rewrites this single managed entry; the
+  recorded `cron.expression` in `settings.yaml` is the schedule's source of
+  truth. Realizes FR-002, FR-007.
+- `--disable` removes both the managed crontab entry and the `cron` block of
+  `settings.yaml`. Realizes FR-006.
+- The scheduled command is plain `sauron sync artifacts` — it carries no flags
+  and follows the configured global provider and personas. Realizes FR-004.
 
-## Write semantics
+## Notes
 
-- The `settings.yaml` `cron` section is written atomically: serialize to a temporary file in `~/.sauron/`, then rename over `settings.yaml`.
-- The crontab is updated through the system's crontab facility; only the managed entry is changed.
-- On any failure, neither the crontab nor `settings.yaml` is left partially changed.
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.

@@ -1,42 +1,51 @@
-# Data Model: Configuration — Sauron Settings (Provider)
+# Data Model: Configuration — Set Provider (settings.yaml, track.yaml)
 
 **Spec**: [Set Provider](../spec.md)
 
-Describes how the Set Provider feature reads and updates the persisted configuration and the tracking record.
+This feature owns the active `provider` in `settings.yaml` and, when the provider
+changes, rewrites the migrated entries of `track.yaml`. The schema of both files
+is owned by the
+[configuration data contract](../../contracts/configuration.md#settingsyaml);
+this document does not restate it.
 
-## Active provider — `~/.sauron/settings.yaml`
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document.
+- `settings.yaml` `provider` — the current active provider (absent means
+  `claude`).
+- `track.yaml` `items` — the artifacts to migrate are the entries whose
+  `provider` is the previous active provider; entries already on other providers
+  are not touched.
 
-Top-level field:
+## Owns
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `provider` | string | No | `claude` | The active provider: `claude` or `zencoder`. Absent means `claude`. Realizes [spec](../spec.md) FR-002. |
+- `settings.yaml` `provider` — the single active provider.
 
-Example:
+## Writes
 
-```yaml
-provider: zencoder
-registries: []
-personas: []
-```
+- `track.yaml` `items` — on migration, each affected entry's `provider`
+  and `path` are rewritten to the new provider (move, default); with
+  `--copy-only`, a new entry is added for the new provider and the previous one
+  is kept.
+- `settings.yaml` `provider` — set to the new value.
+- **Write order.** Per the contract's
+  [cross-file write semantics](../../contracts/configuration.md#cross-file-write-semantics),
+  `track.yaml` is written **before** `settings.yaml`, and the operation is
+  idempotent: a run interrupted after `track.yaml` is fully repaired by
+  re-running `set provider` with the same target, which migrates nothing further
+  and completes `settings.yaml`. With no tracked artifacts, only `settings.yaml`
+  is written. When the new provider equals the current one, neither file is
+  written (no-op).
 
-## Tracking record — `~/.sauron/track.yaml`
+## Realizes
 
-The installed-artifact record owned by [sync](../../0006-sync-artifacts/spec.md) (which defines its full schema). Set Provider reads it and rewrites the affected entries when migrating.
+- `settings.yaml` `provider` write → [spec](../spec.md) FR-002, FR-006 (persist
+  the single active provider), FR-008 (transactional), FR-011 (no-op when
+  unchanged).
+- `track.yaml` migration → [spec](../spec.md) FR-004, FR-005 (relocate affected
+  entries), FR-014 (`--copy-only` adds a new entry and keeps the previous).
 
-- Move (default): the entry's `provider` and `path` are rewritten to the new provider. Realizes [spec](../spec.md) FR-005.
-- Copy (`--copy-only`): a new entry is added for the new provider; the previous entry is kept. Realizes [spec](../spec.md) FR-014.
+## Notes
 
-## Operation
-
-- The artifacts considered for migration are the `track.yaml` entries whose `provider` is the previous active provider. Realizes [spec](../spec.md) FR-004.
-- Entries already on other providers (e.g. left by an earlier `--copy-only`) are not touched.
-- With no tracked artifacts, setting the provider only updates `settings.yaml`.
-
-## Write semantics
-
-- `settings.yaml` (the `provider` field) and `track.yaml` (the migrated entries) are each written atomically: serialize to a temporary file in `~/.sauron/`, then rename over the destination. Both are left untouched on any failure. Realizes [spec](../spec.md) FR-008.
-- When the new provider equals the current one, neither file is written (no-op). Realizes [spec](../spec.md) FR-011.
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.

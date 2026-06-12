@@ -1,27 +1,27 @@
-# Data Model: Configuration — Sauron Settings (Describing)
+# Data Model: Configuration — Describe Registry (`registries.yaml`)
 
 **Spec**: [Describe Registry](../spec.md)
 
-Describes the configuration that the Describe Registry feature reads. Describing
-is read-only and offline: it never writes the settings or the track file, and
-defines no schema of its own.
+Describe Registry reads one `items` entry from `registries.yaml` by name
+and shows its fields; it never writes. The schema is owned by the
+[configuration data contract](../../contracts/configuration.md#registriesyaml);
+this document does not restate it.
 
-## Location & format
+## Reads
 
-- **Path**: `~/.sauron/settings.yaml` (home directory resolved per platform).
-- **Format**: a single YAML document. A missing file is treated as the registry
-  not found. Realizes [spec](../spec.md) FR-010.
+- A single `items` entry of `registries.yaml`, matched by its identity
+  `name` — its `name`, `kind`, `priority`, `uri`, and the kind-scoped
+  credential fields (`auth`, `tls`, `timeout`, `ssh`). A missing file is treated
+  as the registry not found. Realizes FR-003, FR-004, FR-005, FR-010.
+- `auth` is read only as its `${env:VAR}` reference; a resolved secret is never
+  read into output — it is rendered `REDACTED`. Realizes FR-006.
 
-## Read shape
+## Owns / Writes
 
-The registry schema — the `registries` array, the common fields (`name`,
-`kind`, `priority`), and the kind-scoped fields (`url`/`path`/`uri`, `auth`,
-`tls`, `timeout`, `ssh`) — is owned by
-[add registry](../../0001-add-registry/data/configuration.md). Describe Registry
-reads that schema; it adds nothing to it.
+- Nothing. Describing is read-only and offline.
 
-The named registry is matched by its identity `name`. Its `location` is the
-kind-appropriate locator (`path`/`url`/`uri`); fields that do not apply to the
-resolved kind are shown empty. `auth` is read only as its `${env:VAR}`
-reference, and a resolved secret is never read into output — it is rendered
-`REDACTED`. Realizes [spec](../spec.md) FR-004, FR-005, FR-006.
+## Notes
+
+Configuration is now split across files per the
+[configuration data contract](../../contracts/configuration.md); file references
+updated accordingly.

@@ -75,7 +75,7 @@ treats it as a source like any other.
 ```
   ┌────────────────────┐      ┌────────────────────┐      ┌────────────────────┐
   │      REGISTRY      │      │      PERSONA       │      │      PROVIDER      │
-  │  name · location   │      │  name · priority   │      │ claude | zencoder  │
+  │    name · uri      │      │  name · priority   │      │ claude | zencoder  │
   │  kind · priority   │      │        tags        │      │ one global setting │
   └─────────┬──────────┘      └─────────┬──────────┘      └─────────┬──────────┘
             │ hosts                     │ groups a set of           ▲
@@ -101,16 +101,25 @@ treats it as a source like any other.
 
 ## State
 
-Sauron keeps its state in two files:
+Sauron keeps its state in files under `~/.sauron/`, split by concern:
 
 ```
 ~/.sauron/
-├── settings.yaml   the configuration: registries, personas, provider, priorities
-└── track.yaml      what is installed and where it came from (provenance)
+├── registries.yaml   the registered artifact sources
+├── backend.yaml      the singleton backend connection (persona definitions)
+├── personas.yaml     the installed personas, with their definitions
+├── track.yaml        what is installed and where it came from (provenance)
+└── settings.yaml     global settings: the active provider and the sync schedule
 ```
 
+The schema of every file is owned by the
+[configuration data contract](contracts/configuration.md). There is no persisted
+catalog: the *available* personas are computed live from the installed personas
+plus a live fetch from the backend, so Sauron still lists and describes installed
+personas when the backend is unreachable.
+
 The track file is what makes maintenance safe: pruning removes artifacts
-orphaned by unregistered registries, clearing removes everything Sauron
+orphaned by unregistered registries, deleting artifacts removes everything Sauron
 installed (and nothing else), and deleting a registry or persona never
 touches already-installed artifacts.
 
@@ -123,8 +132,8 @@ scheduled.
    validated before it is persisted to the settings.
 2. **Sync** — reconcile the provider with the desired set; review the plan with
    a dry run first.
-3. **Maintain** — re-run sync for updates; prune or clear to clean up; adjust
-   priorities to resolve conflicts.
+3. **Maintain** — re-run sync for updates; prune or delete artifacts to clean
+   up; adjust priorities to resolve conflicts.
 4. **Schedule** — register an OS crontab entry that runs the sync
    automatically.
 
