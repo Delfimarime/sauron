@@ -1,6 +1,6 @@
 # Data Model: Configuration — Backend (backend.yaml)
 
-**Spec**: [Backend](../spec.md)
+**Spec**: [Set Backend](../spec.md)
 
 Backend owns `backend.yaml`, the singleton backend connection. The schema —
 fields, credentials, and write semantics — is owned by the

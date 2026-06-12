@@ -14,7 +14,7 @@ document does not restate it.
   contributing `name`, source `registry`, `pinned`, `provider`, `persona`, `path`.
 - `registries.yaml` `items` — for `--available`, the registries to query and the
   `priority` used to resolve the winning registry (pin then priority,
-  [ADR-0002](../../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md)),
+  [ADR-0001](../../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md)),
   read live ([#registriesyaml](../../contracts/configuration.md#registriesyaml)).
 - `personas.yaml` `items` — for the resolved `--available` catalog, to scope the
   desired set ([#personasyaml](../../contracts/configuration.md#personasyaml)).

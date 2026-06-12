@@ -1,7 +1,8 @@
 # List Personas
 
 **Type:** feature
-**Depends on:** [backend](../0012-backend/spec.md), [sync personas](../0013-sync-personas/spec.md), [select personas](../0014-select-personas/spec.md)
+
+**Depends on:** [backend](../0012-backend/spec.md), [sync personas](../0013-sync-personas/spec.md), [set personas](../0014-select-personas/spec.md)
 
 ## Overview
 
@@ -97,7 +98,7 @@ still succeeds.
   skill/agent counts, and the backend's last-updated time. An available persona
   the backend offers but that is not installed contributes a not-installed row.
 - **Installed persona**: a persona activated locally by
-  [select personas](../0014-select-personas/spec.md) and stored with its
+  [set personas](../0014-select-personas/spec.md) and stored with its
   definition in [personas.yaml](../0014-select-personas/spec.md); it carries a
   priority and a local last-synced time, both shown only when the persona is
   installed, and is always listed, including offline.

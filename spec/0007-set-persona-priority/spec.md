@@ -1,14 +1,15 @@
 # Set Persona Priority
 
 **Type:** feature
-**Depends on:** [select personas](../0014-select-personas/spec.md)
+
+**Depends on:** [set personas](../0014-select-personas/spec.md)
 
 ## Overview
 
 A person responsible for a team's agentic-AI setup needs to change an installed
 persona's priority, so that the precedence order among installed personas
 reflects the team's intent. Persona priority is assigned subscribe-time:
-positionally by [select personas](../0014-select-personas/spec.md) when
+positionally by [set personas](../0014-select-personas/spec.md) when
 `set persona` declares the installed set (the persona's position in the argument
 list fixes its priority). This command adjusts the priority of one already-installed
 persona afterward; the override persists until the next `set persona`
@@ -66,14 +67,14 @@ lower value wins, and the first or only installed persona holds `0`.
 ## Key Entities
 
 - **Installed persona**: a persona activated locally by `set persona`
-  (see [select personas](../0014-select-personas/spec.md)), identified by its
+  (see [set personas](../0014-select-personas/spec.md)), identified by its
   name and participating in artifact sync. Its priority is assigned positionally
   at install time and follows the unified model in
   [priority model](../AUTHORING.md#priority-model)
   — always defined and unique within its kind, a lower value wins, and the first
   or only installed persona holds `0`. This feature is the only way to adjust an
   installed persona's priority after installation; the override persists until
-  the next [select personas](../0014-select-personas/spec.md) `set persona`
+  the next [set personas](../0014-select-personas/spec.md) `set persona`
   redeclaration resets positional priorities.
 
 ## Notes

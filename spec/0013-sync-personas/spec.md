@@ -1,6 +1,7 @@
 # Sync Personas
 
 **Type:** feature
+
 **Depends on:** [backend](../0012-backend/spec.md)
 
 ## Overview
@@ -86,6 +87,8 @@ definition by name.
   that the persona is not installed and exit with an error.
 - **FR-014**: If a command fails, then Sauron shall write exactly one
   human-readable message to stderr.
+- **FR-015**: If required arguments or flags are missing or invalid, then Sauron
+  shall exit with code 2 without executing the command.
 
 ## Key Entities
 

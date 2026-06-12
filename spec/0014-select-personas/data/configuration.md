@@ -1,8 +1,8 @@
-# Data Model: Configuration — Select Personas (personas.yaml)
+# Data Model: Configuration — Set Personas (personas.yaml)
 
-**Spec**: [Select Personas](../spec.md)
+**Spec**: [Set Personas](../spec.md)
 
-Select Personas owns `personas.yaml` `items`, storing each installed
+Set Personas owns `personas.yaml` `items`, storing each installed
 persona with its full definition (fetched live from the backend at install
 time). The schema and write semantics are owned by the
 [configuration data contract](../../contracts/configuration.md#personasyaml);

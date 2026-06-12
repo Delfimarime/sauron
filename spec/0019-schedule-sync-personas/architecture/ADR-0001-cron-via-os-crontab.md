@@ -27,7 +27,7 @@ touches its own line and never disturbs other crontab content (including the
 The schedule is also recorded under `schedules.sync_personas` in
 `~/.sauron/settings.yaml`. `unschedule sync personas` removes both. This mirrors
 the per-operation marker scheme of
-[schedule artifact sync ADR-0002](../../0011-schedule-sync/architecture/ADR-0002-per-operation-crontab-markers.md).
+[schedule artifact sync ADR-0001](../../0011-schedule-sync/architecture/ADR-0001-cron-via-os-crontab.md).
 
 ## Consequences
 

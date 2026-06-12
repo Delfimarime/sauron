@@ -1,6 +1,7 @@
 # HTTP Registry Support
 
 **Type:** capability
+
 **Enables:** [add registry](../spec.md)
 
 ## Overview

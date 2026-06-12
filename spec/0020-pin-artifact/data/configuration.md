@@ -29,4 +29,4 @@ document does not restate it.
 There is no separate pins file: the pin lives on the artifact's `track.yaml`
 entry, so the track file alone shows which artifacts are pinned. Resolution of a
 pin over priority during sync is governed by
-[ADR-0002](../../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md).
+[ADR-0001](../../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md).

@@ -2,7 +2,7 @@
 
 Conventions: [CLI conventions](../../AUTHORING.md).
 
-**Spec**: [Sync](../spec.md)
+**Spec**: [Sync Artifacts](../spec.md)
 
 Defines the command-line interface for synchronizing artifacts from the registered registries to the active provider environment. This is the user-facing contract only. The provider is the global setting managed by [set provider](../../0009-set-provider/spec.md); sync artifacts takes no provider flag.
 

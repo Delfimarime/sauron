@@ -80,5 +80,5 @@ Nothing to delete.
 
 # Missing or invalid noun (usage error, exit 2)
 $ sauron delete plugins
-Error: delete accepts 'artifacts', 'skills', 'agents', or 'registry'
+Error: delete accepts only 'artifacts', 'skills', or 'agents'
 ```

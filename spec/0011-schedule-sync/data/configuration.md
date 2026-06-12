@@ -1,4 +1,4 @@
-# Data Model: Configuration — Schedule Artifact Sync (`settings.yaml`)
+# Data Model: Configuration — Schedule Artifact Sync (settings.yaml)
 
 **Spec**: [Schedule Artifact Sync](../spec.md)
 
@@ -20,7 +20,7 @@ this document does not restate it.
 The operating system's crontab is an OS resource, not a configuration file. The
 user's crontab holds the executable schedule, bracketed by a per-operation marker
 so Sauron only touches its own line (see
-[ADR-0002](../architecture/ADR-0002-per-operation-crontab-markers.md)):
+[ADR-0001](../architecture/ADR-0001-cron-via-os-crontab.md)):
 
 ```
 # managed by sauron: sync artifacts

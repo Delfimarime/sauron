@@ -1,7 +1,8 @@
 # Sync Artifacts
 
 **Type:** feature
-**Depends on:** [add registry](../0001-add-registry/spec.md) (kind behavior: [http](../0001-add-registry/capabilities/http.md), [filesystem](../0001-add-registry/capabilities/filesystem.md), [git](../0001-add-registry/capabilities/git.md)), [select personas](../0014-select-personas/spec.md), [set provider](../0009-set-provider/spec.md)
+
+**Depends on:** [add registry](../0001-add-registry/spec.md) (kind behavior: [http](../0001-add-registry/capabilities/http.md), [filesystem](../0001-add-registry/capabilities/filesystem.md), [git](../0001-add-registry/capabilities/git.md)), [set personas](../0014-select-personas/spec.md), [set provider](../0009-set-provider/spec.md)
 
 ## Overview
 
@@ -33,7 +34,7 @@ call for, at their latest versions.
   `pinned` is `true`, set by [pin artifact](../0020-pin-artifact/spec.md)), Sauron
   shall take it from the pinned registry, overriding priority-based conflict
   resolution (see
-  [ADR-0002](architecture/ADR-0002-pins-override-priority.md)).
+  [ADR-0001](architecture/ADR-0001-conflict-resolution-by-registry-priority.md)).
 - **FR-005**: When computing changes, Sauron shall compare the desired set
   against the artifacts recorded for the active provider in the track file
   (`~/.sauron/track.yaml`) and produce a plan of additions/updates and
@@ -101,10 +102,9 @@ call for, at their latest versions.
 
 ## Decision Records
 
-- [Conflict resolution by registry priority](architecture/ADR-0001-conflict-resolution-by-registry-priority.md)
-  — same-named artifacts resolve by registry priority.
-- [Pins override priority](architecture/ADR-0002-pins-override-priority.md)
-  — a pinned artifact is taken from its pinned registry, above priority.
+- [Conflict resolution — pin, then registry priority](architecture/ADR-0001-conflict-resolution-by-registry-priority.md)
+  — a pinned artifact is taken from its pinned registry; otherwise the
+  lowest-priority-value registry wins.
 
 ## Notes
 
@@ -113,10 +113,10 @@ call for, at their latest versions.
   `sync personas` refreshes the stored *definitions* of the installed personas
   from the backend; `sync artifacts` reconciles the active provider with the
   artifacts the *installed* personas call for. Installing a persona is owned by
-  [select personas](../0014-select-personas/spec.md).
+  [set personas](../0014-select-personas/spec.md).
 - The recommended order is therefore
   [sync personas](../0013-sync-personas/spec.md) →
-  [select personas](../0014-select-personas/spec.md) → `sync artifacts`: pull
+  [set personas](../0014-select-personas/spec.md) → `sync artifacts`: pull
   the latest persona definitions, install the ones that should participate, then
   reconcile the provider with their artifacts.
 - Configuration is now split across files per the

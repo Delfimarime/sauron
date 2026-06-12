@@ -52,7 +52,7 @@ this table refines which conditions map to each code.
 | Code | Meaning | Realizes |
 |------|---------|----------|
 | `0` | Installed personas refreshed, or already up to date | [spec](../spec.md) FR-002, FR-004, FR-007, FR-009 |
-| `2` | Usage error — `sync persona` with no name, or a malformed flag | — |
+| `2` | Usage error — `sync persona` with no name, or a malformed flag | [spec](../spec.md) FR-015 |
 | `1` | No backend configured; the backend unreachable; `personas.yaml` or `backend.yaml` unreadable; or `sync persona` names a persona that is not installed | [spec](../spec.md) FR-010, FR-011, FR-012, FR-013 |
 
 ## Examples

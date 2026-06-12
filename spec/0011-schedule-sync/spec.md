@@ -1,6 +1,7 @@
 # Schedule Artifact Sync
 
 **Type:** feature
+
 **Depends on:** [sync artifacts](../0006-sync-artifacts/spec.md)
 
 ## Overview
@@ -9,7 +10,7 @@ A person responsible for a team's agentic-AI setup needs Sauron to run
 [`sauron sync artifacts`](../0006-sync-artifacts/spec.md) on a schedule without
 running it by hand, so that providers stay current automatically. Scheduling
 installs a managed entry in the operating system's crontab (see
-[ADR-0002](architecture/ADR-0002-per-operation-crontab-markers.md)).
+[ADR-0001](architecture/ADR-0001-cron-via-os-crontab.md)).
 
 ## Requirements
 
@@ -66,9 +67,7 @@ installs a managed entry in the operating system's crontab (see
 ## Decision Records
 
 - [ADR-0001](architecture/ADR-0001-cron-via-os-crontab.md) — scheduling uses the
-  operating system's crontab (superseded by ADR-0002).
-- [ADR-0002](architecture/ADR-0002-per-operation-crontab-markers.md) — one managed
-  crontab entry per scheduled operation, each with its own marker.
+  OS crontab, one managed entry per operation, each with its own marker.
 
 ## Notes
 

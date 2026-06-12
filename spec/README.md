@@ -129,8 +129,8 @@ touches already-installed artifacts.
 Sauron is a command-line application; nothing runs in the background unless
 scheduled.
 
-1. **Register sources** — add registries and import personas; each is
-   validated before it is persisted to the settings.
+1. **Register sources** — add registries and configure a backend for personas;
+   each is validated before it is persisted to the settings.
 2. **Sync** — reconcile the provider with the desired set; review the plan with
    a dry run first.
 3. **Maintain** — re-run sync for updates; prune or delete artifacts to clean

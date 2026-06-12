@@ -64,7 +64,7 @@ delivered set can be audited.
 - **Available Artifact**: an artifact a registry offers (live), or the resolved
   catalog entry — the winning registry for a name under pin then priority. Not
   persisted; see the
-  [live resolution](../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md).
+  [live resolution](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md).
 
 ## Notes
 

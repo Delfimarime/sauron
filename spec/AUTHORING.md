@@ -73,7 +73,8 @@ written:
 
 1. `# <Title>`
 2. Header block: `**Type:** feature` plus cross-links
-   (`**Realized by:**` / `**Depends on:**`) as markdown links.
+   (`**Realized by:**` / `**Depends on:**`) as markdown links, each on its own
+   line with a blank line between them.
 3. `## Overview` — the user's need and intent, in problem/solution form.
 4. `## Requirements` — subsections in this order, omitting empty ones:
    `### Ubiquitous`, `### Event-driven`, `### State-driven`,
@@ -240,7 +241,7 @@ how* a priority is assigned:
 - A **registry** takes its priority at add time, via an optional `--priority` on
   [add registry](0001-add-registry/spec.md).
 - A **persona** takes its priority at install time, from its position in
-  [select personas](0014-select-personas/spec.md)' `set persona` argument order
+  [set personas](0014-select-personas/spec.md)' `set persona` argument order
   (the first listed persona is highest precedence).
 
 Both then obey the same rules:

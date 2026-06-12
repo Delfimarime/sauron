@@ -20,7 +20,7 @@ is written independently.
 |---|---|---|---|
 | `registries.yaml` | [add registry](../0001-add-registry/spec.md) | the registered artifact sources | [registries.schema.json](schemas/registries.schema.json) |
 | `backend.yaml` | [backend](../0012-backend/spec.md) | the singleton backend connection | [backend.schema.json](schemas/backend.schema.json) |
-| `personas.yaml` | [select personas](../0014-select-personas/spec.md) | the installed personas, with their definitions | [personas.schema.json](schemas/personas.schema.json) |
+| `personas.yaml` | [set personas](../0014-select-personas/spec.md) | the installed personas, with their definitions | [personas.schema.json](schemas/personas.schema.json) |
 | `track.yaml` | [sync artifacts](../0006-sync-artifacts/spec.md) | the installed artifacts and their provenance | [track.schema.json](schemas/track.schema.json) |
 | `settings.yaml` | [set provider](../0009-set-provider/spec.md), [schedule artifact sync](../0011-schedule-sync/spec.md), [schedule persona sync](../0019-schedule-sync-personas/spec.md) | global settings: the active provider and the sync schedules | [settings.schema.json](schemas/settings.schema.json) |
 
@@ -238,7 +238,7 @@ last_synced_at: 2026-06-12T09:30:00Z
 
 The installed personas, each stored **with its full definition** so that
 [sync artifacts](../0006-sync-artifacts/spec.md) works without contacting the
-backend. Owned by [select personas](../0014-select-personas/spec.md).
+backend. Owned by [set personas](../0014-select-personas/spec.md).
 Schema: [personas.schema.json](schemas/personas.schema.json).
 
 | Field | Type | Required | Description |
@@ -303,7 +303,7 @@ Installed Artifact entry:
 | `name` | string | Yes | Artifact name, as installed. |
 | `provider` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). |
 | `path` | string | Yes | Where it was installed (the provider's location for this artifact). |
-| `registry` | string | Yes | Source registry name — the winning registry, resolved by pin then priority per [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md) and [ADR-0002](../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md). |
+| `registry` | string | Yes | Source registry name — the winning registry, resolved by pin then priority per [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md). |
 | `persona` | string | No | Installed persona that brought the artifact into the desired set; the highest-precedence one when several do; absent when synced without personas. |
 | `pinned` | boolean | No | `true` when `registry` is a user pin set by [pin artifact](../0020-pin-artifact/spec.md) rather than the priority-resolved winner; absent or `false` otherwise. |
 

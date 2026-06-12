@@ -16,7 +16,7 @@ this document does not restate it.
 ## Owns
 
 - Nothing. The `items` array is owned by
-  [select personas](../../0014-select-personas/spec.md); this feature only
+  [set personas](../../0014-select-personas/spec.md); this feature only
   adjusts an existing entry's `priority`.
 
 ## Realizes
@@ -33,7 +33,7 @@ this document does not restate it.
   installed persona holds it). No write occurs when the value already equals the
   current priority, and the request is rejected while a single persona is
   installed. The override persists until the next
-  [select personas](../../0014-select-personas/spec.md) `set persona`
+  [set personas](../../0014-select-personas/spec.md) `set persona`
   redeclaration resets positional priorities.
 
 ## Notes

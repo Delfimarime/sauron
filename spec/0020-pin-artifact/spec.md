@@ -12,7 +12,7 @@ shadow an upstream artifact with an internal one — so that conflict resolution
 follows an explicit choice rather than priority alone. Pinning records the binding
 on the artifact's track entry; [sync artifacts](../0006-sync-artifacts/spec.md)
 then honours it (see
-[ADR-0002](../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md)).
+[ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md)).
 
 ## Requirements
 
@@ -75,7 +75,7 @@ then honours it (see
 
 - Pin precedence and its on-the-track-entry storage are decided with sync
   artifacts in
-  [ADR-0002](../0006-sync-artifacts/architecture/ADR-0002-pins-override-priority.md).
+  [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md).
 
 ## Notes
 

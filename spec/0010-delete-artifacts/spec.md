@@ -1,6 +1,7 @@
 # Delete Artifacts
 
 **Type:** feature
+
 **Depends on:** [sync artifacts](../0006-sync-artifacts/spec.md)
 
 ## Overview

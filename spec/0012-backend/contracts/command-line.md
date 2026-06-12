@@ -1,8 +1,8 @@
-# Contract: Command Line — Backend
+# Contract: Command Line — Set Backend
 
 Conventions: [CLI conventions](../../AUTHORING.md).
 
-**Spec**: [Backend](../spec.md)
+**Spec**: [Set Backend](../spec.md)
 
 This feature owns two commands: `set backend` configures the singleton
 backend, and `unset backend` tears it down.

@@ -1,8 +1,8 @@
-# Contract: Command Line — Select Personas
+# Contract: Command Line — Set Personas
 
 Conventions: [CLI conventions](../../AUTHORING.md).
 
-**Spec**: [Select Personas](../spec.md)
+**Spec**: [Set Personas](../spec.md)
 
 Defines the command-line interface for declaring and clearing the set of
 installed personas. This is the user-facing contract only. This feature owns two

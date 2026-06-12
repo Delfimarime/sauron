@@ -1,7 +1,8 @@
 # Describe Persona
 
 **Type:** feature
-**Depends on:** [backend](../0012-backend/spec.md), [select personas](../0014-select-personas/spec.md)
+
+**Depends on:** [backend](../0012-backend/spec.md), [set personas](../0014-select-personas/spec.md)
 
 ## Overview
 
@@ -79,7 +80,7 @@ read-only; it never writes the configuration or the track file.
 ## Key Entities
 
 - **Installed persona**: a persona activated locally by
-  [select personas](../0014-select-personas/spec.md), stored with its full
+  [set personas](../0014-select-personas/spec.md), stored with its full
   definition in [personas.yaml](../contracts/configuration.md#personasyaml); it
   carries a `priority` and a local last-synced time, both shown only when the
   persona is installed, and is describable even offline. Its schema is owned by

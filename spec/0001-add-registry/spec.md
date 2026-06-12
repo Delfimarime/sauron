@@ -1,6 +1,7 @@
 # Add Registry
 
 **Type:** feature
+
 **Realized by:** [http](capabilities/http.md), [filesystem](capabilities/filesystem.md), [git](capabilities/git.md)
 
 ## Overview

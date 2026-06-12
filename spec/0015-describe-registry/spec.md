@@ -1,6 +1,7 @@
 # Describe Registry
 
 **Type:** feature
+
 **Depends on:** [add registry](../0001-add-registry/spec.md)
 
 ## Overview

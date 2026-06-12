@@ -1,6 +1,7 @@
-# Backend
+# Set Backend
 
 **Type:** feature
+
 **Realized by:** [http](capabilities/http.md), [filesystem](capabilities/filesystem.md), [git](capabilities/git.md)
 
 ## Overview
@@ -33,7 +34,7 @@ capabilities. The backend offers persona definitions that are fetched live; it
 persists no catalog — the set of available personas is a
 [live view](../contracts/configuration.md#live-persona-view) assembled at command
 time. The installed set is owned by
-[select personas](../0014-select-personas/spec.md) and refreshed by
+[set personas](../0014-select-personas/spec.md) and refreshed by
 [sync personas](../0013-sync-personas/spec.md).
 
 ## Requirements
@@ -133,7 +134,7 @@ time. The installed set is owned by
   assembled at command time from the installed personas plus a live fetch of the
   definitions the backend offers; when the backend is unreachable, only installed
   personas appear. The installed subset is owned by
-  [select personas](../0014-select-personas/spec.md).
+  [set personas](../0014-select-personas/spec.md).
 
 ## Decision Records
 

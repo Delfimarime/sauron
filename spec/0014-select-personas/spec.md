@@ -1,6 +1,7 @@
-# Select Personas
+# Set Personas
 
 **Type:** feature
+
 **Depends on:** [backend](../0012-backend/spec.md), [sync personas](../0013-sync-personas/spec.md)
 
 ## Overview
@@ -120,7 +121,7 @@ after installation is a separate concern, owned by
 ## Notes
 
 - `set persona` is a full replacement, not a partial add: there is no way to add
-  a single persona while keeping the rest untouched — every install command
+  a single persona while keeping the rest untouched — every `set persona`
   states the complete desired set. Re-running it therefore resets positional
   priorities and discards prior
   [set priority persona](../0007-set-persona-priority/spec.md) adjustments; this

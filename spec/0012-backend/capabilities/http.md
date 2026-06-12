@@ -1,6 +1,7 @@
 # HTTP Backend Support
 
 **Type:** capability
+
 **Enables:** [set backend](../spec.md)
 
 ## Overview

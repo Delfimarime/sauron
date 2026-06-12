@@ -1,6 +1,7 @@
 # Schedule Persona Sync
 
 **Type:** feature
+
 **Depends on:** [sync personas](../0013-sync-personas/spec.md)
 
 ## Overview
