@@ -1,10 +1,10 @@
 # ADR-0001: Scheduling uses the operating system's crontab
 
-**Status**: Accepted
+**Status**: Superseded by [ADR-0002](ADR-0002-per-operation-crontab-markers.md)
 
 **Date**: 2026-06-10
 
-**Feature**: Cron Sync
+**Feature**: Schedule Artifact Sync (formerly Cron Sync)
 
 ## Context
 

@@ -22,7 +22,7 @@ is written independently.
 | `backend.yaml` | [backend](../0012-backend/spec.md) | the singleton backend connection | [backend.schema.json](schemas/backend.schema.json) |
 | `personas.yaml` | [select personas](../0014-select-personas/spec.md) | the installed personas, with their definitions | [personas.schema.json](schemas/personas.schema.json) |
 | `track.yaml` | [sync artifacts](../0006-sync-artifacts/spec.md) | the installed artifacts and their provenance | [track.schema.json](schemas/track.schema.json) |
-| `settings.yaml` | [set provider](../0009-set-provider/spec.md), [cron sync](../0011-cron-sync/spec.md) | global settings: the active provider and the sync schedule | [settings.schema.json](schemas/settings.schema.json) |
+| `settings.yaml` | [set provider](../0009-set-provider/spec.md), [schedule artifact sync](../0011-schedule-sync/spec.md), [schedule persona sync](../0019-schedule-sync-personas/spec.md) | global settings: the active provider and the sync schedules | [settings.schema.json](schemas/settings.schema.json) |
 
 - **Path**: each file lives at `~/.sauron/<file>` (home directory resolved per
   platform).
@@ -38,7 +38,7 @@ live (see [Live persona view](#live-persona-view)).
 - **Keys are `snake_case`.** Multi-word keys use underscores
   (`skip_verify`, `ca_cert`, `client_cert`, `client_key`, `key_path`,
   `last_modified_at`, `last_synced_at`); single-word keys are bare (`kind`,
-  `name`, `priority`, `uri`, `timeout`, `provider`, `cron`, `version`, `items`,
+  `name`, `priority`, `uri`, `timeout`, `provider`, `schedules`, `version`, `items`,
   `auth`, `tls`, `ssh`, `type`, `username`, `password`, `tags`, `skills`,
   `agents`, `description`, `path`, `registry`, `persona`).
 - **Collections are `items`.** A file that holds a list keeps it in a top-level
@@ -103,17 +103,27 @@ material.
 
 ## settings.yaml
 
-Global settings. Owned jointly by [set provider](../0009-set-provider/spec.md)
-(`provider`) and [cron sync](../0011-cron-sync/spec.md) (`cron`).
+Global settings. Owned by [set provider](../0009-set-provider/spec.md)
+(`provider`), [schedule artifact sync](../0011-schedule-sync/spec.md)
+(`schedules.sync_artifacts`), and
+[schedule persona sync](../0019-schedule-sync-personas/spec.md)
+(`schedules.sync_personas`).
 Schema: [settings.schema.json](schemas/settings.schema.json).
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `version` | integer | Yes | `1` | Schema version. |
 | `provider` | string | No | `claude` | The active provider: `claude` or `zencoder`. Absent means `claude`. |
-| `cron` | object | No | — | The recorded sync schedule; absent when no schedule is set. |
+| `schedules` | object | No | — | The recorded sync schedules, keyed by operation; absent when nothing is scheduled. |
 
-`cron` object:
+`schedules` object — one optional key per scheduled operation:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `sync_artifacts` | object | No | The `sauron sync artifacts` schedule. |
+| `sync_personas` | object | No | The `sauron sync personas` schedule. |
+
+Each schedule object:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -122,8 +132,11 @@ Schema: [settings.schema.json](schemas/settings.schema.json).
 ```yaml
 version: 1
 provider: zencoder
-cron:
-  expression: "0 * * * *"
+schedules:
+  sync_artifacts:
+    expression: "0 * * * *"
+  sync_personas:
+    expression: "0 6 * * *"
 ```
 
 ## registries.yaml

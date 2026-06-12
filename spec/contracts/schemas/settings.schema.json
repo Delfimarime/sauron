@@ -9,7 +9,17 @@
   "properties": {
     "version": { "type": "integer", "minimum": 1 },
     "provider": { "enum": ["claude", "zencoder"] },
-    "cron": {
+    "schedules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sync_artifacts": { "$ref": "#/$defs/schedule" },
+        "sync_personas": { "$ref": "#/$defs/schedule" }
+      }
+    }
+  },
+  "$defs": {
+    "schedule": {
       "type": "object",
       "additionalProperties": false,
       "required": ["expression"],

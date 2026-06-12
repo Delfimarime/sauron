@@ -134,8 +134,9 @@ scheduled.
    a dry run first.
 3. **Maintain** — re-run sync for updates; prune or delete artifacts to clean
    up; adjust priorities to resolve conflicts.
-4. **Schedule** — register an OS crontab entry that runs the sync
-   automatically.
+4. **Schedule** — `schedule sync artifacts` and `schedule sync personas` register
+   OS crontab entries that run the syncs automatically; `unschedule sync` removes
+   them.
 
 ## Further reading
 

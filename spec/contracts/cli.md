@@ -119,17 +119,19 @@ removes everything in scope.
 - Required noun: `artifacts` (both), `skills`, or `agents`. Key flags: `--persona`, `--dry-run`.
 - Full contract → [0010-delete-artifacts](../0010-delete-artifacts/contracts/command-line.md).
 
-## cron sync
+## schedule sync artifacts
 
 ```
-sauron cron sync <expression>
-sauron cron sync --disable
+sauron schedule sync artifacts <expression>
+sauron unschedule sync artifacts
+sauron unschedule sync
 ```
 
-Schedule automatic `sync artifacts` via the OS crontab.
+Schedule `sauron sync artifacts` via the OS crontab; `unschedule sync artifacts`
+removes it, and `unschedule sync` (no operation) removes every managed sync schedule.
 
-- Key flags: `--disable` (mutually exclusive with `<expression>`).
-- Full contract → [0011-cron-sync](../0011-cron-sync/contracts/command-line.md).
+- Required arg: `<expression>` (cron) for `schedule`.
+- Full contract → [0011-schedule-sync](../0011-schedule-sync/contracts/command-line.md).
 
 ## set backend
 
@@ -230,3 +232,16 @@ Show the active provider's detail.
 
 - Key flags: `--fields`.
 - Full contract → [0018-describe-provider](../0018-describe-provider/contracts/command-line.md).
+
+## schedule sync personas
+
+```
+sauron schedule sync personas <expression>
+sauron unschedule sync personas
+```
+
+Schedule `sauron sync personas` via the OS crontab; `unschedule sync personas`
+removes it. (Remove every schedule at once with `unschedule sync`.)
+
+- Required arg: `<expression>` (cron) for `schedule`.
+- Full contract → [0019-schedule-sync-personas](../0019-schedule-sync-personas/contracts/command-line.md).

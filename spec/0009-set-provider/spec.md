@@ -65,8 +65,9 @@ installed artifacts to the new provider's locations.
 
 - **Provider**: the single active provider destination — `claude` (default) or
   `zencoder` — stored in the settings (`~/.sauron/settings.yaml`) and used by
-  [sync](../0006-sync-artifacts/spec.md), [cron sync](../0011-cron-sync/spec.md), and
-  migration. Each provider defines where skills and agents are persisted.
+  [sync](../0006-sync-artifacts/spec.md),
+  [scheduled sync](../0011-schedule-sync/spec.md), and migration. Each provider
+  defines where skills and agents are persisted.
 - **Installed Artifact**: a delivered artifact recorded in the track file
   (`~/.sauron/track.yaml`); its `provider` and `path` are rewritten (move) or
   duplicated (`--copy-only`) when the active provider changes.

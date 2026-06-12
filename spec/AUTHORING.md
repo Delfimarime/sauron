@@ -147,7 +147,7 @@ One canonical term per concept; specs do not use synonyms for these:
 | plan | The printed list of pending additions/removals (`+`/`-` lines) |
 | track file | `track.yaml`, recording installed artifacts and provenance |
 | configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `backend.yaml`, `personas.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
-| settings | `settings.yaml`, the global settings file: the active `provider` and the sync schedule (`cron`) |
+| settings | `settings.yaml`, the global settings file: the active `provider` and the sync `schedules` |
 
 ## Canonical boilerplate
 
@@ -180,9 +180,10 @@ sauron <verb> [<noun> [<noun>]] [flags] <args...>
 
 - Verb–noun hierarchy: `add registry`, `list personas`,
   `set priority registry`, `unset backend`, `describe persona`,
-  `cron sync`. `unset` is the inverse of `set` (clears a setting or selection,
-  as opposed to `delete`, which destroys an owned resource); `describe` shows a
-  single resource's detail.
+  `schedule sync artifacts`. `unset` is the inverse of `set` (clears a setting or
+  selection, as opposed to `delete`, which destroys an owned resource);
+  `unschedule` is the inverse of `schedule` (removes a scheduled job); `describe`
+  shows a single resource's detail.
 - Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
   otherwise. Repeatable flags are marked `...` in synopses.
 - Positional arguments follow flags in synopses and are written `<name>`.
