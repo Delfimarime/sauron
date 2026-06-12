@@ -137,17 +137,19 @@ One canonical term per concept; specs do not use synonyms for these:
 | skill | An artifact under a registry's `.skills/` directory |
 | agent | An artifact under a registry's `.agents/` directory |
 | registry | A registered source of artifacts |
-| kind | A registry's type: `http`, `filesystem`, or `git` |
+| kind | A registry's or backend's type: `http`, `filesystem`, or `git`; it selects how the source is validated and how artifacts are fetched |
 | persona | A named set of artifacts shared by a group |
-| backend | The backend that owns persona definitions; the persona analog of a `registry` (singleton per instance) |
+| backend | The singleton source that owns persona definitions; the persona analog of a `registry` (one per instance) |
 | catalog | The live view of *available* personas, assembled at command time from the installed personas plus a live fetch from the backend; it is never persisted, and the backend portion is omitted when the backend is unreachable |
-| installed persona | A persona activated locally via `set persona`, stored with its definition in `personas.yaml`; it participates in artifact sync and carries a priority. An *available* persona is one the backend offers live but that is not installed |
-| provider | The provider destination (e.g. `claude`, `zencoder`) |
-| priority | Integer precedence; lower value wins |
+| installed persona | A persona activated locally via `set persona`, stored with its definition in `personas.yaml`; it participates in artifact sync and carries a priority |
+| available persona | A persona the backend offers live but that is not installed; it appears in the catalog yet has no entry in `personas.yaml` |
+| provider | The destination environment where artifacts are installed (e.g. `claude`, `zencoder`); a single global setting recorded in `settings` |
+| priority | Integer precedence, always defined and unique within its kind; lower value wins (`0` is highest). See the [priority model](#priority-model) |
 | pin | A user-declared binding of an artifact to a specific registry that overrides priority-based conflict resolution; recorded as `pinned` on the artifact's `track file` entry |
-| sync | The operation that reconciles the provider with registries/personas |
+| sync | Either reconcile operation: `sync artifacts` reconciles the provider with the desired artifact set, while `sync personas` refreshes the installed personas' definitions from the backend |
 | plan | The printed list of pending additions/removals (`+`/`-` lines) |
 | track file | `track.yaml`, recording installed artifacts and provenance |
+| provenance | The origin recorded for each installed artifact in the `track file`: its source registry, the installed persona that brought it in (when any), and the provider |
 | configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `backend.yaml`, `personas.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
 | settings | `settings.yaml`, the global settings file: the active `provider` and the sync `schedules` |
 

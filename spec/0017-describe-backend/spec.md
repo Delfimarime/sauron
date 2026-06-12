@@ -27,7 +27,7 @@ no-op.
 - **FR-001**: Sauron shall provide the ability to describe the singleton
   [backend](../0012-backend/spec.md), without taking a name.
 - **FR-002**: Sauron shall treat describing the backend as read-only and offline,
-  contacting no external resource and writing neither the settings nor the track
+  contacting no external resource and writing neither the configuration nor the track
   file.
 
 ### Event-driven

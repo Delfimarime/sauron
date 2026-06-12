@@ -16,37 +16,38 @@ regardless of provider.
 ## System Context
 
 ```
-       ┌───────────────────────────┐       ┌───────────────────────────┐
-       │        Registries         │       │           User            │
-       │ external artifact sources │       │  a developer using an AI  │
-       │  git · http · filesystem  │       │      coding assistant     │
-       └─────────────┬─────────────┘       └─────────────┬─────────────┘
-                     ▲                                   │
-                     │ fetches artifacts                 │ runs `sauron` commands
-                     │ during sync                       │
-┌─ User environment ─┼───────────────────────────────────┼───────────────┐
-│                    │                                   │               │
-│                    │       ┌──────────────────┐        │               │
-│                    └───────┤                  │◀───────┘               │
-│  ┌────────────────┐invokes │    SAURON CLI    │                        │
-│  │   OS crontab   ├───────▶│                  │                        │
-│  │   (optional    │ `sync` └─────────┬────────┘                        │
-│  │   scheduler)   │                  │ installs / removes              │
-│  └────────────────┘                  │ artifacts                       │
-│                                      ▼                                 │
-│                       ┌─────────────────────────────┐                  │
-│                       │          Provider           │                  │
-│                       │      claude | zencoder      │                  │
-│                       │    (artifact directories)   │                  │
-│                       └─────────────────────────────┘                  │
-└────────────────────────────────────────────────────────────────────────┘
+   ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+   │      Registries      │  │       Backend        │  │         User         │
+   │   artifact sources   │  │  persona-definition  │  │  a developer using   │
+   │   git · http · fs    │  │     source (one)     │  │   an AI assistant    │
+   └──────────┬───────────┘  └──────────┬───────────┘  └──────────┬───────────┘
+              ▲                         ▲                         │
+              │ fetch artifacts         │ fetch persona           │ runs `sauron`
+              │ (sync artifacts)        │ defs (sync personas)    │ commands
+┌─ User env ──┼─────────────────────────┼─────────────────────────┼────────────┐
+│             │                         │                         │            │
+│             └────────────┬────────────┘                         │            │
+│  ┌────────────┐          │                                      │            │
+│  │ OS crontab ├──▶ ┌─────┴────────────┐                         │            │
+│  │ (optional) │    │    SAURON CLI    │◀────────────────────────┘            │
+│  └────────────┘    │                  │                                      │
+│                    └─────┬────────────┘                                      │
+│                          │ installs / removes artifacts                      │
+│                          ▼                                                   │
+│            ┌─────────────┬──────────────┐                                    │
+│            │          Provider          │                                    │
+│            │     claude | zencoder      │                                    │
+│            │   (artifact directories)   │                                    │
+│            └────────────────────────────┘                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Everything Sauron touches at delivery time lives in the user's environment:
 the CLI itself, the optional crontab entry that schedules it, and the
 provider's artifact directories. Registries are external sources — a
 `filesystem` registry may happen to be on the same machine, but Sauron
-treats it as a source like any other.
+treats it as a source like any other. The backend that supplies persona
+definitions is external in the same way.
 
 ## Concepts
 
@@ -59,7 +60,10 @@ treats it as a source like any other.
 - **Persona** — a named set of artifacts shared by a group of people, e.g.
   *Backend Dev*. Personas can carry tags and are optional: when none are
   defined, Sauron delivers everything the registries provide.
-- **Provider** — the provider destination where artifacts are persisted
+- **Backend** — the singleton external source that owns **persona** definitions,
+  the persona analog of a registry. Sauron fetches the definitions from it during
+  `sync personas`, and it may be `http`, `filesystem`, or `git`.
+- **Provider** — the destination environment where artifacts are installed
   (`claude` or `zencoder`). There is one global provider; changing it migrates
   the installed artifacts to the new provider's directories.
 - **Priority** — integer precedence, lower value wins. When two registries
@@ -74,30 +78,36 @@ treats it as a source like any other.
 ## Domain model
 
 ```
-  ┌────────────────────┐      ┌────────────────────┐      ┌────────────────────┐
-  │      REGISTRY      │      │      PERSONA       │      │      PROVIDER      │
-  │    name · uri      │      │  name · priority   │      │ claude | zencoder  │
-  │  kind · priority   │      │        tags        │      │ one global setting │
-  └─────────┬──────────┘      └─────────┬──────────┘      └─────────┬──────────┘
-            │ hosts                     │ groups a set of           ▲
-            ▼                           ▼                           │
-  ┌────────────────────────────────────────────────┐                │
-  │                    ARTIFACT                    │                │
-  │      skill (.skills/) · agent (.agents/)       │                │
-  └────────────────────────┬───────────────────────┘                │
-                           │ same artifact name from two sources?   │
-                           │ → the lower registry priority wins     │
-                           ▼                                        │
-                ┌─────────────────────┐                             │
-                │        SYNC         │                             │
-                │    prints a PLAN    │              installs into  │
-                │  + add / - remove   ├─────────────────────────────┘
-                └──────────┬──────────┘
+  ┌──────────────────────┐
+  │       BACKEND        │
+  │      uri · kind      │
+  │     (singleton)      │
+  └──────────┬───────────┘
+             │ defines
+             ▼
+  ┌──────────────────────┐    ┌──────────────────────┐    ┌──────────────────────┐
+  │       PERSONA        │    │       REGISTRY       │    │       PROVIDER       │
+  │   name · priority    │    │      name · uri      │    │  claude | zencoder   │
+  │         tags         │    │   kind · priority    │    │  one global setting  │
+  └──────────┬───────────┘    └──────────┬───────────┘    └──────────┬───────────┘
+             │ groups a set of           │ hosts                     │
+             ▼                           ▼                           │
+        ┌────┬───────────────────────────┬────┐                      │
+        │              ARTIFACT               │                      │
+        │ skill (.skills/) · agent (.agents/) │                      │
+        └──────────────────┬──────────────────┘                      │
+                           │ name clash? lower                       │
+                           ▼ registry priority wins                  │
+                 ┌─────────┬─────────┐                               │
+                 │       SYNC        │                               │
+                 │   prints a PLAN   │         installs into         │
+                 │ + add / - remove  ├───────────────────────────────┘
+                 └─────────┬─────────┘
                            │ records installed artifacts + provenance
                            ▼
-                ┌─────────────────────┐
-                │     track.yaml      │
-                └─────────────────────┘
+               ┌───────────────────────┐
+               │      track.yaml       │
+               └───────────────────────┘
 ```
 
 ## State
@@ -130,7 +140,7 @@ Sauron is a command-line application; nothing runs in the background unless
 scheduled.
 
 1. **Register sources** — add registries and configure a backend for personas;
-   each is validated before it is persisted to the settings.
+   each is validated before it is persisted to its configuration file.
 2. **Sync** — reconcile the provider with the desired set; review the plan with
    a dry run first.
 3. **Maintain** — re-run sync for updates; prune or delete artifacts to clean

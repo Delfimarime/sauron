@@ -12,7 +12,7 @@ reached over SSH — so that Sauron can watch them and keep the team's provider 
 sync with their latest contents. The `sauron add registry` command registers
 any of these sources under a single interface: the user supplies a name, a
 `uri`, and a kind (defaulting to `http`), optionally a priority, and Sauron
-validates the source before persisting it to the settings. Priority follows the
+validates the source before persisting it to the configuration. Priority follows the
 [unified priority model](../AUTHORING.md#priority-model):
 it is optional, always defined, and unique across all registries — the first
 registry takes `0` and an omitted value appends at the end (`max + 1`).
