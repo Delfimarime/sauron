@@ -17,7 +17,7 @@ regardless of provider.
 
 ```
        ┌───────────────────────────┐       ┌───────────────────────────┐
-       │       Repositories        │       │           User            │
+       │        Registries         │       │           User            │
        │ external artifact sources │       │  a developer using an AI  │
        │  git · http · filesystem  │       │      coding assistant     │
        └─────────────┬─────────────┘       └─────────────┬─────────────┘
@@ -35,7 +35,7 @@ regardless of provider.
 │  └────────────────┘                  │ artifacts                       │
 │                                      ▼                                 │
 │                       ┌─────────────────────────────┐                  │
-│                       │       Target provider       │                  │
+│                       │          Provider           │                  │
 │                       │      claude | zencoder      │                  │
 │                       │    (artifact directories)   │                  │
 │                       └─────────────────────────────┘                  │
@@ -43,38 +43,38 @@ regardless of provider.
 ```
 
 Everything Sauron touches at delivery time lives in the user's environment:
-the CLI itself, the optional crontab entry that schedules it, and the target
-provider's artifact directories. Repositories are external sources — a
-`filesystem` repository may happen to be on the same machine, but Sauron
+the CLI itself, the optional crontab entry that schedules it, and the
+provider's artifact directories. Registries are external sources — a
+`filesystem` registry may happen to be on the same machine, but Sauron
 treats it as a source like any other.
 
 ## Concepts
 
 - **Artifact** — a skill or an agent distributed by Sauron. Skills live under
-  a repository's `.skills/` directory, agents under `.agents/`.
-- **Repository** — a registered source of artifacts. Its **kind** — `http`,
+  a registry's `.skills/` directory, agents under `.agents/`.
+- **Registry** — a registered source of artifacts. Its **kind** — `http`,
   `filesystem`, or `git` — determines how the source is validated and how
-  artifacts are fetched from it. A repository must host at least one skill or
+  artifacts are fetched from it. A registry must host at least one skill or
   agent.
 - **Persona** — a named set of artifacts shared by a group of people, e.g.
   *Backend Dev*. Personas can carry tags and are optional: when none are
-  defined, Sauron delivers everything the repositories provide.
-- **Target** — the provider destination where artifacts are persisted
-  (`claude` or `zencoder`). There is one global target; changing it migrates
+  defined, Sauron delivers everything the registries provide.
+- **Provider** — the provider destination where artifacts are persisted
+  (`claude` or `zencoder`). There is one global provider; changing it migrates
   the installed artifacts to the new provider's directories.
-- **Priority** — integer precedence, lower value wins. When two repositories
-  offer the same artifact name, repository priority resolves the conflict;
+- **Priority** — integer precedence, lower value wins. When two registries
+  offer the same artifact name, registry priority resolves the conflict;
   persona priority orders personas the same way.
-- **Sync & Plan** — sync computes the desired artifact set from repositories
+- **Sync & Plan** — sync computes the desired artifact set from registries
   and personas, prints a **plan** (`+` additions, `-` removals), and
-  reconciles the target to it. A dry run prints the plan and stops, changing
+  reconciles the provider to it. A dry run prints the plan and stops, changing
   nothing.
 
 ## Domain model
 
 ```
   ┌────────────────────┐      ┌────────────────────┐      ┌────────────────────┐
-  │     REPOSITORY     │      │      PERSONA       │      │       TARGET       │
+  │      REGISTRY      │      │      PERSONA       │      │      PROVIDER      │
   │  name · location   │      │  name · priority   │      │ claude | zencoder  │
   │  kind · priority   │      │        tags        │      │ one global setting │
   └─────────┬──────────┘      └─────────┬──────────┘      └─────────┬──────────┘
@@ -85,7 +85,7 @@ treats it as a source like any other.
   │      skill (.skills/) · agent (.agents/)       │                │
   └────────────────────────┬───────────────────────┘                │
                            │ same artifact name from two sources?   │
-                           │ → the lower repository priority wins   │
+                           │ → the lower registry priority wins     │
                            ▼                                        │
                 ┌─────────────────────┐                             │
                 │        SYNC         │                             │
@@ -105,13 +105,13 @@ Sauron keeps its state in two files:
 
 ```
 ~/.sauron/
-├── settings.yaml   the configuration: repositories, personas, target, priorities
+├── settings.yaml   the configuration: registries, personas, provider, priorities
 └── track.yaml      what is installed and where it came from (provenance)
 ```
 
 The track file is what makes maintenance safe: pruning removes artifacts
-orphaned by unregistered repositories, clearing removes everything Sauron
-installed (and nothing else), and deleting a repository or persona never
+orphaned by unregistered registries, clearing removes everything Sauron
+installed (and nothing else), and deleting a registry or persona never
 touches already-installed artifacts.
 
 ## How it works
@@ -119,9 +119,9 @@ touches already-installed artifacts.
 Sauron is a command-line application; nothing runs in the background unless
 scheduled.
 
-1. **Register sources** — add repositories and import personas; each is
+1. **Register sources** — add registries and import personas; each is
    validated before it is persisted to the settings.
-2. **Sync** — reconcile the target with the desired set; review the plan with
+2. **Sync** — reconcile the provider with the desired set; review the plan with
    a dry run first.
 3. **Maintain** — re-run sync for updates; prune or clear to clean up; adjust
    priorities to resolve conflicts.

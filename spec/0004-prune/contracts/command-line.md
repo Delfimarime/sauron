@@ -52,7 +52,7 @@ skills:
 - release-notes
 agents:
 - triager
-Pruned 3 artifacts (2 skills, 1 agent) from 1 unregistered repository.
+Pruned 3 artifacts (2 skills, 1 agent) from 1 unregistered registry.
 
 # Prune only agents
 $ sauron prune agents

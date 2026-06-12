@@ -30,22 +30,22 @@ internal/
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     constants.go           shared ECS log/trace field keys
-  repository/
+  registry/
     fx.go                  exposes NewFxOptions() fx.Option
-    fs/                    filesystem repository adapter
+    fs/                    filesystem registry adapter
     git/                   git repository adapter
-    http/                  HTTP repository adapter
+    http/                  HTTP registry adapter
   provider/
     fx.go                  exposes NewFxOptions() fx.Option
     claude/                Claude provider adapter
     zencoder/              Zencoder provider adapter
 pkg/
-  repository/              public interfaces implemented by internal/repository/<type>
+  registry/              public interfaces implemented by internal/registry/<type>
   provider/                public interfaces implemented by internal/provider/<type>
 ```
 
 The behavioral interfaces under `pkg/` are a public surface: external code may
-implement new repositories or providers against them. Implementations live
+implement new registries or providers against them. Implementations live
 under `internal/` and are never imported across adapter boundaries — callers
 depend on the `pkg/` interfaces, not on a concrete adapter.
 
@@ -53,7 +53,7 @@ depend on the `pkg/` interfaces, not on a concrete adapter.
 
 - Module packages own an `fx.go` exposing `NewFxOptions() fx.Option`
   (`internal/config/fx.go`, `internal/telemetry/fx.go`,
-  `internal/repository/fx.go`, `internal/provider/fx.go`). Configuration is
+  `internal/registry/fx.go`, `internal/provider/fx.go`). Configuration is
   loaded with viper, but only the resulting `Configuration` struct is provided
   into the container — `*viper.Viper` is never placed in the fx graph.
 - `internal/cmd/helper.go` provides
@@ -146,7 +146,7 @@ recorded as verified at vetting time.
 | `github.com/spf13/viper` | Configuration management | MIT |
 | `github.com/spf13/afero` | Filesystem abstraction | Apache-2.0 |
 | `net/http` (stdlib) | HTTP client | BSD-3-Clause |
-| `os/exec` (stdlib) | Invoking external provider/target CLIs | BSD-3-Clause |
+| `os/exec` (stdlib) | Invoking external provider/provider CLIs | BSD-3-Clause |
 | `github.com/go-git/go-git/v5` | Git operations | Apache-2.0 |
 | `gopkg.in/yaml.v3` | YAML read/write | MIT and Apache-2.0 |
 | `github.com/google/jsonschema-go` | JSON Schema validation | MIT |
@@ -157,7 +157,7 @@ recorded as verified at vetting time.
 
 ## Notes
 
-- `os/exec` is scoped to invoking external provider/target CLIs;
+- `os/exec` is scoped to invoking external provider/provider CLIs;
   `github.com/go-git/go-git/v5` owns all git interaction.
 - `github.com/google/jsonschema-go` is a young library — track its maturity
   before deeper reliance, per the dependency-scrutiny rule.

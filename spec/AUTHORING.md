@@ -1,6 +1,6 @@
 # Spec Authoring Rules
 
-Normative rules for authoring and organizing specifications in this repository.
+Normative rules for authoring and organizing specifications in this registry.
 Domain concepts live in [the spec README](README.md); the conventions every CLI
 command obeys are defined in [CLI conventions](#cli-conventions) below, and the
 compiled per-command reference lives in [contracts/cli.md](contracts/cli.md).
@@ -28,8 +28,8 @@ Every spec declares one of two types:
   (capability → feature), `Depends on` (feature → feature).
 - **Link form (normative):** every cross-file or cross-feature reference — in
   cross-link declarations, requirement text, Decision Records, and Notes — is a
-  relative markdown link to the target file, e.g.
-  `Depends on: [sync](../0009-sync/spec.md)`. Bare ids or unlinked feature
+  relative markdown link to the provider file, e.g.
+  `Depends on: [sync](../0006-sync-artifacts/spec.md)`. Bare ids or unlinked feature
   names are not allowed.
 
 ## Numbering and layout
@@ -128,14 +128,17 @@ One canonical term per concept; specs do not use synonyms for these:
 | Term | Meaning |
 |---|---|
 | artifact | A skill or an agent distributed by Sauron |
-| skill | An artifact under a repository's `.skills/` directory |
-| agent | An artifact under a repository's `.agents/` directory |
-| repository | A registered source of artifacts |
-| kind | A repository's type: `http`, `filesystem`, or `git` |
+| skill | An artifact under a registry's `.skills/` directory |
+| agent | An artifact under a registry's `.agents/` directory |
+| registry | A registered source of artifacts |
+| kind | A registry's type: `http`, `filesystem`, or `git` |
 | persona | A named set of artifacts shared by a group |
-| target | The provider destination (e.g. `claude`, `zencoder`) |
+| backend | The backend that owns persona definitions; the persona analog of a `registry` (singleton per instance) |
+| catalog | The local read-only mirror of persona definitions pulled from the backend |
+| installed persona | A catalog persona activated locally via `set persona`; it participates in artifact sync and carries a priority (an *available* persona is in the catalog but not installed) |
+| provider | The provider destination (e.g. `claude`, `zencoder`) |
 | priority | Integer precedence; lower value wins |
-| sync | The operation that reconciles the target with repositories/personas |
+| sync | The operation that reconciles the provider with registries/personas |
 | plan | The printed list of pending additions/removals (`+`/`-` lines) |
 | track file | `track.yaml`, recording installed artifacts and provenance |
 | settings | `settings.yaml`, the persisted configuration |
@@ -169,8 +172,11 @@ code; they may not redefine the meanings.
 sauron <verb> [<noun> [<noun>]] [flags] <args...>
 ```
 
-- Verb–noun hierarchy: `add repository`, `list personas`,
-  `set priority repository`, `cron sync`.
+- Verb–noun hierarchy: `add registry`, `list personas`,
+  `set priority registry`, `unset backend`, `describe persona`,
+  `cron sync`. `unset` is the inverse of `set` (clears a setting or selection,
+  as opposed to `delete`, which destroys an owned resource); `describe` shows a
+  single resource's detail.
 - Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
   otherwise. Repeatable flags are marked `...` in synopses.
 - Positional arguments follow flags in synopses and are written `<name>`.
@@ -184,12 +190,14 @@ contradict it.
 | Flag | Meaning |
 |---|---|
 | `--dry-run` | Print the plan without changing the environment or the track file |
-| `--priority <n>` | Optional integer precedence (lower value wins), unique within its kind; the first resource is `0`, an omitted value appends at the end (`max + 1`). See the [priority model](0005-import-persona/architecture/ADR-0002-unified-priority-model.md) |
-| `--kind <kind>` | Repository kind: `http` (default), `filesystem`, or `git` |
+| `--priority <n>` | Optional integer precedence (lower value wins), unique within its kind; the first resource is `0`, an omitted value appends at the end (`max + 1`). See the [priority model](#priority-model) |
+| `--kind <kind>` | Registry kind: `http` (default), `filesystem`, or `git` |
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
 | `--persona <name>` | Scope the operation to one persona's artifacts |
+| `--fields <list>` | Comma-separated columns to display, in order, for `list` and `describe`; the identity field is always present and first. Each contract defines its valid field set |
+| `--force` | Re-pull authoritatively, reconciling away local entries no longer present upstream |
 | `--timeout <duration>` | Bound on network operations, default `30s` |
 
 ### Exit status
@@ -208,8 +216,37 @@ never redefine these meanings.
 - Results (confirmations, tables, plans) go to stdout.
 - A failing command writes exactly one human-readable message to stderr and
   produces no partial output.
-- Commands that apply changes in bulk (`sync`, `prune`, `clear`, `set target`)
+- Commands that apply changes in bulk (`sync artifacts`, `sync personas`, `prune`, `clear`, `set provider`)
   print a shared plan/report format: artifacts grouped under `skills:` and
   `agents:` headings, one artifact per line, prefixed `+` for additions/updates
   and `-` for removals, followed by a summary count line when changes are
   applied. Per-artifact failures are reported without stopping the run.
+
+## Priority model
+
+Registries and personas share one priority model; they differ only in *when and
+how* a priority is assigned:
+
+- A **registry** takes its priority at add time, via an optional `--priority` on
+  [add registry](0001-add-registry/spec.md).
+- A **persona** takes its priority at install time, from its position in
+  [select personas](0014-select-personas/spec.md)' `set persona` argument order
+  (the first listed persona is highest precedence).
+
+Both then obey the same rules:
+
+- **First resource of its kind** is priority `0` — for a registry, an omitted
+  `--priority` defaults to `0` and an explicit `--priority` is accepted only when
+  it is `0`; for personas, the first persona in the `set persona` list.
+- **Each subsequent resource** appends at the end of the priority-ordered list —
+  one greater than the current highest priority (`max + 1`) — which never
+  collides. For a registry, an explicit `--priority <n>` overrides this and is
+  rejected when another registry already holds it.
+- Priority is **always defined** and **unique** within its kind. Lower value
+  wins; `0` is the highest precedence.
+- Priorities change afterward only through
+  [set registry priority](0008-set-registry-priority/spec.md) and
+  [set persona priority](0007-set-persona-priority/spec.md), each **blocked while
+  a single resource of that kind exists** — that lone resource keeps `0`.
+  Re-running `set persona` redeclares the installed set and resets positional
+  priorities.

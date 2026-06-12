@@ -552,3 +552,5 @@ $RECYCLE.BIN/
 docs/
 .docs/
 .claude/settings.local.json
+prompt/
+dist/

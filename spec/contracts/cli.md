@@ -5,10 +5,10 @@ intent, and key flags, each linking to the feature contract that owns its full
 behavior. Every command obeys the same command grammar, shared flags,
 exit-status semantics, and output discipline.
 
-## add repository
+## add registry
 
 ```
-sauron add repository [--kind <kind>] [--priority <n>] [kind-scoped flags] <name> <location>
+sauron add registry [--kind <kind>] [--priority <n>] [kind-scoped flags] <name> <location>
 ```
 
 Register an artifact source of any kind.
@@ -16,29 +16,29 @@ Register an artifact source of any kind.
 - Key flags: `--kind` (default `http`), `--priority` (optional; first repo `0`, else `max + 1`), `--timeout`
   (http/git); kind-scoped auth/TLS flags (`--username`/`--password`,
   `--skip-tls-verify`, `--ca-cert`, `--client-cert`/`--client-key`, `--ssh-key`).
-- Full contract → [0001-add-repository](../0001-add-repository/contracts/command-line.md).
+- Full contract → [0001-add-registry](../0001-add-registry/contracts/command-line.md).
 
-## list repositories
+## list registries
 
 ```
-sauron list repositories [--search <term>] [--sort <name|priority|kind>] [--order <asc|desc>]
+sauron list registries [--search <term>] [--fields <list>] [--sort <name|priority|kind>] [--order <asc|desc>]
 ```
 
 Review configured sources.
 
-- Key flags: `--search`, `--sort`, `--order`.
-- Full contract → [0002-list-repositories](../0002-list-repositories/contracts/command-line.md).
+- Key flags: `--search`, `--fields`, `--sort`, `--order`.
+- Full contract → [0002-list-registries](../0002-list-registries/contracts/command-line.md).
 
-## delete repository
+## delete registry
 
 ```
-sauron delete repository <name>
+sauron delete registry <name>
 ```
 
 Unregister a source, keeping installed artifacts.
 
 - Key flags: none.
-- Full contract → [0003-delete-repository](../0003-delete-repository/contracts/command-line.md).
+- Full contract → [0003-delete-registry](../0003-delete-registry/contracts/command-line.md).
 
 ## prune
 
@@ -46,65 +46,32 @@ Unregister a source, keeping installed artifacts.
 sauron prune [skills|agents] [--dry-run]
 ```
 
-Remove artifacts orphaned by unregistered repositories.
+Remove artifacts orphaned by unregistered registries.
 
 - Key flags: `--dry-run`; optional `skills`|`agents` positional narrows scope.
 - Full contract → [0004-prune](../0004-prune/contracts/command-line.md).
 
-## import persona
-
-```
-sauron import persona [--priority <n>] <path>
-```
-
-Define a named artifact set for a group.
-
-- Key flags: `--priority`.
-- Full contract → [0005-import-persona](../0005-import-persona/contracts/command-line.md).
-
-## delete persona
-
-```
-sauron delete persona <name>
-```
-
-Remove a persona, keeping installed artifacts.
-
-- Key flags: none.
-- Full contract → [0006-delete-persona](../0006-delete-persona/contracts/command-line.md).
-
 ## list personas
 
 ```
-sauron list personas [--search <term>] [--tag <tag>]... [--sort <name|priority>] [--order <asc|desc>]
+sauron list personas [--search <term>] [--tag <tag>]... [--installed <true|false>] [--fields <list>] [--sort <name|installed|priority|last-updated|last-synced>] [--order <asc|desc>]
 ```
 
-Review defined personas.
+Review the persona catalog and which personas are installed.
 
-- Key flags: `--search`, `--tag` (repeatable), `--sort`, `--order`.
-- Full contract → [0007-list-personas](../0007-list-personas/contracts/command-line.md).
+- Key flags: `--search`, `--tag` (repeatable), `--installed`, `--fields`, `--sort`, `--order`.
+- Full contract → [0005-list-personas](../0005-list-personas/contracts/command-line.md).
 
-## update persona
-
-```
-sauron update persona <path>
-```
-
-Revise a persona's definition.
-
-- Key flags: none.
-- Full contract → [0008-update-persona](../0008-update-persona/contracts/command-line.md).
-
-## sync
+## sync artifacts
 
 ```
-sauron sync [--persona <name>] [--dry-run]
+sauron sync artifacts [--persona <name>] [--dry-run]
 ```
 
-Reconcile the target with repositories and personas.
+Reconcile the provider with registries and installed personas.
 
 - Key flags: `--persona`, `--dry-run`.
-- Full contract → [0009-sync](../0009-sync/contracts/command-line.md).
+- Full contract → [0006-sync-artifacts](../0006-sync-artifacts/contracts/command-line.md).
 
 ## set priority persona
 
@@ -112,32 +79,32 @@ Reconcile the target with repositories and personas.
 sauron set priority persona <name> <value>
 ```
 
-Reorder persona precedence.
+Adjust an installed persona's precedence.
 
 - Key flags: none.
-- Full contract → [0010-set-persona-priority](../0010-set-persona-priority/contracts/command-line.md).
+- Full contract → [0007-set-persona-priority](../0007-set-persona-priority/contracts/command-line.md).
 
-## set priority repository
+## set priority registry
 
 ```
-sauron set priority repository <name> <value>
+sauron set priority registry <name> <value>
 ```
 
-Reorder repository precedence for conflict resolution.
+Reorder registry precedence for conflict resolution.
 
 - Key flags: none.
-- Full contract → [0011-set-repository-priority](../0011-set-repository-priority/contracts/command-line.md).
+- Full contract → [0008-set-registry-priority](../0008-set-registry-priority/contracts/command-line.md).
 
-## set target
+## set provider
 
 ```
-sauron set target <claude|zencoder> [--copy-only]
+sauron set provider <claude|zencoder> [--copy-only]
 ```
 
 Choose the provider destination.
 
 - Key flags: `--copy-only`.
-- Full contract → [0012-set-target](../0012-set-target/contracts/command-line.md).
+- Full contract → [0009-set-provider](../0009-set-provider/contracts/command-line.md).
 
 ## clear
 
@@ -148,7 +115,7 @@ sauron clear [--persona <name>] [--dry-run]
 Remove all Sauron-installed artifacts.
 
 - Key flags: `--persona`, `--dry-run`.
-- Full contract → [0013-clear](../0013-clear/contracts/command-line.md).
+- Full contract → [0010-clear](../0010-clear/contracts/command-line.md).
 
 ## cron sync
 
@@ -157,7 +124,107 @@ sauron cron sync <expression>
 sauron cron sync --disable
 ```
 
-Schedule automatic sync via the OS crontab.
+Schedule automatic `sync artifacts` via the OS crontab.
 
 - Key flags: `--disable` (mutually exclusive with `<expression>`).
-- Full contract → [0014-cron-sync](../0014-cron-sync/contracts/command-line.md).
+- Full contract → [0011-cron-sync](../0011-cron-sync/contracts/command-line.md).
+
+## set backend
+
+```
+sauron set backend [--kind <http|filesystem|git>] [--username ${env:VAR}] [--password ${env:VAR}] [--timeout <duration>] <location>
+```
+
+Configure the singleton backend that owns persona definitions (upsert).
+
+- Key flags: `--kind` (default `http`), `--username`/`--password` (env refs only), `--timeout`.
+- Full contract → [0012-backend](../0012-backend/contracts/command-line.md).
+
+## unset backend
+
+```
+sauron unset backend [--keep-artifacts]
+```
+
+Tear down the backend (cascades to catalog, installs, and artifacts).
+
+- Key flags: `--keep-artifacts` (preserve delivered artifacts).
+- Full contract → [0012-backend](../0012-backend/contracts/command-line.md).
+
+## sync personas
+
+```
+sauron sync personas [--force]
+sauron sync persona <name> [--force]
+```
+
+Pull persona definitions from the registry into the local catalog.
+
+- Key flags: `--force` (authoritative re-pull + hard-reconcile).
+- Full contract → [0013-sync-personas](../0013-sync-personas/contracts/command-line.md).
+
+## set persona
+
+```
+sauron set persona <name>...
+```
+
+Declare the installed persona set (full-replace; priority = argument order).
+
+- Key flags: none.
+- Full contract → [0014-select-personas](../0014-select-personas/contracts/command-line.md).
+
+## unset persona
+
+```
+sauron unset persona [<name>...]
+```
+
+Uninstall named personas, or all when no name is given.
+
+- Key flags: none.
+- Full contract → [0014-select-personas](../0014-select-personas/contracts/command-line.md).
+
+## describe registry
+
+```
+sauron describe registry <name> [--fields <list>]
+```
+
+Show one registry's full detail.
+
+- Key flags: `--fields`.
+- Full contract → [0015-describe-registry](../0015-describe-registry/contracts/command-line.md).
+
+## describe persona
+
+```
+sauron describe persona <name> [--fields <list>]
+```
+
+Show one persona's full detail (installed or available).
+
+- Key flags: `--fields`.
+- Full contract → [0016-describe-persona](../0016-describe-persona/contracts/command-line.md).
+
+## describe backend
+
+```
+sauron describe backend [--fields <list>]
+```
+
+Show the singleton backend's detail.
+
+- Key flags: `--fields`.
+- Full contract → [0017-describe-backend](../0017-describe-backend/contracts/command-line.md).
+
+## describe provider
+
+```
+sauron describe provider [--fields <list>]
+```
+
+Show the active provider's detail.
+
+- Key flags: `--fields`.
+- Full contract → [0018-describe-provider](../0018-describe-provider/contracts/command-line.md).

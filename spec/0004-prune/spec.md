@@ -1,20 +1,20 @@
 # Prune
 
 **Type:** feature
-**Depends on:** [sync](../0009-sync/spec.md)
+**Depends on:** [sync artifacts](../0006-sync-artifacts/spec.md)
 
 ## Overview
 
 A person responsible for a team's agentic-AI setup needs to remove artifacts
-left behind by repositories Sauron no longer tracks, so that the team's target
-carries only artifacts from currently registered repositories.
+left behind by registries Sauron no longer tracks, so that the team's provider
+carries only artifacts from currently registered registries.
 
 ## Requirements
 
 ### Ubiquitous
 
 - **FR-001**: Sauron shall provide the ability to prune installed artifacts
-  whose source repository is no longer registered with Sauron.
+  whose source registry is no longer registered with Sauron.
 
 ### Event-driven
 
@@ -23,18 +23,18 @@ carries only artifacts from currently registered repositories.
 - **FR-003**: When a user runs prune with `skills` or `agents`, Sauron shall
   consider only that type.
 - **FR-004**: When pruning, Sauron shall identify installed artifacts,
-  recorded in the track file (`~/.sauron/track.yaml`), whose source repository
-  is not among the currently registered repositories.
+  recorded in the track file (`~/.sauron/track.yaml`), whose source registry
+  is not among the currently registered registries.
 - **FR-005**: When an orphaned artifact is identified, Sauron shall delete it
-  from its target location and remove its entry from the track file.
+  from its provider location and remove its entry from the track file.
 - **FR-006**: When pruning completes, Sauron shall report what was removed,
   grouped by skills and agents with a `-` for each removed artifact (the same
-  plan format as [sync](../0009-sync/spec.md)).
+  plan format as [sync artifacts](../0006-sync-artifacts/spec.md)).
 
 ### State-driven
 
 - **FR-007**: While pruning, Sauron shall leave artifacts whose source
-  repository is still registered untouched.
+  registry is still registered untouched.
 
 ### Unwanted behavior
 
@@ -54,21 +54,21 @@ carries only artifacts from currently registered repositories.
 
 ## Key Entities
 
-- **Installed Artifact**: an artifact that Sauron has delivered to a target,
+- **Installed Artifact**: an artifact that Sauron has delivered to a provider,
   recorded in the track file (`~/.sauron/track.yaml`). It has a type (skill or
-  agent), a target, an installed path, a source repository (its provenance),
+  agent), a provider, an installed path, a source registry (its provenance),
   and optionally the persona that brought it into scope.
-- **Orphaned Artifact**: an installed artifact whose source repository is no
-  longer among the registered repositories. Prune's subject.
+- **Orphaned Artifact**: an installed artifact whose source registry is no
+  longer among the registered registries. Prune's subject.
 
 ## Decision Records
 
 - [Prune scope and provenance](architecture/ADR-0001-prune-scope-and-provenance.md)
-  — prune targets artifacts from unregistered repositories only, using
+  — prune providers artifacts from unregistered registries only, using
   provenance recorded in the track file.
 
 ## Notes
 
 - The track file (`~/.sauron/track.yaml`) is populated by
-  [sync](../0009-sync/spec.md); prune reads it and removes entries for the
+  [sync artifacts](../0006-sync-artifacts/spec.md); prune reads it and removes entries for the
   artifacts it prunes. See [data/configuration.md](data/configuration.md).
