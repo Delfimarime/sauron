@@ -97,16 +97,17 @@ tasks:
         fi
 
   gate-integration:
-    desc: Run the test/e2e BDD suite against dist/sauron-linux-amd64 (Linux only; needs Docker).
+    desc: Run the test/e2e BDD suite against the host's sauron binary (needs a Docker daemon).
     deps:
       - build
     cmds:
+      # Host-aware: run against the binary for the current OS/arch so the suite
+      # runs locally on any platform with Docker. CI restricts this gate to a
+      # Linux runner (the constraint lives in the workflow, not the task), where
+      # the host binary resolves to sauron-linux-amd64.
       - |
-        if [ "$(go env GOOS)" != "linux" ]; then
-          echo "gate-integration runs on Linux only (Testcontainers needs a Docker daemon); skipping on $(go env GOOS)" >&2
-          exit 0
-        fi
-        cd "{{.ROOT}}/test/e2e" && SAURON_BIN="{{.DIST}}/{{.APP_NAME}}-linux-amd64" go test ./...
+        bin="{{.DIST}}/{{.APP_NAME}}-$(go env GOOS)-$(go env GOARCH)"
+        cd "{{.ROOT}}/test/e2e" && SAURON_BIN="${bin}" go test ./...
 
   all:
     desc: Build and run every gate in the contract's dependency order.

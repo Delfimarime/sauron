@@ -63,11 +63,11 @@ func TestNewFilesystem(t *testing.T) {
 			// Act: RealPath resolves the path without any I/O.
 			base, ok := fs.(*afero.BasePathFs)
 			require.True(t, ok)
-			real, err := base.RealPath(tt.probe)
+			resolved, err := base.RealPath(tt.probe)
 
 			// Assert: the resolved path sits under the configured home.
 			require.NoError(t, err)
-			assert.Equal(t, filepath.Join(home, tt.probe), real)
+			assert.Equal(t, filepath.Join(home, tt.probe), resolved)
 		})
 	}
 }

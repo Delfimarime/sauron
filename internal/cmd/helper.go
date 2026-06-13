@@ -18,7 +18,8 @@ import (
 
 // NewApp builds (but does not start) the transversal fx app and appends the caller's opts.
 func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
-	base := []fx.Option{
+	base := make([]fx.Option, 0, 10+len(opts))
+	base = append(base,
 		fx.Supply(ctx),
 		telemetry.NewFxOptions(),
 		config.NewFxOptions(),
@@ -33,6 +34,6 @@ func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log}
 		}),
-	}
+	)
 	return fx.New(append(base, opts...)...)
 }

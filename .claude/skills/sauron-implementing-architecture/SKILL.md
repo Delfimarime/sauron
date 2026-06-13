@@ -42,7 +42,8 @@ infrastructure layout below — when they conflict, this skill wins.
    the git worktree hash, injected by `task build` via `-ldflags -X main.<var>`.
 7. **Gates before done.** Verify with the local Taskfile targets — `task gate-lint`,
    `task test`, `task gate-coverage` (≥ 80%), `task gate-security`,
-   `task gate-integration` (Linux + Docker) — or `task all`. See the
+   `task gate-integration` (host-aware; needs a Docker daemon, runs on any OS —
+   CI pins it to Linux) — or `task all`. See the
    [verification gate](../../../CONSTITUTION.md).
 8. **Style.** Uber Go Style Guide, gocognit ≤ 15, parameter structs over >7 args,
    testify table-driven tests, `MockBased<Iface>` in `mock_based_<iface>.go`.

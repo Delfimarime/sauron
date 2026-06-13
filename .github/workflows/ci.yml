@@ -86,12 +86,16 @@ jobs:
       - uses: arduino/setup-task@v2
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          install-mode: binary
-          args: --version
+      # Install the golangci-lint v2 binary (our .golangci.yml is v2 schema) and
+      # let `task gate-lint` run it, keeping CI/Taskfile parity. The
+      # golangci-lint-action is not used: it runs the linter itself (and @v6
+      # pins the v1 line), which both conflicts with the task and rejects a v2
+      # config.
+      - name: Install golangci-lint (v2)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+            | sh -s -- -b "$(go env GOPATH)/bin" v2.1.6
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - run: task gate-lint
 
   # ── Stage 2 (on stage 1 success) ─────────────────────────────────────────────

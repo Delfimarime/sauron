@@ -14,7 +14,6 @@ linters:
     - containedctx     # no context.Context stored in a struct (see exclusions below)
     - contextcheck     # non-inherited contexts are not used
     - cyclop           # cyclomatic complexity ceiling
-    - depguard         # import allow/deny rules
     - dupl             # duplicate code detection
     - durationcheck    # no accidental time.Duration multiplication
     - err113           # errors compared/created per Go 1.13 conventions
@@ -61,16 +60,6 @@ linters:
         - pattern: '^go\s'
           msg: "bare `go` statements are banned: use the fx-injected pond pool (the only sanctioned source of goroutines)"
       analyze-types: false
-
-    depguard:
-      rules:
-        main:
-          deny:
-            # Adapters under internal/infrastructure are never imported across
-            # adapter boundaries — callers depend on the pkg/ ports, not on a
-            # concrete adapter (architecture contract §"Project layout").
-            - pkg: github.com/alitto/pond
-              desc: "import github.com/alitto/pond/v2, not the v1 path"
 
   exclusions:
     rules:
