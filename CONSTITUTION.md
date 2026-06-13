@@ -86,6 +86,11 @@ grammar, shared flags, exit-status semantics, and output discipline — before i
 is implemented. The compiled [command reference](spec/contracts/cli.md)
 summarizes every command in one place.
 
+The sole exception is the **root command** (version and help plumbing): it has no
+feature spec and no `contracts/command-line.md`, and its construction and
+`--version` banner are fixed by the
+[architecture contract](spec/contracts/architecture.md) instead.
+
 ### Article 2 — Safety and idempotency
 
 Commands are idempotent where reasonable. Unregistering or deleting a source
@@ -115,14 +120,37 @@ package responsibilities, and build variables (`AppName`, `AppVersion`,
 
 ### Article 3 — Ports and adapters
 
-Public behavioral interfaces live under `pkg/` (`pkg/repository`,
-`pkg/provider`) and are implemented by adapters under `internal/`
-(`internal/repository/{fs,git,http}`, `internal/provider/{claude,zencoder}`).
-Each adapter family exposes its wiring through an uberfx
-`NewFxOptions() fx.Option`. The interfaces are a public surface: external code
-may implement new repositories or providers against them.
+Public behavioral interfaces live under `pkg/` (`pkg/registry`, `pkg/provider`,
+`pkg/backend`) and are implemented by adapters under `internal/infrastructure/`
+— the driven-adapter layer reaching external systems
+(`internal/infrastructure/registry/{fs,git,http}`,
+`internal/infrastructure/provider/{claude,zencoder}`,
+`internal/infrastructure/backend/{fs,git,http}`). Each adapter family exposes its
+wiring through an uberfx `NewFxOptions() fx.Option`. The interfaces are a public
+surface: external code may implement new registries, providers, or backends
+against them. `internal/infrastructure/` also houses internal capabilities that
+are not public extension points — `internal/infrastructure/storage`, which owns
+all manipulation of the `~/.sauron/` state — kept wholly inside their package
+with no `pkg/` port. The transversal framework modules (`internal/config`,
+`internal/telemetry`, `internal/cmd`) are not adapters and stay at the
+`internal/` root.
 
-### Article 4 — Dependency & license discipline
+### Article 4 — Use Case orchestration
+
+A command's business logic is an interactor, not a service. Each command's
+entrypoint is a **use case** that orchestrates the work; the reusable steps a use
+case composes are **actions**. A use case is stateless: its collaborators — the
+`pkg/` ports, the state stores, and the logger — are supplied by uberfx, while
+the per-invocation context and the writer that command output goes to arrive
+through a `Request` passed to its `Execute`. The use case therefore stays
+ignorant of where its output is printed and where state is persisted — output
+flows through an `io.Writer` on the `Request`, and persisted state through the
+`internal/infrastructure/storage` package (which owns the `afero.Fs`), never
+through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
+interface shapes, the `internal/usecase` layout, and the naming convention are
+fixed by the [architecture contract](spec/contracts/architecture.md).
+
+### Article 5 — Dependency & license discipline
 
 The dependency set is deliberately small and vetted. Adding a dependency
 requires scrutiny of its maturity, maintenance, and license — which must be

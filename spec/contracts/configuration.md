@@ -24,8 +24,9 @@ is written independently.
 | `track.yaml` | [sync artifacts](../0006-sync-artifacts/spec.md) | the installed artifacts and their provenance | [track.schema.json](schemas/track.schema.json) |
 | `settings.yaml` | [set provider](../0009-set-provider/spec.md), [schedule artifact sync](../0011-schedule-sync/spec.md), [schedule persona sync](../0019-schedule-sync-personas/spec.md) | global settings: the active provider and the sync schedules | [settings.schema.json](schemas/settings.schema.json) |
 
-- **Path**: each file lives at `~/.sauron/<file>` (home directory resolved per
-  platform).
+- **Path**: each file lives at `<home>/<file>`, where `<home>` is `$SAURON_HOME`
+  when that environment variable is set and the platform default `~/.sauron`
+  otherwise. The home is resolved once at startup.
 - **Lifecycle**: a file is created on the first successful write that needs it; a
   missing file is read as its empty state (no registries, no backend, no
   installed personas, nothing tracked, defaults for global settings).
