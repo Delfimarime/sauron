@@ -1,6 +1,6 @@
 ---
-name: authoring-specs
-description: Use when writing or editing any specification under spec/ in this repository — covers EARS requirement templates, the feature/capability taxonomy, chronological NNNN numbering, the shared glossary, markdown-link cross-references, required section order, and canonical boilerplate. The normative rules live in spec/AUTHORING.md.
+name: sauron-authoring-specs
+description: Use when writing or editing any specification under spec/ in this repository — covers EARS requirement templates, the feature/capability taxonomy, chronological NNNN numbering, the shared glossary, markdown-link cross-references, required section order, canonical boilerplate, and ADR placement (feature-scoped vs project-level). The normative rules live in spec/AUTHORING.md.
 ---
 
 # Authoring Sauron Specs
@@ -23,3 +23,9 @@ When creating or modifying any file under `spec/`, follow the normative rules in
 5. **Meaning-preservation guard** — never let a wording change alter what a
    requirement demands. If a rewrite would change the meaning, keep the original
    sentence and record the deviation in the spec's `## Notes`.
+6. **ADRs** — feature-scoped decisions live under
+   `spec/NNNN-<feature>/architecture/ADR-NNNN-*.md`; cross-cutting decisions owned
+   by no single feature live under the project-level `spec/architecture/`
+   directory (with a `**Scope**` header in place of `**Feature**`). A
+   `PROPOSAL:` issue's EARS and intended ADRs are formalized here once accepted.
+   **Never author an ADR without explicit user permission** — propose it and wait.

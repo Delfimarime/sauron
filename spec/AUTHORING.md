@@ -4,8 +4,8 @@ Normative rules for authoring and organizing specifications in this registry.
 Domain concepts live in [the spec README](README.md); the conventions every CLI
 command obeys are defined in [CLI conventions](#cli-conventions) below, and the
 compiled per-command reference lives in [contracts/cli.md](contracts/cli.md).
-When authoring specs in this repo, the `authoring-specs` skill loads and points
-here.
+When authoring specs in this repo, the `sauron-authoring-specs` skill loads and
+points here.
 
 ## Spec types
 
@@ -67,7 +67,7 @@ written:
 | Path | Present when | Holds | Content rules |
 |---|---|---|---|
 | `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
-| `contracts/command-line.md` | the feature owns a command | the command's synopsis, arguments, flags, output, and exit codes | [CLI conventions](#cli-conventions) (and the `authoring-cli-contracts` skill) |
+| `contracts/command-line.md` | the feature owns a command | the command's synopsis, arguments, flags, output, and exit codes | [CLI conventions](#cli-conventions) (and the `sauron-authoring-cli-contracts` skill) |
 | `data/configuration.md` | the feature reads or writes config | which configuration file(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/configuration.md](contracts/configuration.md) and linked from here | [Glossary](#glossary) terms; link the [configuration data contract](contracts/configuration.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |

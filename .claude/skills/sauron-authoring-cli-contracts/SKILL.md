@@ -1,6 +1,6 @@
 ---
-name: authoring-cli-contracts
-description: Use when writing or editing a feature's contracts/command-line.md, or the compiled spec/contracts/cli.md, in this repository — covers the per-command contract section order, the CLI conventions every command obeys (command grammar, shared flags, exit-status semantics, output discipline), and keeping the compiled command reference in sync. Specializes authoring-specs for the CLI surface.
+name: sauron-authoring-cli-contracts
+description: Use when writing or editing a feature's contracts/command-line.md, or the compiled spec/contracts/cli.md, in this repository — covers the per-command contract section order, the CLI conventions every command obeys (command grammar, shared flags, exit-status semantics, output discipline), and keeping the compiled command reference in sync. Specializes sauron-authoring-specs for the CLI surface.
 ---
 
 # Authoring Sauron CLI Contracts
@@ -9,7 +9,7 @@ When creating or modifying a command's `contracts/command-line.md`, or the
 compiled [spec/contracts/cli.md](../../../spec/contracts/cli.md), follow the
 normative CLI conventions in
 [spec/AUTHORING.md § CLI conventions](../../../spec/AUTHORING.md#cli-conventions).
-This skill specializes [authoring-specs](../authoring-specs/SKILL.md) for the
+This skill specializes [sauron-authoring-specs](../sauron-authoring-specs/SKILL.md) for the
 CLI surface — both apply, and this one wins on conflict about command contracts.
 
 ## Three documents, three roles
