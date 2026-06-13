@@ -196,5 +196,17 @@ A feature is not complete until it passes the project's verification gate:
 Each such exception is an ADR that names the advisory and a **Revisit when**
 condition, authored only with explicit user intent (Chapter I, Article 4) — never
 generated automatically. A feature that fails either condition does not merge.
-The gate is enforced by the project's Taskfile tasks (`task test`,
-`task coverage`, `task scan-dependencies`).
+The gate is enforced by the project's Taskfile tasks (`task gate-lint`,
+`task test`, `task gate-coverage`, `task gate-security`), run as the CI pipeline.
+
+### Article 3 — Development workflow
+
+Development follows a Trunk-based flow: `main`/`master` is the only long-lived
+branch, and work lands through short-lived feature branches merged via
+pull/merge request — never Gitflow. Commits and PR/MR titles follow
+[Conventional Commits](https://www.conventionalcommits.org), and the
+`package.json` SemVer `version` is bumped by hand to match the change type
+(a feature → minor, a fix → patch, a breaking change → major). The workflow, the
+feature-proposal (`PROPOSAL:` issues carrying EARS and intended ADRs) and
+bug-report (Context / Problem / Expected Outcome) processes, and the issue and
+PR/MR templates are defined in [CONTRIBUTING.md](CONTRIBUTING.md).

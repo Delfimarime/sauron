@@ -135,28 +135,62 @@ the architecture contract.
 ## Build, versioning & gates
 
 A `Taskfile` at the repo root — run with `task` — is the project's canonical
-build and verification entrypoint. It exposes at least:
+build and verification entrypoint. Its task names match the CI job names
+one-to-one, so each CI job runs the identically-named target. It exposes at
+least:
 
 - `test` — runs the unit tests with the race detector and writes a coverage
   report under `dist/`.
-- `coverage` — reads that report and enforces the coverage gate: 90% ideal,
-  failing below the project-level floor of 80%.
-- `scan-dependencies` — runs `trivy` over the project and enforces the security
-  gate of the [verification gate](../../CONSTITUTION.md) (no CRITICAL, at most
-  two HIGH), with accepted exceptions carried by a project-level ADR under
-  `spec/architecture/`.
+- `gate-lint` — lints with `golangci-lint` (the enforcement point for the Uber
+  style guide and the gocognit ≤15 ceiling).
 - `build` — builds the binary to `dist/sauron` (made executable), injecting the
   version variables via the Go linker (`-ldflags`).
+- `gate-coverage` — reads the `test` report and enforces the coverage gate: 90%
+  ideal, failing below the project-level floor of 80%.
+- `gate-security` — depends on `build` and runs `trivy` over the built
+  `dist/sauron` binary, enforcing the [verification gate](../../CONSTITUTION.md)
+  (no CRITICAL, at most two HIGH), with accepted exceptions carried by a
+  project-level ADR under `spec/architecture/`.
 - `all` — builds and runs every gate.
 
-**Versioning.** Go exposes no built-in version mechanism, so `AppName` and
-`AppVersion` are kept in a root `package.json` (its `name` and `version`), and
-`AppHash` is the short git hash of the worktree. The `build` task injects all
-three into the `cmd/main.go` variables with `-ldflags -X main.<var>=<value>`;
-they are not sourced any other way.
+### Continuous integration & delivery
 
-`task`, `trivy`, and `jq` are development/CI tooling, not module dependencies, so
-they are absent from the [approved-dependency table](#approved-dependencies).
+The CI pipeline is provider-agnostic — GitHub Actions and GitLab CI are the
+reference targets — and runs the Taskfile gates in dependency-gated stages:
+
+1. `test` and `gate-lint` in parallel.
+2. On their success, `build` and `gate-coverage` in parallel — `gate-coverage`
+   consumes the coverage report `test` published as an artifact.
+3. On their success, `gate-security` — scanning the binary `build` published as
+   an artifact.
+4. On its success and **only on the `main`/`master` branch**, `publish` —
+   generates the binary's SHA-256 checksum and publishes the binary and its
+   `.sha256` as **release assets** (a GitHub Release / a GitLab Release).
+
+### Versioning
+
+Go exposes no built-in version mechanism, so `AppName` and `AppVersion` are kept
+in a root `package.json` (its `name` and `version`), and `AppHash` is the short
+git hash of the worktree. The `build` task injects all three into the
+`cmd/main.go` variables with `-ldflags -X main.<var>=<value>`; they are not
+sourced any other way. `package.json`'s `version` is the strict-SemVer source of
+truth, bumped by hand to match the change type (see
+[CONTRIBUTING.md](../../CONTRIBUTING.md)); CI only *decorates* it into the
+artifact label, via the build task's overridable `AppVersion`, by build context:
+
+| Context | `AppVersion` | Published |
+|---|---|---|
+| local `task build` | `<version>` | no |
+| `main`/`master` branch | `<version>-RELEASE` | yes |
+| PR/MR into `main`/`master` | `<version>-PRE-RELEASE.<ci-number>` | no |
+| any other build | `<version>-SNAPSHOT.<ci-number>` | no |
+
+All three decorations are valid SemVer pre-release identifiers (hyphen-prefixed),
+so the artifact label remains SemVer-parseable.
+
+`task`, `golangci-lint`, `trivy`, and `jq` are development/CI tooling, not module
+dependencies, so they are absent from the
+[approved-dependency table](#approved-dependencies).
 
 ## Command flags
 
