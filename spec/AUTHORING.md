@@ -55,6 +55,11 @@ Every spec declares one of two types:
   [configuration data contract](contracts/configuration.md) (the schema of every
   file Sauron persists), and the
   [architecture contract](contracts/architecture.md).
+- Project-level ADRs — cross-cutting decisions owned by no single feature (e.g.
+  an accepted dependency vulnerability) — live in
+  `spec/architecture/ADR-NNNN-<slug>.md`, numbered sequentially **project-wide**
+  (starting at `0001`, never reused), a separate sequence from the feature-scoped
+  ADRs below.
 
 Each file has a fixed purpose and a section that defines how its content is
 written:
@@ -105,7 +110,10 @@ An Architecture Decision Record captures one significant technical decision for
 its feature. Files are named `architecture/ADR-NNNN-<kebab-slug>.md`, where
 `NNNN` is sequential **within the feature** (each feature's ADRs start at
 `0001`) and never reused. Every ADR is linked from the spec's
-`## Decision Records` section.
+`## Decision Records` section. A **project-level ADR** — a cross-cutting decision
+owned by no single feature — instead lives at
+`spec/architecture/ADR-NNNN-<kebab-slug>.md`, numbered project-wide, and is not
+linked from any feature's `## Decision Records`.
 
 Structure, in this order:
 
@@ -114,7 +122,9 @@ Structure, in this order:
    - `**Status**:` — `Accepted`, or `Superseded by [ADR-NNNN](ADR-NNNN-<slug>.md)`
      once replaced.
    - `**Date**:` — `YYYY-MM-DD`.
-   - `**Feature**:` — the feature's human-readable name.
+   - `**Feature**:` — the feature's human-readable name. A project-level ADR
+     carries `**Scope**:` in its place — `Project-wide`, or an area such as
+     `Dependencies / Security`.
 3. `## Context` — the forces, constraints, and problem that make a decision
    necessary.
 4. `## Decision` — what was decided, in the present tense; reference the
@@ -126,6 +136,9 @@ Structure, in this order:
 An accepted ADR is not rewritten: a changed decision is recorded as a new ADR
 that supersedes it, and the old one's `**Status**` is updated to point at the
 replacement.
+
+Every ADR — feature or project-level — is authored only with explicit user
+intent and is never generated automatically.
 
 ## Glossary
 

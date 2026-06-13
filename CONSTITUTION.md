@@ -49,17 +49,21 @@ CLI surface of its own.
 
 Every significant technical decision — one not dictated by a requirement — is
 captured as an Architecture Decision Record under the feature's `architecture/`
-directory and linked from the spec's `## Decision Records` section. A decision
-that shapes behavior or constrains implementation is written down before it is
-coded, never made implicitly in source. Authoring mechanics (the
+directory and linked from the spec's `## Decision Records` section; a decision
+that is cross-cutting and owned by no single feature is recorded instead under
+the project-level `spec/architecture/` directory. A decision that shapes
+behavior or constrains implementation is written down before it is coded, never
+made implicitly in source. An ADR is authored only with the maintainer's
+explicit intent; it is never generated automatically. Authoring mechanics (the
 `ADR-NNNN-<slug>.md` naming and layout) live in the
 [ADR structure](spec/AUTHORING.md#adr-structure) of AUTHORING.md.
 
 ### Article 5 — ADR structure and lifecycle
 
-Each ADR carries a **Status**, **Date**, and **Feature** header, then states its
-**Context**, the **Decision**, its **Consequences**, and a **Revisit when**
-condition naming what would reopen it, as defined in the
+Each ADR carries a **Status**, **Date**, and **Feature** header (a project-level
+ADR carries **Scope** in place of **Feature**), then states its **Context**, the
+**Decision**, its **Consequences**, and a **Revisit when** condition naming what
+would reopen it, as defined in the
 [ADR structure](spec/AUTHORING.md#adr-structure) of AUTHORING.md. An accepted
 ADR is not rewritten; a decision is changed by recording a new ADR that
 supersedes the old one, so the history of why the system is shaped as it is
@@ -151,20 +155,46 @@ through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
 interface shapes, the `internal/usecase` layout, and the naming convention are
 fixed by the [architecture contract](spec/contracts/architecture.md).
 
-### Article 5 — Dependency & license discipline
+### Article 5 — Dependency, license & security discipline
 
 The dependency set is deliberately small and vetted. Adding a dependency
-requires scrutiny of its maturity, maintenance, and license — which must be
-permissive and compatible with the project's Apache-2.0 license. The approved
+requires scrutiny of its maturity, maintenance, license — which must be
+permissive and compatible with the project's Apache-2.0 license — and security:
+the dependency set is scanned for known vulnerabilities (Chapter IV, Article 2),
+and a dependency carrying an unresolved advisory is not introduced. The approved
 dependencies and their licenses are enumerated in the
 [architecture contract](spec/contracts/architecture.md); nothing outside that
 list is used without amending it.
 
 ## Chapter IV — Governance & Traceability
 
-The cross-cutting rule that keeps spec, plan, and code in agreement.
+The cross-cutting rules that keep spec, plan, and code in agreement, and that
+gate what may ship.
 
 ### Article 1 — Traceability
 
 Plans and implementation reference the spec and FRs they fulfill, so every unit
 of behavior maps back to an approved requirement.
+
+### Article 2 — Verification gate
+
+A feature is not complete until it passes the project's verification gate:
+
+- **Tests pass and coverage meets target.** The feature's tests — covering both
+  success and failure paths — pass, and project coverage meets the target fixed
+  by the [architecture contract](spec/contracts/architecture.md): 90% ideal,
+  never below 80%.
+- **Dependencies are scanned for vulnerabilities** with [Trivy](https://trivy.dev)
+  (or an equivalent scanner) on every feature, against these per-scan thresholds:
+  - **CRITICAL — none.** A feature does not ship with a CRITICAL finding unless a
+    project-level ADR under `spec/architecture/` records a clear reason it is not
+    fixed.
+  - **HIGH — at most two.** More than two HIGH findings across the dependency set
+    are not allowed unless a project-level ADR under `spec/architecture/` records
+    the reason.
+
+Each such exception is an ADR that names the advisory and a **Revisit when**
+condition, authored only with explicit user intent (Chapter I, Article 4) — never
+generated automatically. A feature that fails either condition does not merge.
+The gate is enforced by the project's Taskfile tasks (`task test`,
+`task coverage`, `task scan-dependencies`).

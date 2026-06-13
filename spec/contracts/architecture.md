@@ -16,8 +16,10 @@ approved dependency set. Every feature's implementation conforms to it.
 Follows [golang-standards/project-layout](https://github.com/golang-standards/project-layout):
 
 ```
+Taskfile.yml               build & verification gate tasks (run with `task`)
+package.json               AppName + AppVersion source (its name, version)
 cmd/
-  main.go                  binary entrypoint; defines AppName, AppVersion, AppHash
+  main.go                  binary entrypoint; AppName/AppVersion (from package.json) and AppHash (git worktree hash) set via ldflags
 internal/
   cmd/
     root.go                root cobra command
@@ -56,6 +58,7 @@ pkg/
   registry/              public interfaces implemented by internal/infrastructure/registry/<kind>
   provider/              public interfaces implemented by internal/infrastructure/provider/<kind>
   backend/               public interfaces implemented by internal/infrastructure/backend/<kind>
+dist/                    build output (git-ignored): the sauron binary and coverage report
 ```
 
 The behavioral interfaces under `pkg/` are a public surface: external code may
@@ -128,6 +131,32 @@ never diverge. `New` returns an error when the home cannot be resolved.
 The root command is the **one exception** to the spec-and-contract rules: it has
 no feature spec and no `contracts/command-line.md`; its behavior is fixed here in
 the architecture contract.
+
+## Build, versioning & gates
+
+A `Taskfile` at the repo root — run with `task` — is the project's canonical
+build and verification entrypoint. It exposes at least:
+
+- `test` — runs the unit tests with the race detector and writes a coverage
+  report under `dist/`.
+- `coverage` — reads that report and enforces the coverage gate: 90% ideal,
+  failing below the project-level floor of 80%.
+- `scan-dependencies` — runs `trivy` over the project and enforces the security
+  gate of the [verification gate](../../CONSTITUTION.md) (no CRITICAL, at most
+  two HIGH), with accepted exceptions carried by a project-level ADR under
+  `spec/architecture/`.
+- `build` — builds the binary to `dist/sauron` (made executable), injecting the
+  version variables via the Go linker (`-ldflags`).
+- `all` — builds and runs every gate.
+
+**Versioning.** Go exposes no built-in version mechanism, so `AppName` and
+`AppVersion` are kept in a root `package.json` (its `name` and `version`), and
+`AppHash` is the short git hash of the worktree. The `build` task injects all
+three into the `cmd/main.go` variables with `-ldflags -X main.<var>=<value>`;
+they are not sourced any other way.
+
+`task`, `trivy`, and `jq` are development/CI tooling, not module dependencies, so
+they are absent from the [approved-dependency table](#approved-dependencies).
 
 ## Command flags
 
@@ -287,8 +316,9 @@ referenced from there — never written as scattered string literals. The
 - **Mocks** live in the same package that defines the interface they implement,
   are named `MockBased<Interface>`, and reside in a file named
   `mock_based_<interface>.go`.
-- **Coverage** is 90% per package as the ideal; a lower figure is permitted only
-  when justified, and never falls below 75%.
+- **Coverage** ideal is 90%; the [verification gate](../../CONSTITUTION.md)
+  enforces a project-level floor of 80%, a lower figure permitted only when
+  justified.
 - **Command testability.** Each command is split into a public `Serve()` that
   builds the `*cobra.Command` (the cobra wiring) and a private `serve()` — the
   same name, unexported — that holds the command's logic, decoupled from the
@@ -324,3 +354,7 @@ recorded as verified at vetting time.
   owns all git interaction.
 - `github.com/google/jsonschema-go` is a young library — track its maturity
   before deeper reliance, per the dependency-scrutiny rule.
+- The dependency set is scanned for known vulnerabilities with `trivy` (or an
+  equivalent scanner) as part of the verification gate (CONSTITUTION, Chapter IV,
+  Article 2): zero CRITICAL and at most two HIGH findings per scan, any exception
+  carried by a project-level ADR under `spec/architecture/`.
