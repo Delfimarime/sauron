@@ -29,3 +29,7 @@ When creating or modifying any file under `spec/`, follow the normative rules in
    directory (with a `**Scope**` header in place of `**Feature**`). A
    `PROPOSAL:` issue's EARS and intended ADRs are formalized here once accepted.
    **Never author an ADR without explicit user permission** — propose it and wait.
+7. **Executable behaviour.** A feature's user-observable behaviour is verified
+   end-to-end by Gherkin scenarios under `test/e2e/testdata`; keep requirements
+   expressible as `.feature` scenarios. See
+   [`sauron-implementing-integration-tests`](../sauron-implementing-integration-tests/SKILL.md).

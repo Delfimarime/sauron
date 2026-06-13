@@ -112,7 +112,10 @@ the Uber Go Style Guide, structured zap + ECS logging, cognitive complexity ≤1
 and no rogue goroutines (all concurrency runs on a managed pool, never a bare
 `go`) — and is test-first to a 90% coverage target. The full coding, telemetry,
 and testing practices are fixed by the
-[architecture contract](spec/contracts/architecture.md).
+[architecture contract](spec/contracts/architecture.md). The binary is built
+CGO-free (`CGO_ENABLED=0`) so a single Go toolchain cross-compiles every
+supported target without per-OS build hosts; the target matrix and build
+mechanics are fixed by that contract.
 
 ### Article 2 — Standard project layout
 
@@ -121,6 +124,13 @@ Sauron is a Go 1.26 project following
 with module path `github.com/delfimarime/sauron`. The directory structure,
 package responsibilities, and build variables (`AppName`, `AppVersion`,
 `AppHash`) are fixed by the
+[architecture contract](spec/contracts/architecture.md).
+
+External integration tests live as a **separate Go module** under `/test`
+(`test/e2e`), governed by the project's test conventions and **exempt from
+Articles 3–4** (no ports-and-adapters, no Use Case/Action): it is a black-box
+harness that drives the built binary and imports only the public `pkg/` surface,
+never `internal/`. Its layout is fixed by the
 [architecture contract](spec/contracts/architecture.md).
 
 ### Article 3 — Ports and adapters
@@ -164,7 +174,8 @@ the dependency set is scanned for known vulnerabilities (Chapter IV, Article 2),
 and a dependency carrying an unresolved advisory is not introduced. The approved
 dependencies and their licenses are enumerated in the
 [architecture contract](spec/contracts/architecture.md); nothing outside that
-list is used without amending it.
+list is used without amending it. No dependency may require CGO; the binary stays
+statically linked and cross-compilable (Article 1).
 
 ## Chapter IV — Governance & Traceability
 
@@ -192,12 +203,15 @@ A feature is not complete until it passes the project's verification gate:
   - **HIGH — at most two.** More than two HIGH findings across the dependency set
     are not allowed unless a project-level ADR under `spec/architecture/` records
     the reason.
+- **Integration tests pass.** The black-box BDD suite under `test/e2e` — driving
+  the built binary end-to-end — passes on Linux before a feature ships.
 
 Each such exception is an ADR that names the advisory and a **Revisit when**
 condition, authored only with explicit user intent (Chapter I, Article 4) — never
 generated automatically. A feature that fails either condition does not merge.
 The gate is enforced by the project's Taskfile tasks (`task gate-lint`,
-`task test`, `task gate-coverage`, `task gate-security`), run as the CI pipeline.
+`task test`, `task gate-coverage`, `task gate-security`, `task gate-integration`),
+run as the CI pipeline.
 
 ### Article 3 — Development workflow
 

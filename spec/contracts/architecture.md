@@ -58,7 +58,12 @@ pkg/
   registry/              public interfaces implemented by internal/infrastructure/registry/<kind>
   provider/              public interfaces implemented by internal/infrastructure/provider/<kind>
   backend/               public interfaces implemented by internal/infrastructure/backend/<kind>
-dist/                    build output (git-ignored): the sauron binary and coverage report
+test/
+  e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
+    testdata/            Gherkin .feature files
+    integration_test.go  godog TestSuite entrypoint (no main)
+    internal/            step definitions, scenario world, binary runner
+dist/                    build output (git-ignored): the per-OS sauron binaries (sauron-<os>-<arch>) and coverage report
 ```
 
 The behavioral interfaces under `pkg/` are a public surface: external code may
@@ -143,14 +148,21 @@ least:
   report under `dist/`.
 - `gate-lint` — lints with `golangci-lint` (the enforcement point for the Uber
   style guide and the gocognit ≤15 ceiling).
-- `build` — builds the binary to `dist/sauron` (made executable), injecting the
-  version variables via the Go linker (`-ldflags`).
+- `build` — cross-compiles the binary `CGO_ENABLED=0` from a single toolchain to
+  each supported target (`linux/amd64`, `darwin/arm64`, `darwin/amd64`), writing
+  `dist/sauron-<os>-<arch>` (made executable) and injecting the version variables
+  via the Go linker (`-ldflags`).
 - `gate-coverage` — reads the `test` report and enforces the coverage gate: 90%
   ideal, failing below the project-level floor of 80%.
 - `gate-security` — depends on `build` and runs `trivy` over the built
-  `dist/sauron` binary, enforcing the [verification gate](../../CONSTITUTION.md)
+  `dist/sauron-linux-amd64` binary, enforcing the [verification gate](../../CONSTITUTION.md)
   (no CRITICAL, at most two HIGH), with accepted exceptions carried by a
   project-level ADR under `spec/architecture/`.
+- `gate-integration` — depends on `build`; runs the black-box BDD suite in the
+  `test/e2e` module against the built binary
+  (`cd test/e2e && SAURON_BIN=$ROOT/dist/sauron-linux-amd64 go test ./...`).
+  Linux only — the suite provisions its dependencies via Testcontainers, which
+  needs a Docker daemon.
 - `all` — builds and runs every gate.
 
 ### Continuous integration & delivery
@@ -159,13 +171,17 @@ The CI pipeline is provider-agnostic — GitHub Actions and GitLab CI are the
 reference targets — and runs the Taskfile gates in dependency-gated stages:
 
 1. `test` and `gate-lint` in parallel.
-2. On their success, `build` and `gate-coverage` in parallel — `gate-coverage`
-   consumes the coverage report `test` published as an artifact.
-3. On their success, `gate-security` — scanning the binary `build` published as
-   an artifact.
-4. On its success and **only on the `main`/`master` branch**, `publish` —
-   generates the binary's SHA-256 checksum and publishes the binary and its
-   `.sha256` as **release assets** (a GitHub Release / a GitLab Release).
+2. On their success, `build` and `gate-coverage` in parallel — `build`
+   cross-compiles all targets (`CGO_ENABLED=0`) in one Linux job, and
+   `gate-coverage` consumes the coverage report `test` published as an artifact.
+3. On their success, `gate-security` — scanning the `dist/sauron-linux-amd64`
+   binary `build` published as an artifact.
+4. On its success, `gate-integration` — runs alone, on a Linux runner (the suite
+   needs a Docker daemon), against the `dist/sauron-linux-amd64` artifact.
+5. On its success and **only on the `main`/`master` branch**, `publish` —
+   generates each binary's SHA-256 checksum and publishes every
+   `dist/sauron-<os>-<arch>` binary and its `.sha256` as **release assets**
+   (a GitHub Release / a GitLab Release).
 
 ### Versioning
 
@@ -357,6 +373,37 @@ referenced from there — never written as scattered string literals. The
   builds the `*cobra.Command` (the cobra wiring) and a private `serve()` — the
   same name, unexported — that holds the command's logic, decoupled from the
   cobra API, so the logic is unit tested without constructing a command.
+
+## Integration tests
+
+The black-box BDD suite lives in its own module, `test/e2e`
+(`github.com/delfimarime/sauron/test/e2e`), under the project-layout `/test`
+directory. It is **not** bound by the Use Case/Action or ports-and-adapters
+rules — it is a test harness.
+
+- **Graybox.** Steps `exec` the built `dist/sauron-<os>-<arch>` binary (located
+  via the `SAURON_BIN` environment variable) and decode its output into the
+  public `pkg/` types for type-safe assertions — an external consumer of the
+  `pkg/` surface.
+- **Own module, `replace` to root.** `test/e2e/go.mod` requires the root module
+  and resolves it with `replace github.com/delfimarime/sauron => ../..`, so it
+  needs no version tag. Its dependencies — `github.com/cucumber/godog`,
+  `github.com/testcontainers/testcontainers-go`, `github.com/stretchr/testify` —
+  live in this module's `go.mod` only and are **absent from the
+  approved-dependency table** below, which governs the production module alone.
+- **`pkg/`-only.** The harness imports `pkg/` and never `internal/`. Go's
+  `internal/` rule does not enforce this (the harness import paths share the root
+  module prefix), so it is enforced by a `depguard` rule in the module's
+  `golangci-lint` config.
+- **Gherkin.** Feature files are `test/e2e/testdata/*.feature`; the runner is
+  `test/e2e/integration_test.go` (`godog.TestSuite`, no `main`), invoked by the
+  `gate-integration` task.
+- **Platform.** Integration tests run on **Linux only** (Testcontainers needs a
+  Docker daemon). The `darwin/arm64` and `darwin/amd64` binaries are built and
+  published but **not** exercised by `gate-integration` — a known gap.
+- **Hermeticity.** Per-scenario git (ssh-only remotes per ADR-0002) and HTTP
+  dependencies are provisioned in-test via Testcontainers; the concrete fixture
+  strategy is still being settled.
 
 ## Approved dependencies
 

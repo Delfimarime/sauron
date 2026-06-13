@@ -38,7 +38,15 @@ infrastructure layout below — when they conflict, this skill wins.
 6. **Versioning.** `AppName`/`AppVersion` come from `package.json`, `AppHash` from
    the git worktree hash, injected by `task build` via `-ldflags -X main.<var>`.
 7. **Gates before done.** Verify with the local Taskfile targets — `task gate-lint`,
-   `task test`, `task gate-coverage` (≥ 80%), `task gate-security` — or `task all`.
-   See the [verification gate](../../../CONSTITUTION.md).
+   `task test`, `task gate-coverage` (≥ 80%), `task gate-security`,
+   `task gate-integration` (Linux + Docker) — or `task all`. See the
+   [verification gate](../../../CONSTITUTION.md).
 8. **Style.** Uber Go Style Guide, gocognit ≤ 15, parameter structs over >7 args,
    testify table-driven tests, `MockBased<Iface>` in `mock_based_<iface>.go`.
+9. **Integration tests are out of scope here.** The black-box BDD suite lives in
+   its own `test/e2e` module (godog + testcontainers, `replace` → root, imports
+   only `pkg/`, `depguard`-banned from `internal/`); it does **not** follow Use
+   Case/Action or ports-and-adapters. See the
+   [`sauron-implementing-integration-tests`](../sauron-implementing-integration-tests/SKILL.md)
+   skill and the architecture contract's
+   [Integration tests](../../../spec/contracts/architecture.md) section.

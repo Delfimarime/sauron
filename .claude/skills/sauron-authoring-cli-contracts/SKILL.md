@@ -48,3 +48,7 @@ update its section in [spec/contracts/cli.md](../../../spec/contracts/cli.md):
   `Full contract → [NNNN-<name>](../NNNN-<name>/contracts/command-line.md).`
 - Do not copy whole flag or exit tables into the reference; link to the
   contract for detail. The reference summarizes; the contract governs.
+- A command's behaviour is verified end-to-end by a Gherkin scenario under
+  `test/e2e/testdata`; when a command's synopsis, flags, or exit codes change,
+  the corresponding `.feature` scenario changes too (see
+  [`sauron-implementing-integration-tests`](../sauron-implementing-integration-tests/SKILL.md)).
