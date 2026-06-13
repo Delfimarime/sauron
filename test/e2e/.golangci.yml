@@ -1,0 +1,21 @@
+# golangci-lint config for the test/e2e harness module.
+#
+# The harness shares the root module's import-path prefix
+# (github.com/delfimarime/sauron/...), so Go's internal/ visibility rule does
+# NOT stop it importing github.com/delfimarime/sauron/internal/...  This
+# depguard rule is the real guard: the graybox harness consumes the public pkg/
+# surface only and never reaches into production internals.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        no-production-internals:
+          list-mode: lax
+          deny:
+            - pkg: github.com/delfimarime/sauron/internal
+              desc: "the e2e harness is graybox; consume the public pkg/ surface, never internal/"

@@ -1,0 +1,97 @@
+# golangci-lint configuration for the root sauron module (golangci-lint v2 schema).
+# Enforcement point for the Uber Go Style Guide, the gocognit <=15 ceiling, and the
+# no-rogue-goroutines rule. The test/e2e module carries its own .golangci.yml.
+# See spec/contracts/architecture.md §"Coding standards".
+version: "2"
+
+linters:
+  # Enable the Uber-style linter set on top of the default-enabled linters.
+  enable:
+    - asasalint        # no variadic []any where slice elements are intended
+    - asciicheck       # no non-ASCII identifiers
+    - bidichk          # no dangerous unicode bidi sequences
+    - bodyclose        # http response bodies are closed
+    - containedctx     # no context.Context stored in a struct (see exclusions below)
+    - contextcheck     # non-inherited contexts are not used
+    - cyclop           # cyclomatic complexity ceiling
+    - depguard         # import allow/deny rules
+    - dupl             # duplicate code detection
+    - durationcheck    # no accidental time.Duration multiplication
+    - err113           # errors compared/created per Go 1.13 conventions
+    - errcheck         # unchecked errors
+    - errname          # error vars/types named per convention
+    - errorlint        # error wrapping per Go 1.13
+    - exhaustive       # enum switch exhaustiveness
+    - forbidigo        # forbid configured patterns (bans bare `go` statements)
+    - funlen           # function length ceiling
+    - gocognit         # cognitive complexity (Uber/contract <=15)
+    - goconst          # repeated strings should be constants
+    - gocritic         # opinionated checks (Uber-aligned)
+    - gocyclo          # cyclomatic complexity
+    - godot            # comments end in a period
+    - gosec            # security issues
+    - misspell         # spelling
+    - nakedret         # no naked returns in longer functions
+    - nestif           # deeply nested if blocks
+    - nilerr           # no `return nil` after a non-nil error
+    - noctx            # http requests carry a context
+    - nolintlint       # well-formed nolint directives
+    - prealloc         # slices preallocated where beneficial
+    - predeclared      # no shadowing of predeclared identifiers
+    - revive           # broad Uber-style linter
+    - rowserrcheck     # sql rows err checked
+    - sqlclosecheck    # sql resources closed
+    - thelper          # test helpers call t.Helper()
+    - unconvert        # no redundant type conversions
+    - unparam          # no unused function parameters
+    - wastedassign     # no wasted assignments
+    - whitespace       # leading/trailing whitespace
+
+  settings:
+    gocognit:
+      # Cognitive-complexity ceiling per the architecture contract.
+      min-complexity: 15
+
+    forbidigo:
+      # Ban the bare `go` keyword: all concurrency runs on the fx-injected pond
+      # pool (the only sanctioned source of goroutines). The pool wiring is the
+      # sole allowed site; it is exempted via the exclusions block below
+      # (production code only — tests may spawn goroutines freely).
+      forbid:
+        - pattern: '^go\s'
+          msg: "bare `go` statements are banned: use the fx-injected pond pool (the only sanctioned source of goroutines)"
+      analyze-types: false
+
+    depguard:
+      rules:
+        main:
+          deny:
+            # Adapters under internal/infrastructure are never imported across
+            # adapter boundaries — callers depend on the pkg/ ports, not on a
+            # concrete adapter (architecture contract §"Project layout").
+            - pkg: github.com/alitto/pond
+              desc: "import github.com/alitto/pond/v2, not the v1 path"
+
+  exclusions:
+    rules:
+      # containedctx: the use-case `Request` context object deliberately *extends*
+      # context.Context (gin-style) rather than storing one as data — the
+      # sanctioned exception to the no-context-in-a-struct rule. Scope-disable it
+      # for the Request types in internal/usecase.
+      - path: internal/usecase/
+        linters:
+          - containedctx
+
+      # The bare-`go` ban is production-only. The pond pool wiring is the single
+      # sanctioned site that may reference the pool's lifecycle; tests are exempt.
+      - path: internal/cmd/helper\.go
+        linters:
+          - forbidigo
+      - path: _test\.go
+        linters:
+          - forbidigo
+          - funlen
+          - dupl
+          - err113
+          - gocognit
+          - gosec

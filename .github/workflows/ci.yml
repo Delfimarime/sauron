@@ -1,0 +1,211 @@
+# Sauron CI/CD — provider: GitHub Actions.
+#
+# Each job runs the identically-named Taskfile target (`task <name>`); gate logic
+# is NEVER reimplemented here. Stages are dependency-gated exactly per the
+# architecture contract §"Continuous integration & delivery":
+#
+#   1. test + gate-lint            (parallel)
+#   2. build + gate-coverage       (parallel, on stage 1 success)
+#   3. gate-security               (on stage 2 success)
+#   4. gate-integration            (alone, Linux + Docker, on stage 3 success)
+#   5. publish                     (default branch only, on stage 4 success)
+#
+# Version decoration is passed into `build`/`publish` via the Taskfile's
+# overridable AppVersion var, per §"Versioning".
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: write # publish creates a GitHub Release with binary + .sha256 assets
+
+env:
+  GO_VERSION: "1.26.4"
+
+jobs:
+  # Resolves AppVersion = <package.json version> decorated by build context:
+  #   main/master push        -> <version>-RELEASE        (published)
+  #   PR into main/master      -> <version>-PRE-RELEASE.<run_number> (not published)
+  #   any other build          -> <version>-SNAPSHOT.<run_number>    (not published)
+  version:
+    name: version
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.compute.outputs.app_version }}
+      publish: ${{ steps.compute.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: compute
+        shell: bash
+        run: |
+          base="$(jq -r .version package.json)"
+          run="${{ github.run_number }}"
+          if [ "${{ github.event_name }}" = "push" ] && \
+             { [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; }; then
+            echo "app_version=${base}-RELEASE" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "app_version=${base}-PRE-RELEASE.${run}" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_version=${base}-SNAPSHOT.${run}" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Stage 1 ────────────────────────────────────────────────────────────────
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: dist/coverage.out
+          if-no-files-found: error
+
+  gate-lint:
+    name: gate-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          install-mode: binary
+          args: --version
+      - run: task gate-lint
+
+  # ── Stage 2 (on stage 1 success) ─────────────────────────────────────────────
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: [version, test, gate-lint]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # AppHash uses the git worktree short hash
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cross-compile all targets
+        run: task build AppVersion='${{ needs.version.outputs.app_version }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: dist/sauron-*
+          if-no-files-found: error
+
+  gate-coverage:
+    name: gate-coverage
+    runs-on: ubuntu-latest
+    needs: [test, gate-lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: dist
+      - run: task gate-coverage
+
+  # ── Stage 3 (on stage 2 success) ─────────────────────────────────────────────
+  gate-security:
+    name: gate-security
+    runs-on: ubuntu-latest
+    needs: [build, gate-coverage]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install trivy
+        uses: aquasecurity/setup-trivy@v0.2.0
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist
+      - run: task gate-security
+
+  # ── Stage 4 (alone, Linux + Docker, on stage 3 success) ──────────────────────
+  gate-integration:
+    name: gate-integration
+    runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers
+    needs: [gate-security]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist
+      - run: task gate-integration
+
+  # ── Stage 5 (default branch only, on stage 4 success) ────────────────────────
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    needs: [version, gate-integration]
+    if: needs.version.outputs.publish == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd dist
+          for bin in sauron-*; do
+            case "$bin" in
+              *.sha256) continue ;;
+            esac
+            sha256sum "$bin" > "${bin}.sha256"
+          done
+      - name: Publish binaries and checksums as Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.app_version }}
+          files: |
+            dist/sauron-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
