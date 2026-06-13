@@ -156,14 +156,16 @@ jobs:
       - uses: arduino/setup-task@v2
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      # Install the trivy binary directly (the setup-trivy action tags are
-      # unreliable) so `task gate-security` runs it, keeping CI/Taskfile parity.
-      # Pinned to v0.71.1, the version verified locally.
+      # Download the pinned trivy release tarball straight into a PATH dir so
+      # `task gate-security` runs it (CI/Taskfile parity). Avoids the setup-trivy
+      # action (unreliable tags) and the install.sh script. Pinned to v0.71.0
+      # (latest GitHub release; the asset name is trivy_<ver>_Linux-64bit.tar.gz).
       - name: Install trivy
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b "$(go env GOPATH)/bin" v0.71.1
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          ver=0.71.0
+          curl -sfL "https://github.com/aquasecurity/trivy/releases/download/v${ver}/trivy_${ver}_Linux-64bit.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin trivy
+          trivy --version
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
