@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sauron.dev/schemas/settings.schema.json",
+  "title": "Sauron settings.yaml",
+  "description": "Global settings: the active provider and the sync schedule. See spec/contracts/configuration.md#settingsyaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "provider": { "enum": ["claude", "zencoder"] },
+    "schedules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sync_artifacts": { "$ref": "#/$defs/schedule" },
+        "sync_personas": { "$ref": "#/$defs/schedule" }
+      }
+    }
+  },
+  "$defs": {
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expression"],
+      "properties": {
+        "expression": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
