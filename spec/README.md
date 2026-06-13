@@ -149,6 +149,39 @@ scheduled.
    OS crontab entries that run the syncs automatically; `unschedule sync` removes
    them.
 
+## Reconciling artifacts
+
+`sync artifacts` is the heart of delivery. It computes the **desired set** from
+the registries and installed personas, diffs it against the track file, prints a
+**plan**, and reconciles the provider to match — touching only artifacts it has
+recorded:
+
+```
+   registries  +  installed personas        (no personas? → all registries)
+        │
+        │ compute DESIRED SET
+        │ conflicts: pin first, else lowest registry priority wins
+        ▼
+   ┌─────────────┐   compare    ┌─────────────┐
+   │ desired set │ ───────────▶ │  track.yaml │   (what's installed now)
+   └──────┬──────┘              └─────────────┘
+          │ diff
+          ▼
+   ┌─────────────────────────┐
+   │          PLAN           │   --dry-run ──▶ print plan, change nothing, exit 0
+   │  + add/update           │
+   │  - remove               │
+   └────────────┬────────────┘
+                │ apply
+                ▼
+   install / update / remove on provider ──▶ record provenance in track.yaml
+   (only touches artifacts Sauron tracks)
+```
+
+Review the plan with `--dry-run` before applying. The companion operation,
+[sync personas](0013-sync-personas/spec.md), refreshes the installed personas'
+definitions from the backend and is independent of this flow.
+
 ## Further reading
 
 - [Spec authoring rules](AUTHORING.md) — spec types, numbering, required
