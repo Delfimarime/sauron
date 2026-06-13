@@ -89,6 +89,13 @@ not adapters and stay at the `internal/` root.
   (`cmd.Context()`) into the container, sets `fx.WithLogger` from the
   DI-provided zap logger (constructed by `internal/telemetry`), and appends the
   caller's `opts`.
+- A `pond` (`github.com/alitto/pond/v2`) pool is among the transversal modules
+  `NewApp` wires: it is constructed once, provided into the container as the sole
+  sanctioned source of goroutines, and registered with the `fx.Lifecycle` so
+  `OnStop` stops it and waits for in-flight tasks. This is what guarantees no
+  goroutine outlives the process (see
+  [No rogue goroutines](#coding-standards)). Components inject the pool rather
+  than calling `go`.
 - Each command owns its `fx.Option`s — constructing them directly or via
   `<package>.NewFxOptions()` — and passes them to `NewApp` from its `Serve()`.
   `cmd/main.go` bootstraps the binary.
@@ -238,6 +245,14 @@ addition:
   production and test code.
 - **No global mutable state.** Dependencies are supplied through uberfx
   (`fx.Option`s), not package-level variables.
+- **No rogue goroutines.** No component starts a bare goroutine. All concurrency
+  runs on a [pond](https://github.com/alitto/pond) (`github.com/alitto/pond/v2`)
+  pool injected via uberfx; the raw `go` keyword is disallowed in production code.
+  The pool's lifecycle is bound to the `fx.App` (see
+  [Dependency wiring](#dependency-wiring-uberfx)), so application shutdown stops
+  the pool and waits for every in-flight task — no goroutine outlives the
+  process. Enforced in review, and by a linter ban on `go` statements outside the
+  pool wiring where the toolchain supports it.
 - **Parameter structs.** A function that would take more than seven parameters
   takes a single parameter struct instead. `context.Context` is never moved into
   that struct — it stays an explicit parameter (conventionally first). In tests,
@@ -296,6 +311,7 @@ recorded as verified at vetting time.
 | `gopkg.in/yaml.v3` | YAML read/write | MIT and Apache-2.0 |
 | `github.com/google/jsonschema-go` | JSON Schema validation | MIT |
 | `go.uber.org/fx` | Dependency injection & lifecycle | MIT |
+| `github.com/alitto/pond/v2` | Worker-pool / goroutine management (the only sanctioned source of goroutines) | MIT |
 | `go.uber.org/zap` | Structured logging | MIT |
 | `go.elastic.co/ecszap` | ECS-formatted zap encoder | Apache-2.0 |
 | `github.com/stretchr/testify` | Test assertions and mocks (test scope) | MIT |

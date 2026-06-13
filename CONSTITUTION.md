@@ -104,8 +104,9 @@ How the code that satisfies the contracts is written.
 ### Article 1 — Implementation standards
 
 Implementation follows the project's Go conventions — uberfx wiring, cobra CLI,
-the Uber Go Style Guide, structured zap + ECS logging, and cognitive complexity
-≤15 — and is test-first to a 90% coverage target. The full coding, telemetry,
+the Uber Go Style Guide, structured zap + ECS logging, cognitive complexity ≤15,
+and no rogue goroutines (all concurrency runs on a managed pool, never a bare
+`go`) — and is test-first to a 90% coverage target. The full coding, telemetry,
 and testing practices are fixed by the
 [architecture contract](spec/contracts/architecture.md).
 
