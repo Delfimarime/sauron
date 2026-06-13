@@ -28,7 +28,7 @@ internal/
     <sub-command>.go       one file per command
     <sub-command>_capability_<name>.go   a capability of a command
   config/
-    fx.go                  NewFxOptions() fx.Option; exposes the Configuration struct
+    fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     constants.go           shared ECS log/trace field keys
@@ -84,7 +84,10 @@ not adapters and stay at the `internal/` root.
   `internal/infrastructure/registry/fx.go`,
   `internal/infrastructure/provider/fx.go`,
   `internal/infrastructure/backend/fx.go`,
-  `internal/infrastructure/storage/fx.go`). Configuration is
+  `internal/infrastructure/storage/fx.go`). An `fx.go` holds only `NewFxOptions`
+  and its supporting (unexported) provider helpers — it carries no business
+  interfaces, structs, or construction logic; those live in sibling files
+  (`api.go`, `configuration.go`, `logger.go`, `<store>.go`). Configuration is
   loaded with viper, but only the resulting `Configuration` struct is provided
   into the container — `*viper.Viper` is never placed in the fx graph.
   `Configuration` carries the resolved home as `HomeDirectory string`
@@ -345,6 +348,10 @@ addition:
   justifies it. A function below 3 is questionable — a trivial helper is not
   extracted unless it is reused by more than three callers, to avoid
   fragmentation.
+- **Doc comments are minimal.** A single concise doc line on each exported
+  symbol (and one package comment per package); no comment on a trivial
+  unexported helper. Comments clarify what code cannot — they never paraphrase
+  this contract or narrate the obvious.
 
 ## Telemetry & logging
 
