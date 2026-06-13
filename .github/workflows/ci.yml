@@ -91,10 +91,13 @@ jobs:
       # golangci-lint-action is not used: it runs the linter itself (and @v6
       # pins the v1 line), which both conflicts with the task and rejects a v2
       # config.
+      # Pinned to a release built with Go >= 1.26: golangci-lint refuses to run
+      # when its own build Go version is lower than the module's targeted version
+      # (go.mod `go 1.26`). v2.12.2 is built with go1.26.x.
       - name: Install golangci-lint (v2)
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
-            | sh -s -- -b "$(go env GOPATH)/bin" v2.1.6
+            | sh -s -- -b "$(go env GOPATH)/bin" v2.12.2
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - run: task gate-lint
 
