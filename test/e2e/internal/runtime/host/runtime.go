@@ -24,6 +24,9 @@ func (c *hostRuntime) CopyTo(ctx context.Context, locationURI string, content []
 }
 
 func (h *hostRuntime) Execute(ctx context.Context, command ...string) (int, string, error) {
+	if len(command) > 0 && command[0] == "sauron" {
+		command = command[1:]
+	}
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, h.bin, command...)
 	cmd.Stdout = &stdout

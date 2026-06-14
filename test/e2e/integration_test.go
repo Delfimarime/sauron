@@ -44,16 +44,17 @@ func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		Name: "sauron",
 		ScenarioInitializer: CreateInitFunc(
-			t.TempDir(), binaryURI, gherkin.RegisterSteps,
+			t.TempDir(), binaryURI, gherkin.Init,
 		),
 		Options: &godog.Options{
 			Format:   "pretty",
-			Paths:    []string{"testdata"},
+			Paths:    []string{determineTestdataDirectory(t)},
 			Output:   colors.Colored(os.Stdout),
 			TestingT: t,
 			Strict:   true,
 		},
 	}
+
 	if suite.Run() != 0 {
 		t.Fatal("non-zero status returned, failed to run feature tests")
 	}
