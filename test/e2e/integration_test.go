@@ -7,7 +7,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
 
-	"github.com/delfimarime/sauron/test/e2e/internal"
+	"github.com/delfimarime/sauron/test/e2e/internal/gherkin"
 )
 
 // TestFeatures is the godog entrypoint. The suite runs under `go test` (no
@@ -17,7 +17,7 @@ import (
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		Name:                "sauron",
-		ScenarioInitializer: internal.RegisterSteps,
+		ScenarioInitializer: gherkin.RegisterSteps,
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"testdata"},

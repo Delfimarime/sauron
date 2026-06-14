@@ -1,4 +1,4 @@
-package internal
+package gherkin
 
 import (
 	"errors"
@@ -12,8 +12,8 @@ type capturingT struct {
 	failures []string
 }
 
-// Errorf records a formatted assertion failure. It satisfies
-// assert.TestingT so the testify assert helpers can be used inside steps.
+// Errorf records a formatted assertion failure. It satisfies assert.TestingT so
+// the testify assert helpers can be used inside steps.
 func (t *capturingT) Errorf(format string, args ...any) {
 	t.failures = append(t.failures, fmt.Sprintf(format, args...))
 }
