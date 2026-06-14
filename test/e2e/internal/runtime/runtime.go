@@ -14,9 +14,14 @@ type Runtime interface {
 	// exit code, the relevant output stream (stdout on success, stderr on a
 	// non-zero exit), and an error ONLY for harness-level failures (the process or
 	// container exec could not run). A non-zero exit is not an error.
-	Execute(ctx context.Context, command ...string) (int, string, error)
+	Execute(context.Context, ...string) (int, string, error)
 
-	Start(ctx context.Context) error
+	Start(context.Context) error
 
-	Stop(ctx context.Context) error // tear everything down
+	Stop(context.Context) error // tear everything down
+}
+
+type Factory interface {
+	GetHomeDirectory() (string, error)
+	New(binaryURI, directoryURI string) (Runtime, error)
 }

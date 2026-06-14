@@ -18,6 +18,15 @@ func RegisterSteps(sc *godog.ScenarioContext) {
 		panic(err)
 	}
 
+	sc.Before(func(ctx context.Context, scenario *godog.Scenario) (context.Context, error) {
+		names := make([]string, len(scenario.Tags))
+		for i, tag := range scenario.Tags {
+			names[i] = tag.Name
+		}
+		w.useSandbox = wantsSandbox(names)
+		return ctx, nil
+	})
+
 	sc.After(func(ctx context.Context, _ *godog.Scenario, _ error) (context.Context, error) {
 		return ctx, w.Reset(ctx)
 	})

@@ -1,3 +1,5 @@
+//go:build unit
+
 package gherkin
 
 import (
@@ -20,7 +22,24 @@ func TestNewWorldPopulatesMaps(t *testing.T) {
 	assert.Equal(t, "/tmp/sauron-home", w.Variables["HomeDirectory"])
 }
 
-func TestWorldExecuteUsesHostRuntimeWhenNoSpecs(t *testing.T) {
+func TestWantsSandbox(t *testing.T) {
+	assert.False(t, wantsSandbox([]string{noSandboxTag}))
+	assert.False(t, wantsSandbox([]string{"@other", noSandboxTag}))
+	assert.True(t, wantsSandbox([]string{"@other"}))
+	assert.True(t, wantsSandbox(nil))
+}
+
+func TestBuildRuntimeHonoursNoSandbox(t *testing.T) {
+	w, err := newWorld("/bin/echo", fakeEnv(nil))
+	require.NoError(t, err)
+
+	w.useSandbox = false
+	rt, err := w.buildRuntime()
+	require.NoError(t, err)
+	assert.True(t, rt.IsReadOnly(), "host runtime is read-only")
+}
+
+func TestWorldExecuteUsesHostRuntimeWhenNotSandboxed(t *testing.T) {
 	w, err := newWorld("/bin/echo", fakeEnv(nil))
 	require.NoError(t, err)
 

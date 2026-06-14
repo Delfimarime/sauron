@@ -10,6 +10,7 @@ replace github.com/delfimarime/sauron => ../..
 
 require (
 	github.com/cucumber/godog v0.15.1
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/compose v0.42.0
@@ -45,7 +46,6 @@ require (
 	github.com/docker/buildx v0.33.0 // indirect
 	github.com/docker/cli v29.4.0+incompatible // indirect
 	github.com/docker/compose/v5 v5.1.2 // indirect
-	github.com/docker/docker v28.5.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect

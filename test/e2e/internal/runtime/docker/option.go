@@ -2,17 +2,12 @@ package docker
 
 import "github.com/testcontainers/testcontainers-go/log"
 
+// Options collects the optional inputs to New. The compose directory is a
+// required positional argument of New, not an option.
 type Options struct {
-	directory string
-	logger    log.Logger
-	specs     []ContainerSpec
-	mount     []FileSpec
-}
-
-func WithDirectory(value string) func(*Options) {
-	return func(o *Options) {
-		o.directory = value
-	}
+	mount  []FileSpec
+	logger log.Logger
+	specs  []ContainerSpec
 }
 
 func WithLogger(value log.Logger) func(*Options) {
@@ -21,6 +16,7 @@ func WithLogger(value log.Logger) func(*Options) {
 	}
 }
 
+// WithContainer adds dependency services alongside the reserved "main" service.
 func WithContainer(value ...ContainerSpec) func(*Options) {
 	return func(o *Options) {
 		if o.specs == nil {
@@ -30,6 +26,7 @@ func WithContainer(value ...ContainerSpec) func(*Options) {
 	}
 }
 
+// WithFile mounts extra host files into the "main" service.
 func WithFile(value ...FileSpec) func(*Options) {
 	return func(o *Options) {
 		if o.mount == nil {
