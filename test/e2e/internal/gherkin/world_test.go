@@ -10,44 +10,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewWorldRequiresBin(t *testing.T) {
-	_, err := newWorld("", fakeEnv(nil))
-	assert.Error(t, err)
+// fakeRuntime is a runtime.Runtime stub: it records nothing and returns a canned
+// result, so World can be tested without a host process or Docker.
+type fakeRuntime struct {
+	code int
+	out  string
+	err  error
+}
+
+func (fakeRuntime) IsReadOnly() bool            { return true }
+func (fakeRuntime) Start(context.Context) error { return nil }
+func (fakeRuntime) Stop(context.Context) error  { return nil }
+func (f fakeRuntime) Execute(context.Context, ...string) (int, string, error) {
+	return f.code, f.out, f.err
 }
 
 func TestNewWorldPopulatesMaps(t *testing.T) {
-	w, err := newWorld("/bin/echo", fakeEnv(nil))
+	w, err := newWorld(fakeRuntime{}, fakeEnv(nil))
 	require.NoError(t, err)
 	assert.Equal(t, "0.0.0", w.Environment["App"].(map[string]any)["Version"])
 	assert.Equal(t, "/tmp/sauron-home", w.Variables["HomeDirectory"])
 }
 
-func TestWantsSandbox(t *testing.T) {
-	assert.False(t, wantsSandbox([]string{noSandboxTag}))
-	assert.False(t, wantsSandbox([]string{"@other", noSandboxTag}))
-	assert.True(t, wantsSandbox([]string{"@other"}))
-	assert.True(t, wantsSandbox(nil))
+func TestNewWorldRequiresEnv(t *testing.T) {
+	_, err := newWorld(fakeRuntime{}, fakeEnv(map[string]string{"SAURON_APP_VERSION": ""}))
+	assert.Error(t, err)
 }
 
-func TestBuildRuntimeHonoursNoSandbox(t *testing.T) {
-	w, err := newWorld("/bin/echo", fakeEnv(nil))
+func TestWorldExecuteRecordsResult(t *testing.T) {
+	w, err := newWorld(fakeRuntime{code: 0, out: "hello\n"}, fakeEnv(nil))
 	require.NoError(t, err)
 
-	w.useSandbox = false
-	rt, err := w.buildRuntime()
-	require.NoError(t, err)
-	assert.True(t, rt.IsReadOnly(), "host runtime is read-only")
-}
-
-func TestWorldExecuteUsesHostRuntimeWhenNotSandboxed(t *testing.T) {
-	w, err := newWorld("/bin/echo", fakeEnv(nil))
-	require.NoError(t, err)
-
-	require.NoError(t, w.Execute(context.Background(), "hello"))
+	require.NoError(t, w.Execute(context.Background(), "x"))
 	require.NotNil(t, w.Last())
 	assert.Equal(t, 0, w.Last().exitCode)
 	assert.Equal(t, "hello\n", w.Last().output)
-
-	require.NoError(t, w.Reset(context.Background()))
-	assert.Nil(t, w.Last())
 }

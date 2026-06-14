@@ -3,33 +3,25 @@ package gherkin
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/cucumber/godog"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
-// RegisterSteps wires the world lifecycle and step definitions into a godog
-// scenario context. It is the single registration entrypoint the suite calls per
-// scenario, so each scenario gets a fresh world.
-func RegisterSteps(sc *godog.ScenarioContext) {
-	w, err := NewWorld()
+// RegisterSteps is a CreateInitFunc option: it registers the version-banner step
+// definitions for a scenario, running commands through rt and asserting against
+// the build identity (Environment) and runtime values (Variables) via templating.
+// A fresh World is built per scenario; a missing build-identity env var panics,
+// so a misconfigured gate fails loudly rather than asserting nothing.
+func RegisterSteps(sc *godog.ScenarioContext, rt runtime.Runtime) {
+	w, err := newWorld(rt, os.Getenv)
 	if err != nil {
 		panic(err)
 	}
-
-	sc.Before(func(ctx context.Context, scenario *godog.Scenario) (context.Context, error) {
-		names := make([]string, len(scenario.Tags))
-		for i, tag := range scenario.Tags {
-			names[i] = tag.Name
-		}
-		w.useSandbox = wantsSandbox(names)
-		return ctx, nil
-	})
-
-	sc.After(func(ctx context.Context, _ *godog.Scenario, _ error) (context.Context, error) {
-		return ctx, w.Reset(ctx)
-	})
 
 	// The run step requires a leading dash so it never collides with
 	// "sauron version is …".

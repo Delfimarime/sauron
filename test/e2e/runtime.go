@@ -3,57 +3,59 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
+// compositionBasedRuntime is a guarded facade over a runtime.Runtime. Step
+// definitions hold one stable handle for the whole scenario; the backend is
+// attached per scenario (in the suite's Before hook) and started lazily on the
+// first Execute, so a scenario that never runs a command never starts a sandbox.
 type compositionBasedRuntime struct {
-	isStartup *atomic.Bool
-	backedBy  runtime.Runtime
+	started  bool
+	backedBy runtime.Runtime
 }
 
-// IsReadOnly reports whether the runtime must not be mutated by a scenario.
-// The host OS is read-only (true); ephemeral sandboxes are not (false).
+// IsReadOnly reports the backend's read-only flag, defaulting to read-only (the
+// safe assumption) until a backend is attached.
 func (c *compositionBasedRuntime) IsReadOnly() bool {
 	if c.backedBy == nil {
-		return true
-	}
-	if !c.isStartup.Load() {
 		return true
 	}
 	return c.backedBy.IsReadOnly()
 }
 
-// Execute runs the binary under test with command as its args, returning the
-// exit code, the relevant output stream (stdout on success, stderr on a
-// non-zero exit), and an error ONLY for harness-level failures (the process or
-// container exec could not run). A non-zero exit is not an error.
+// Start starts the backend at most once; further calls are no-ops.
+func (c *compositionBasedRuntime) Start(ctx context.Context) error {
+	if c.backedBy == nil {
+		return fmt.Errorf("runtime backend is not set")
+	}
+	if c.started {
+		return nil
+	}
+	if err := c.backedBy.Start(ctx); err != nil {
+		return err
+	}
+	c.started = true
+	return nil
+}
+
+// Execute starts the backend on first use, then runs the command through it.
 func (c *compositionBasedRuntime) Execute(ctx context.Context, args ...string) (int, string, error) {
 	if c.backedBy == nil {
-		return -1, "", fmt.Errorf("runtime has not be defined")
+		return -1, "", fmt.Errorf("runtime backend is not set")
 	}
-	if !c.isStartup.Load() {
-		return -1, "", fmt.Errorf("Cannot execute command on runtime that hasn't been started up")
+	if !c.started {
+		if err := c.Start(ctx); err != nil {
+			return -1, "", err
+		}
 	}
 	return c.backedBy.Execute(ctx, args...)
 }
 
-func (c *compositionBasedRuntime) Start(ctx context.Context) error {
-	if c.backedBy == nil {
-		return fmt.Errorf("runtime has not be defined")
-	}
-	if c.isStartup.Load() {
-		return nil
-	}
-	return c.backedBy.Start(ctx)
-}
-
+// Stop tears down the backend only if it was started.
 func (c *compositionBasedRuntime) Stop(ctx context.Context) error {
-	if c.backedBy == nil {
-		return fmt.Errorf("runtime has not be defined")
-	}
-	if !c.isStartup.Load() {
+	if c.backedBy == nil || !c.started {
 		return nil
 	}
 	return c.backedBy.Stop(ctx)
