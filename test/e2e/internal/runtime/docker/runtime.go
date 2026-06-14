@@ -115,6 +115,33 @@ func (c *dockerRuntime) Stop(ctx context.Context) error {
 	return err
 }
 
+func (c *dockerRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
+	if c.stack == nil {
+		for _, each := range c.specs {
+			if each.Service != mainService {
+				continue
+			}
+			each.Mount = append(each.Mount, FileSpec{
+				Content: content,
+				Path:    locationURI,
+			})
+		}
+		return nil
+	}
+	container, err := c.stack.ServiceContainer(ctx, mainService)
+	if err != nil {
+		return fmt.Errorf("access container %q: %w", mainService, err)
+	}
+	if strings.HasPrefix(locationURI, "~/") {
+		locationURI = "/root/" + locationURI[2:]
+	}
+	err = container.CopyToContainer(ctx, content, locationURI, 0700)
+	if err != nil {
+		return fmt.Errorf("an unexpected error occured while attempting to copy file into container.\ncaused by:%w", err)
+	}
+	return nil
+}
+
 // Execute runs args inside the "main" container. "sauron" as arg0 is rewritten to
 // the mounted binary path. It mirrors the host runtime's contract: the returned
 // string is stdout on success and stderr on a non-zero exit.

@@ -53,6 +53,13 @@ func (c *compositionBasedRuntime) Execute(ctx context.Context, args ...string) (
 	return c.backedBy.Execute(ctx, args...)
 }
 
+func (c *compositionBasedRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
+	if c.backedBy == nil {
+		return fmt.Errorf("runtime backend is not set")
+	}
+	return c.backedBy.CopyTo(ctx, locationURI, content)
+}
+
 // Stop tears down the backend only if it was started.
 func (c *compositionBasedRuntime) Stop(ctx context.Context) error {
 	if c.backedBy == nil || !c.started {

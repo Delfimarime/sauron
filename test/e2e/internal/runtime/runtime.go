@@ -16,6 +16,8 @@ type Runtime interface {
 	// container exec could not run). A non-zero exit is not an error.
 	Execute(context.Context, ...string) (int, string, error)
 
+	CopyTo(context.Context, string, []byte) error
+
 	Start(context.Context) error
 
 	Stop(context.Context) error // tear everything down

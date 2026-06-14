@@ -19,6 +19,10 @@ func (h *hostRuntime) Start(context.Context) error { return nil }
 
 func (h *hostRuntime) Stop(context.Context) error { return nil }
 
+func (c *hostRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
+	return nil
+}
+
 func (h *hostRuntime) Execute(ctx context.Context, command ...string) (int, string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, h.bin, command...)
