@@ -32,17 +32,24 @@ infrastructure layout below — when they conflict, this skill wins.
    adapters live in `internal/infrastructure/<name>/<kind>` with a
    `NewFxOptions()`. `storage` is an **internal capability** (no `pkg/` port): its
    `afero.Fs` is fx-injected, and it locates files under
-   `Configuration.HomeDirectory`.
+   `Configuration.HomeDirectory`. **`fx.go` is wiring-only** — just `NewFxOptions`
+   and its supporting (unexported) provider helpers; interfaces, structs, and
+   construction logic go in sibling files (`api.go`, `configuration.go`,
+   `logger.go`, `<store>.go`), never in `fx.go`.
 5. **No rogue goroutines.** No bare `go`. All concurrency runs on the fx-injected
    `pond` pool, whose lifecycle is bound to the `fx.App`.
 6. **Versioning.** `AppName`/`AppVersion` come from `package.json`, `AppHash` from
    the git worktree hash, injected by `task build` via `-ldflags -X main.<var>`.
 7. **Gates before done.** Verify with the local Taskfile targets — `task gate-lint`,
    `task test`, `task gate-coverage` (≥ 80%), `task gate-security`,
-   `task gate-integration` (Linux + Docker) — or `task all`. See the
+   `task gate-integration` (host-aware; needs a Docker daemon, runs on any OS —
+   CI pins it to Linux) — or `task all`. See the
    [verification gate](../../../CONSTITUTION.md).
 8. **Style.** Uber Go Style Guide, gocognit ≤ 15, parameter structs over >7 args,
    testify table-driven tests, `MockBased<Iface>` in `mock_based_<iface>.go`.
+   **Doc comments are minimal** — one concise line per exported symbol, one
+   package comment per package, none on trivial unexported helpers; never
+   paraphrase the contract or narrate obvious code.
 9. **Integration tests are out of scope here.** The black-box BDD suite lives in
    its own `test/e2e` module (godog + testcontainers, `replace` → root, imports
    only `pkg/`, `depguard`-banned from `internal/`); it does **not** follow Use

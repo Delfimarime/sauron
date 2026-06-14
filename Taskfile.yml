@@ -1,0 +1,139 @@
+# Canonical build & verification entrypoint for sauron (run with `task`).
+# Task names match the CI job names 1:1 — each CI job runs the identically-named
+# target. See spec/contracts/architecture.md §"Build, versioning & gates".
+version: '3'
+
+vars:
+  # Repo root — anchors dist/ output and the test/e2e SAURON_BIN path.
+  ROOT:
+    sh: git rev-parse --show-toplevel
+  DIST: '{{.ROOT}}/dist'
+  COVERAGE: '{{.ROOT}}/dist/coverage.out'
+  # AppName / AppVersion are sourced from package.json (the SemVer source of truth);
+  # AppHash is the short git worktree hash. AppVersion is OVERRIDABLE so CI can
+  # decorate it (-RELEASE / -PRE-RELEASE.<n> / -SNAPSHOT.<n>).
+  APP_NAME:
+    sh: jq -r .name "{{.ROOT}}/package.json"
+  APP_VERSION:
+    sh: jq -r .version "{{.ROOT}}/package.json"
+  APP_HASH:
+    sh: git rev-parse --short HEAD
+  # Coverage gate thresholds: 90% ideal, 80% hard floor.
+  COVERAGE_FLOOR: '80'
+  COVERAGE_IDEAL: '90'
+  # Cross-compile target matrix: <os>/<arch>.
+  TARGETS: 'linux/amd64 darwin/arm64 darwin/amd64'
+
+tasks:
+  test:
+    desc: Run unit tests with the race detector; write the coverage report under dist/.
+    cmds:
+      - mkdir -p "{{.DIST}}"
+      - go test -race -covermode=atomic -coverprofile="{{.COVERAGE}}" ./...
+
+  gate-lint:
+    desc: Lint the root module with golangci-lint (Uber style + gocognit <=15). test/e2e has its own config.
+    cmds:
+      # Root module. The test/e2e module carries its own .golangci.yml and is
+      # linted within that module (exercised by the e2e tooling / CI), so it is
+      # excluded here.
+      - golangci-lint run ./...
+
+  build:
+    desc: Cross-compile CGO_ENABLED=0 to linux/amd64, darwin/arm64, darwin/amd64 into dist/ with version ldflags.
+    vars:
+      LDFLAGS: '-s -w -X main.AppName={{.APP_NAME}} -X main.AppVersion={{.APP_VERSION}} -X main.AppHash={{.APP_HASH}}'
+    cmds:
+      - mkdir -p "{{.DIST}}"
+      - for: { var: TARGETS }
+        cmd: |
+          os="$(printf '%s' '{{.ITEM}}' | cut -d/ -f1)"
+          arch="$(printf '%s' '{{.ITEM}}' | cut -d/ -f2)"
+          out="{{.DIST}}/{{.APP_NAME}}-${os}-${arch}"
+          CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" \
+            go build -trimpath -ldflags '{{.LDFLAGS}}' -o "${out}" "{{.ROOT}}/cmd"
+          chmod +x "${out}"
+
+  gate-coverage:
+    desc: Enforce the coverage gate from the test report (90% ideal; fail below the 80% floor).
+    cmds:
+      - |
+        if [ ! -f "{{.COVERAGE}}" ]; then
+          echo "coverage report not found at {{.COVERAGE}}; run 'task test' first" >&2
+          exit 1
+        fi
+        total="$(go tool cover -func="{{.COVERAGE}}" | awk '/^total:/ {gsub(/%/,"",$NF); print $NF}')"
+        echo "total coverage: ${total}% (ideal {{.COVERAGE_IDEAL}}%, floor {{.COVERAGE_FLOOR}}%)"
+        below_floor="$(awk -v t="${total}" -v f="{{.COVERAGE_FLOOR}}" 'BEGIN { print (t+0 < f+0) ? 1 : 0 }')"
+        if [ "${below_floor}" -eq 1 ]; then
+          echo "FAIL: coverage ${total}% is below the {{.COVERAGE_FLOOR}}% floor" >&2
+          exit 1
+        fi
+        below_ideal="$(awk -v t="${total}" -v i="{{.COVERAGE_IDEAL}}" 'BEGIN { print (t+0 < i+0) ? 1 : 0 }')"
+        if [ "${below_ideal}" -eq 1 ]; then
+          echo "WARN: coverage ${total}% is below the {{.COVERAGE_IDEAL}}% ideal"
+        fi
+
+  gate-security:
+    desc: Scan dist/sauron-linux-amd64 with trivy (fail on any CRITICAL, more than two HIGH).
+    deps:
+      - build
+    cmds:
+      - |
+        bin="{{.DIST}}/{{.APP_NAME}}-linux-amd64"
+        report="{{.DIST}}/trivy-report.json"
+        trivy rootfs --scanners vuln --severity HIGH,CRITICAL \
+          --format json --output "${report}" "${bin}"
+        crit="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' "${report}")"
+        high="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")]     | length' "${report}")"
+        echo "trivy findings: CRITICAL=${crit} HIGH=${high} (gate: 0 CRITICAL, <=2 HIGH)"
+        if [ "${crit}" -gt 0 ]; then
+          echo "FAIL: ${crit} CRITICAL vulnerabilit(ies) found" >&2
+          exit 1
+        fi
+        if [ "${high}" -gt 2 ]; then
+          echo "FAIL: ${high} HIGH vulnerabilities found (more than two)" >&2
+          exit 1
+        fi
+
+  gate-integration:
+    desc: Run the test/e2e BDD suite against a tagged host binary (needs a Docker daemon).
+    vars:
+      # The version decoration the e2e binary carries. Local default SNAPSHOT;
+      # CI overrides via the environment (SAURON_APP_TAG).
+      APP_TAG: '{{.SAURON_APP_TAG | default "SNAPSHOT"}}'
+    cmds:
+      # Build a host binary stamped with the tagged version, then run the suite
+      # with the SAME identity exported so the harness's rendered banner matches
+      # the binary's output exactly. SAURON_HOME is a temp dir, so the suite never
+      # touches the real ~/.sauron. CI restricts this gate to a Linux runner (the
+      # constraint lives in the workflow, not the task).
+      - |
+        os="$(go env GOOS)"; arch="$(go env GOARCH)"
+        bin="{{.DIST}}/{{.APP_NAME}}-e2e-${os}-${arch}"
+        home="$(mktemp -d)"
+        mkdir -p "{{.DIST}}"
+        CGO_ENABLED=0 go build -trimpath \
+          -ldflags "-s -w -X main.AppName={{.APP_NAME}} -X main.AppVersion={{.APP_VERSION}}-{{.APP_TAG}} -X main.AppHash={{.APP_HASH}}" \
+          -o "${bin}" "{{.ROOT}}/cmd"
+        cd "{{.ROOT}}/test/e2e" && \
+          SAURON_BIN="${bin}" \
+          SAURON_APP_NAME="{{.APP_NAME}}" \
+          SAURON_APP_VERSION="{{.APP_VERSION}}" \
+          SAURON_APP_TAG="{{.APP_TAG}}" \
+          SAURON_GIT_HASH="{{.APP_HASH}}" \
+          SAURON_HOME="${home}" \
+          go test ./...
+        status=$?
+        rm -rf "${home}"
+        exit ${status}
+
+  all:
+    desc: Build and run every gate in the contract's dependency order.
+    cmds:
+      - task: test
+      - task: gate-lint
+      - task: build
+      - task: gate-coverage
+      - task: gate-security
+      - task: gate-integration

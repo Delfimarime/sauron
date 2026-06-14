@@ -28,7 +28,7 @@ internal/
     <sub-command>.go       one file per command
     <sub-command>_capability_<name>.go   a capability of a command
   config/
-    fx.go                  NewFxOptions() fx.Option; exposes the Configuration struct
+    fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     constants.go           shared ECS log/trace field keys
@@ -84,7 +84,10 @@ not adapters and stay at the `internal/` root.
   `internal/infrastructure/registry/fx.go`,
   `internal/infrastructure/provider/fx.go`,
   `internal/infrastructure/backend/fx.go`,
-  `internal/infrastructure/storage/fx.go`). Configuration is
+  `internal/infrastructure/storage/fx.go`). An `fx.go` holds only `NewFxOptions`
+  and its supporting (unexported) provider helpers — it carries no business
+  interfaces, structs, or construction logic; those live in sibling files
+  (`api.go`, `configuration.go`, `logger.go`, `<store>.go`). Configuration is
   loaded with viper, but only the resulting `Configuration` struct is provided
   into the container — `*viper.Viper` is never placed in the fx graph.
   `Configuration` carries the resolved home as `HomeDirectory string`
@@ -159,10 +162,12 @@ least:
   (no CRITICAL, at most two HIGH), with accepted exceptions carried by a
   project-level ADR under `spec/architecture/`.
 - `gate-integration` — depends on `build`; runs the black-box BDD suite in the
-  `test/e2e` module against the built binary
-  (`cd test/e2e && SAURON_BIN=$ROOT/dist/sauron-linux-amd64 go test ./...`).
-  Linux only — the suite provisions its dependencies via Testcontainers, which
-  needs a Docker daemon.
+  `test/e2e` module against the **host's** binary
+  (`SAURON_BIN=$ROOT/dist/sauron-$(go env GOOS)-$(go env GOARCH)`), so it runs on
+  any platform with a Docker daemon (the suite provisions its dependencies via
+  Testcontainers). The task carries **no OS guard** — the Linux restriction is a
+  CI concern (see below), not a property of the task; on a Linux CI runner the
+  host binary resolves to `sauron-linux-amd64`.
 - `all` — builds and runs every gate.
 
 ### Continuous integration & delivery
@@ -176,8 +181,9 @@ reference targets — and runs the Taskfile gates in dependency-gated stages:
    `gate-coverage` consumes the coverage report `test` published as an artifact.
 3. On their success, `gate-security` — scanning the `dist/sauron-linux-amd64`
    binary `build` published as an artifact.
-4. On its success, `gate-integration` — runs alone, on a Linux runner (the suite
-   needs a Docker daemon), against the `dist/sauron-linux-amd64` artifact.
+4. On its success, `gate-integration` — runs alone, **pinned to a Linux runner**
+   (this is where the Linux-only constraint is enforced; the suite needs a Docker
+   daemon), against the `dist/sauron-linux-amd64` artifact.
 5. On its success and **only on the `main`/`master` branch**, `publish` —
    generates each binary's SHA-256 checksum and publishes every
    `dist/sauron-<os>-<arch>` binary and its `.sha256` as **release assets**
@@ -345,6 +351,10 @@ addition:
   justifies it. A function below 3 is questionable — a trivial helper is not
   extracted unless it is reused by more than three callers, to avoid
   fragmentation.
+- **Doc comments are minimal.** A single concise doc line on each exported
+  symbol (and one package comment per package); no comment on a trivial
+  unexported helper. Comments clarify what code cannot — they never paraphrase
+  this contract or narrate the obvious.
 
 ## Telemetry & logging
 
@@ -398,9 +408,11 @@ rules — it is a test harness.
 - **Gherkin.** Feature files are `test/e2e/testdata/*.feature`; the runner is
   `test/e2e/integration_test.go` (`godog.TestSuite`, no `main`), invoked by the
   `gate-integration` task.
-- **Platform.** Integration tests run on **Linux only** (Testcontainers needs a
-  Docker daemon). The `darwin/arm64` and `darwin/amd64` binaries are built and
-  published but **not** exercised by `gate-integration` — a known gap.
+- **Platform.** The suite runs on **any host with a Docker daemon** (Testcontainers
+  needs one); `gate-integration` exercises the host's own `sauron-<os>-<arch>`
+  binary, so a developer on macOS runs it against the `darwin` build. **CI** pins
+  the gate to a Linux runner — that is the only Linux-only constraint, and it is a
+  CI policy, not a property of the suite or the task.
 - **Hermeticity.** Per-scenario git (ssh-only remotes per ADR-0002) and HTTP
   dependencies are provisioned in-test via Testcontainers; the concrete fixture
   strategy is still being settled.
