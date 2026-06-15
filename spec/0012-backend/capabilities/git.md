@@ -48,12 +48,14 @@ upsert, persistence, transactionality, teardown) is owned by the
   timeout, then Sauron shall reject the request, leave the existing
   configuration unchanged, and report that the backend cannot be
   reached.
-- **FR-008**: If `--timeout` is not a valid positive duration, then Sauron shall
+- **FR-008**: If the `--ssh-key` file cannot be read, then Sauron shall reject
+  the request and report that the key file cannot be accessed.
+- **FR-009**: If `--timeout` is not a valid positive duration, then Sauron shall
   reject the request and report that a valid timeout is required.
 
 ### Optional
 
-- **FR-009**: Where an SSH key is provided, Sauron shall authenticate with that
+- **FR-010**: Where `--ssh-key` is provided, Sauron shall authenticate with that
   private key; where it is absent, Sauron shall use the system's regular SSH
   credentials (agent, `~/.ssh/config`, default keys).
 

@@ -271,8 +271,8 @@ Both then obey the same rules:
 - Priority is **always defined** and **unique** within its kind. Lower value
   wins; `0` is the highest precedence.
 - Priorities change afterward only through
-  [set registry priority](0008-set-registry-priority/spec.md) and
-  [set persona priority](0007-set-persona-priority/spec.md), each **blocked while
+  [set priority registry](0008-set-registry-priority/spec.md) and
+  [set priority persona](0007-set-persona-priority/spec.md), each **blocked while
   a single resource of that kind exists** — that lone resource keeps `0`.
   Re-running `set persona` redeclares the installed set and resets positional
   priorities.

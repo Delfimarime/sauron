@@ -4,7 +4,7 @@ Conventions: [CLI conventions](../../AUTHORING.md).
 
 **Spec**: [Set Persona Priority](../spec.md)
 
-Defines the command-line interface for changing a persona's priority. This is the user-facing contract only. The `set priority` group also covers `registry` ([set registry priority](../../0008-set-registry-priority/spec.md)).
+Defines the command-line interface for changing a persona's priority. This is the user-facing contract only. The `set priority` group also covers `registry` ([set priority registry](../../0008-set-registry-priority/spec.md)).
 
 ## Synopsis
 
@@ -12,7 +12,7 @@ Defines the command-line interface for changing a persona's priority. This is th
 sauron set priority persona <name> <value>
 ```
 
-Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → `persona` (subcommand). The sibling `sauron set priority registry` is covered by [set registry priority](../../0008-set-registry-priority/spec.md).
+Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → `persona` (subcommand). The sibling `sauron set priority registry` is covered by [set priority registry](../../0008-set-registry-priority/spec.md).
 
 ## Arguments
 

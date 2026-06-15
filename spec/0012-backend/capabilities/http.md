@@ -43,18 +43,26 @@ upsert, persistence, transactionality, teardown) is owned by the
 
 ### Unwanted behavior
 
-- **FR-007**: If the server cannot be reached (connection, TLS, or non-success
+- **FR-007**: If the `uri` is not a valid `http`/`https` URL, then Sauron shall
+  reject the request and report that the `uri` is invalid.
+- **FR-008**: If the server cannot be reached (connection, TLS, or non-success
   `HEAD` response), then Sauron shall reject the request, leave the existing
   configuration unchanged, and report that the backend cannot be
   reached.
-- **FR-008**: If a username or password is supplied as a raw value rather than
+- **FR-009**: If `--client-cert` is given without `--client-key` (or vice
+  versa), then Sauron shall reject the request and report that both are
+  required for mutual TLS.
+- **FR-010**: If a username or password is supplied as a raw value rather than
   `${env:VAR}`, then Sauron shall reject the request and report that only the
   `${env:VAR}` form is supported (see
   [Credentials via environment variables only](../../0001-add-registry/architecture/ADR-0001-credentials-via-env-only.md)).
-- **FR-009**: If a `${env:VAR}` reference names a variable that is not set at
+- **FR-011**: If a `${env:VAR}` reference names a variable that is not set at
   set time, then Sauron shall reject the request and report that the variable is
   unset.
-- **FR-010**: If `--timeout` is not a valid positive duration, then Sauron shall
+- **FR-012**: If a referenced CA, client-cert, or client-key file cannot be
+  read, then Sauron shall reject the request and report that the file cannot
+  be accessed.
+- **FR-013**: If `--timeout` is not a valid positive duration, then Sauron shall
   reject the request and report that a valid timeout is required.
 
 ## Decision Records

@@ -136,12 +136,14 @@ removes it, and `unschedule sync` (no operation) removes every managed sync sche
 ## set backend
 
 ```
-sauron set backend [--kind <http|filesystem|git>] [--username ${env:VAR}] [--password ${env:VAR}] [--timeout <duration>] <uri>
+sauron set backend [--kind <http|filesystem|git>] [--timeout <duration>] [kind-scoped flags] <uri>
 ```
 
 Configure the singleton backend that owns persona definitions (upsert).
 
-- Key flags: `--kind` (default `http`), `--username`/`--password` (env refs only), `--timeout`.
+- Key flags: `--kind` (default `http`), `--timeout`; kind-scoped auth/TLS flags
+  (`--username`/`--password` (env refs only), `--skip-tls-verify`, `--ca-cert`,
+  `--client-cert`/`--client-key`, `--ssh-key`).
 - Full contract → [0012-backend](../0012-backend/contracts/command-line.md).
 
 ## unset backend

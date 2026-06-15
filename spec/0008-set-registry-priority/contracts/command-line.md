@@ -12,7 +12,7 @@ Defines the command-line interface for changing a registry's priority. This is t
 sauron set priority registry <name> <value>
 ```
 
-Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → `registry` (subcommand). The sibling `sauron set priority persona` is covered by [set persona priority](../../0007-set-persona-priority/spec.md).
+Command hierarchy: `sauron` (root) → `set` (group) → `priority` (group) → `registry` (subcommand). The sibling `sauron set priority persona` is covered by [set priority persona](../../0007-set-persona-priority/spec.md).
 
 ## Arguments
 
