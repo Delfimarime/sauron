@@ -42,11 +42,6 @@ internal/
       fx.go                exposes NewFxOptions() fx.Option
       claude/              Claude provider adapter
       zencoder/            Zencoder provider adapter
-    backend/
-      fx.go                exposes NewFxOptions() fx.Option
-      fs/                  filesystem backend adapter
-      git/                 git backend adapter
-      http/                HTTP backend adapter
     storage/
       fx.go                NewFxOptions() fx.Option; provides the afero.Fs and stores
       <store>.go           per-type store over the ~/.sauron state files
@@ -57,7 +52,6 @@ internal/
 pkg/
   registry/              public interfaces implemented by internal/infrastructure/registry/<kind>
   provider/              public interfaces implemented by internal/infrastructure/provider/<kind>
-  backend/               public interfaces implemented by internal/infrastructure/backend/<kind>
 test/
   e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
     testdata/            Gherkin .feature files
@@ -67,7 +61,7 @@ dist/                    build output (git-ignored): the per-OS sauron binaries 
 ```
 
 The behavioral interfaces under `pkg/` are a public surface: external code may
-implement new registries, providers, or backends against them. Their adapters
+implement new registries or providers against them. Their adapters
 live under `internal/infrastructure/` — the driven-adapter layer reaching
 external systems — and are never imported across adapter boundaries: callers
 depend on the `pkg/` interfaces, not on a concrete adapter. `internal/infrastructure/`
@@ -83,7 +77,6 @@ not adapters and stay at the `internal/` root.
   (`internal/config/fx.go`, `internal/telemetry/fx.go`,
   `internal/infrastructure/registry/fx.go`,
   `internal/infrastructure/provider/fx.go`,
-  `internal/infrastructure/backend/fx.go`,
   `internal/infrastructure/storage/fx.go`). An `fx.go` holds only `NewFxOptions`
   and its supporting (unexported) provider helpers — it carries no business
   interfaces, structs, or construction logic; those live in sibling files
@@ -137,7 +130,7 @@ bootstrap, before any `fx.App` exists) and also used to populate
 never diverge. `New` returns an error when the home cannot be resolved.
 
 The root command is the **one exception** to the spec-and-contract rules: it has
-no feature spec and no `contracts/command-line.md`; its behavior is fixed here in
+no feature spec and no command contract; its behavior is fixed here in
 the architecture contract.
 
 ## Build, versioning & gates
@@ -266,7 +259,7 @@ type Action[R, P any] interface {
   [Coding standards](#coding-standards) — it *is* the context rather than storing
   one as data.
 - **`UseCase` is the command entrypoint and is stateless.** Its collaborators —
-  the `pkg/` ports (`pkg/registry`, `pkg/provider`, `pkg/backend`), the
+  the `pkg/` ports (`pkg/registry`, `pkg/provider`), the
   [`storage`](#state-storage) stores, and the zap logger — are injected by
   uberfx; everything call-scoped arrives through the `Request`, so a single
   instance is safe to reuse across invocations. `Execute` takes the `Request`
@@ -299,14 +292,21 @@ the cobra API, consistent with the [`Serve()`/`serve()` split](#testing).
 `internal/infrastructure/storage` owns all manipulation of Sauron's persisted
 state — the files under `~/.sauron/` whose schema is fixed by the
 [configuration data contract](configuration.md) (`registries.yaml`,
-`backend.yaml`, `personas.yaml`, `track.yaml`, `settings.yaml`). It is the single
+`track.yaml`, `settings.yaml`). It is the single
 package that reads and writes those files; no use case or adapter touches them
 directly.
 
-- **It is an internal capability, not a public port.** Unlike registry, provider,
-  and backend, storage has no `pkg/` interface — there is one way to persist
+- **It is an internal capability, not a public port.** Unlike registry and
+  provider, storage has no `pkg/` interface — there is one way to persist
   state and no external implementation plugs in. Its types live entirely in
   `internal/infrastructure/storage` and are consumed by use cases.
+- **Files are multi-document manifest streams.** Each file holds Kubernetes-style
+  documents (`apiVersion: sauron.raitonbl.com/v1`, `kind`, `metadata`, `spec`);
+  storage decodes and encodes the stream and validates every document against its
+  per-kind JSON Schema (under `spec/contracts/schemas/`) with
+  `github.com/google/jsonschema-go`. Writes are atomic (write-temp + rename) and
+  serialized by a lockfile under the home, so a scheduled run and a manual command
+  never corrupt a file.
 - **The `afero.Fs` is injected by uberfx**, not carried on the `Request`:
   `storage`'s `fx.go` provides the filesystem (`afero.NewOsFs()` in production,
   an `afero.NewMemMapFs()` override in tests) into the container, and the stores
@@ -413,9 +413,8 @@ rules — it is a test harness.
   binary, so a developer on macOS runs it against the `darwin` build. **CI** pins
   the gate to a Linux runner — that is the only Linux-only constraint, and it is a
   CI policy, not a property of the suite or the task.
-- **Hermeticity.** Per-scenario git (ssh-only remotes per ADR-0002) and HTTP
-  dependencies are provisioned in-test via Testcontainers; the concrete fixture
-  strategy is still being settled.
+- **Hermeticity.** Per-scenario git and HTTP dependencies are provisioned in-test
+  via Testcontainers; the concrete fixture strategy is still being settled.
 
 ## Approved dependencies
 

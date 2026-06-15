@@ -1,9 +1,9 @@
 # Constitution
 
 Project-governing principles for sauron. These constrain how features are
-specified, planned, and implemented. Authoring mechanics and CLI conventions
-live in [spec/AUTHORING.md](spec/AUTHORING.md); the compiled command reference
-in [spec/contracts/cli.md](spec/contracts/cli.md).
+specified, planned, and implemented. Authoring mechanics live in
+[spec/AUTHORING.md](spec/AUTHORING.md); the CLI conventions in the
+[CLI contract](spec/contracts/cli.md).
 
 > Status: initial draft — refine as implementation begins.
 
@@ -84,14 +84,13 @@ The command surface and the observable behavior every command must honor.
 
 ### Article 1 — Contract-first CLI
 
-Every command's behavior is defined in its `contracts/command-line.md` and
-conforms to the [CLI conventions](spec/AUTHORING.md#cli-conventions) — command
-grammar, shared flags, exit-status semantics, and output discipline — before it
-is implemented. The compiled [command reference](spec/contracts/cli.md)
-summarizes every command in one place.
+Every command's behavior is defined in its `contracts/<verb>-<noun>.md` and
+conforms to the [CLI contract](spec/contracts/cli.md) — command grammar, shared
+flags, exit-status semantics, and output discipline — before it is implemented. A
+feature owns one or more such command contracts.
 
 The sole exception is the **root command** (version and help plumbing): it has no
-feature spec and no `contracts/command-line.md`, and its construction and
+feature spec and no command contract, and its construction and
 `--version` banner are fixed by the
 [architecture contract](spec/contracts/architecture.md) instead.
 
@@ -135,14 +134,13 @@ never `internal/`. Its layout is fixed by the
 
 ### Article 3 — Ports and adapters
 
-Public behavioral interfaces live under `pkg/` (`pkg/registry`, `pkg/provider`,
-`pkg/backend`) and are implemented by adapters under `internal/infrastructure/`
+Public behavioral interfaces live under `pkg/` (`pkg/registry`, `pkg/provider`)
+and are implemented by adapters under `internal/infrastructure/`
 — the driven-adapter layer reaching external systems
 (`internal/infrastructure/registry/{fs,git,http}`,
-`internal/infrastructure/provider/{claude,zencoder}`,
-`internal/infrastructure/backend/{fs,git,http}`). Each adapter family exposes its
-wiring through an uberfx `NewFxOptions() fx.Option`. The interfaces are a public
-surface: external code may implement new registries, providers, or backends
+`internal/infrastructure/provider/{claude,zencoder}`). Each adapter family exposes
+its wiring through an uberfx `NewFxOptions() fx.Option`. The interfaces are a
+public surface: external code may implement new registries or providers
 against them. `internal/infrastructure/` also houses internal capabilities that
 are not public extension points — `internal/infrastructure/storage`, which owns
 all manipulation of the `~/.sauron/` state — kept wholly inside their package

@@ -1,18 +1,25 @@
-# Data Model: Configuration — Add Registry (registries.yaml)
+# Add Registry — configuration
 
-**Spec**: [Add Registry](../spec.md)
+This feature **writes** `registries.yaml`, appending one `Registry` document. The
+document schema is owned by the
+[configuration data contract](../../contracts/configuration.md); only the
+read/write semantics and the field→requirement realization are stated here.
 
-Add Registry owns `registries.yaml` and the `items` entries it appends.
-The schema — fields, constraints, and write semantics — is owned by the
-[configuration data contract](../../contracts/configuration.md#registriesyaml);
-this document does not restate it.
+## Writes
 
-## Owns
+- File: `registries.yaml` (a stream of `Registry` documents).
+- Operation: append a new `Registry`; the write is atomic and lock-guarded.
 
-- `registries.yaml` `items`: each registered source, keyed by `name`, with `kind`, `priority`, `uri`, and kind-scoped credentials. See the [contract](../../contracts/configuration.md#registriesyaml).
-- Validation before persist: an entry is appended and written back only after kind validation passes; the existing configuration is left unchanged until then (FR-006, FR-011). See the [contract](../../contracts/configuration.md#registriesyaml).
-- Priority assignment for a new entry follows the [priority model](../../AUTHORING.md#priority-model) (`0` for the first registry, `max + 1` when omitted later), as governed by the [contract](../../contracts/configuration.md#registriesyaml).
+## Field realization
 
-## Realizes
+| Field | Requirement |
+|---|---|
+| `metadata.name` | FR-001, FR-008 |
+| `spec.uri` | FR-001 |
+| `spec.transport` | FR-001, FR-002 |
+| `spec.auth.username` / `spec.auth.password` | FR-003, FR-011 |
+| `spec.tls.*`, `spec.sshKey` | FR-011 |
+| `spec.timeout` | FR-012 |
 
-- `registries.yaml` `items` entry write → [spec](../spec.md) FR-002, FR-005 (name identity), FR-004 (kind), FR-003, FR-009, FR-010, FR-017 (priority), FR-007 (records name/priority/kind/uri), FR-018 (name/priority uniqueness), FR-006, FR-011 (validated atomic write).
+A registry of an existing `metadata.name` is rejected (FR-007); the existing
+document is left unchanged until validation succeeds (FR-006).

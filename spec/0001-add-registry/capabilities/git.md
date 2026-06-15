@@ -1,58 +1,44 @@
-# Git Registry Support
+# Git Transport
 
 **Type:** capability
 
 **Enables:** [add registry](../spec.md)
 
+**Enables:** [list catalogue](../../0005-list-catalogue/spec.md)
+
+**Enables:** [install](../../0006-install-artifacts/spec.md)
+
 ## Overview
 
-Registries of kind `git` are Git remotes reached over SSH. This capability
-defines the git-specific behavior of [add registry](../spec.md): SSH-only
-URI validation, authentication via `--ssh-key` or the system's regular SSH
-credentials, the `git ls-remote` reachability check, and the network timeout.
-Common registration behavior (name, priority, persistence, transactionality)
-is owned by the [feature spec](../spec.md).
+The git transport reaches a registry hosted in a git repository. It validates the
+source at add time and fetches artifact content for browsing, installing, and
+reconciling. Artifacts are read from the repository's `.skills/` and `.agents/`
+directories; a skill or agent is the directory under one of those.
 
 ## Requirements
 
 ### Ubiquitous
 
-- **FR-001**: Sauron shall provide the ability to register a Git repository,
-  accessed over SSH, as a registry source of artifacts.
+- FR-001: Sauron shall reach git registries over the URI's scheme, supporting SSH
+  remotes with a private key (`--ssh-key`) and HTTPS remotes with credentials
+  passed as environment references.
+- FR-002: Sauron shall treat each directory under `.skills/` or `.agents/` as one
+  skill or agent.
+- FR-003: Sauron shall compute an artifact's `digest` from the tree-object hash of
+  its directory at the resolved commit.
 
 ### Event-driven
 
-- **FR-002**: When a user submits a `uri`, Sauron shall verify it is a valid
-  SSH-based git URI (scp-like `user@host:path` or an `ssh://` URL) before
-  registering it (see
-  [SSH-only remotes](../architecture/ADR-0002-ssh-only-remotes.md)).
-- **FR-003**: When a user submits a `uri`, Sauron shall verify the remote is
-  reachable and authentication succeeds by running `git ls-remote` — honoring
-  the configured timeout and SSH key — before registering it.
-- **FR-004**: When a network operation runs (e.g. `git ls-remote`), Sauron
-  shall bound it by the configured timeout (default `30s`).
-
-### Unwanted behavior
-
-- **FR-005**: If the `uri` is not a valid SSH-based git URI (e.g. an
-  `http(s)://`, `git://`, or `file://` scheme, or a malformed address), then
-  Sauron shall reject the request and report that an SSH-based git URI is
-  required (see
-  [SSH-only remotes](../architecture/ADR-0002-ssh-only-remotes.md)).
-- **FR-006**: If the remote cannot be reached or authentication fails within
-  the timeout, then Sauron shall reject the request, leave the configuration
-  unchanged, and report that the registry cannot be reached.
-- **FR-007**: If the `--ssh-key` file cannot be read, then Sauron shall reject
-  the request and report that the key file cannot be accessed.
-- **FR-008**: If `--timeout` is not a valid positive duration, then Sauron
-  shall reject the request and report that a valid timeout is required.
+- FR-004: When validating a git registry, Sauron shall confirm the repository is
+  reachable and hosts at least one skill or agent.
 
 ### Optional
 
-- **FR-009**: Where `--ssh-key` is provided, Sauron shall authenticate with
-  that private key; where it is absent, Sauron shall use the system's regular
-  SSH credentials (agent, `~/.ssh/config`, default keys).
+- FR-005: Where an explicit version is not declared, Sauron shall derive a git
+  artifact's optional `version` from the most recent commit that touched the
+  artifact's directory.
 
-## Decision Records
+### Unwanted behavior
 
-- [SSH-only remotes](../architecture/ADR-0002-ssh-only-remotes.md)
+- FR-006: If the repository is unreachable or authentication fails, then Sauron
+  shall fail with a runtime error.

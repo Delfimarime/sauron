@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sauron.raitonbl.com/schemas/v1/Schedule.schema.json",
+  "title": "Schedule",
+  "description": "An OS-crontab schedule for a reconcile operation, recorded in settings.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "sauron.raitonbl.com/v1" },
+    "kind": { "const": "Schedule" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "enum": ["sync", "upgrade"],
+          "description": "The reconcile operation this schedule runs."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cron"],
+      "properties": {
+        "cron": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The cron expression registered in the OS crontab."
+        }
+      }
+    }
+  }
+}

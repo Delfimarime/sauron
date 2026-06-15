@@ -1,2 +1,6 @@
 # Force contributors through the Feature Proposal / Bug Report templates.
 blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/delfimarime/sauron/discussions
+    about: For questions and general discussion — please don't open a BUG or PROPOSAL issue for these.
