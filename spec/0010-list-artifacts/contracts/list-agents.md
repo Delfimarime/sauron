@@ -15,10 +15,28 @@ List the installed agents.
 | `--sort <field>` | Sort field: `name` (default), `registry`, or `updated` |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
 
+## Fields
+
+| Field | Description |
+|---|---|
+| `name` | The agent's name |
+| `registry` | The source registry it was installed from |
+| `version` | Optional human-meaningful version; `—` when none |
+| `provenance` | Why it is installed: `direct` and/or `via persona <name>` |
+| `updated` | When the artifact was last updated |
+
 ## Output
 
 A table on stdout, one installed agent per row. An empty set prints an empty
 result and exits `0`.
+
+## Example
+
+```
+$ sauron list agents
+NAME           REGISTRY  VERSION  UPDATED
+code-reviewer  acme      3af1c2e  2026-06-14
+```
 
 ## Exit codes
 

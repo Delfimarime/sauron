@@ -20,6 +20,15 @@ Review the configured sources.
 A table on stdout, one registry per row. An empty registry set prints an empty
 result and exits `0`.
 
+## Example
+
+```
+$ sauron list registries
+NAME      TRANSPORT  URI
+acme      git        git@github.com:acme/artifacts.git
+internal  http       https://reg.example.com/
+```
+
 ## Exit codes
 
 | Code | Condition |

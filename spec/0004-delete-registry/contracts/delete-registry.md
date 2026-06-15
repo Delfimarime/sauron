@@ -24,6 +24,17 @@ The plan of removed artifacts grouped under `skills:`, `agents:`, and `personas:
 prefixed `-`, with a summary count when applied. Deleting a registry that does not
 exist reports that nothing was deleted and exits `0`.
 
+## Example
+
+```
+$ sauron delete registry acme
+skills:
+  - sauron-acme-go-style
+agents:
+  - sauron-acme-code-reviewer
+registry "acme" removed; 2 artifacts removed
+```
+
 ## Exit codes
 
 | Code | Condition |

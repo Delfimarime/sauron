@@ -25,6 +25,20 @@ The plan grouped under `skills:`, `agents:`, and `personas:`, prefixed `+`
 An already-current set prints no changes and exits `0`. Per-artifact failures are
 reported without stopping the run.
 
+## Example
+
+```
+$ sauron sync
+skills:
+  ~ sauron-acme-go-style
+  - sauron-acme-old-skill
+agents:
+  + sauron-acme-new-reviewer
+personas:
+  ~ backend-dev
+1 added, 2 updated, 1 removed
+```
+
 ## Exit codes
 
 | Code | Condition |

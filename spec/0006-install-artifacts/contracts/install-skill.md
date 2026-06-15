@@ -19,6 +19,16 @@ The plan under a `skills:` heading, `+` for additions and `~` for updates,
 followed by a summary count. Per-name failures (a name the registry does not
 offer) are reported without stopping the run.
 
+## Example
+
+```
+$ sauron install skill acme go-style sql-review
+skills:
+  + sauron-acme-go-style
+  + sauron-acme-sql-review
+2 added
+```
+
 ## Exit codes
 
 | Code | Condition |

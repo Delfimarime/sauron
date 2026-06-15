@@ -27,6 +27,20 @@ The plan grouped under `personas:` and the `skills:`/`agents:` headings for the
 members removed, prefixed `-`, with a summary count when applied. Uninstalling
 something not installed reports nothing was removed and exits `0`.
 
+## Example
+
+```
+$ sauron uninstall persona acme backend-dev
+personas:
+  - backend-dev
+skills:
+  - sauron-acme-sql-review
+1 persona, 1 artifact removed
+```
+
+(`sauron-acme-go-style` stays — it was also installed directly, so its provenance
+keeps it.)
+
 ## Exit codes
 
 | Code | Condition |

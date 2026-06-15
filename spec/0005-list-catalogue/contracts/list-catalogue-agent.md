@@ -27,6 +27,15 @@ Browse the agents a registry offers, live and paginated.
 A table on stdout of the registry's offered agents, after filter, sort, and
 paging, with a line reporting the applied offset/limit.
 
+## Example
+
+```
+$ sauron list catalogue agent acme --limit 20
+NAME           KIND
+code-reviewer  agent
+showing 1–1 of 1 (offset 0, limit 20)
+```
+
 ## Exit codes
 
 | Code | Condition |

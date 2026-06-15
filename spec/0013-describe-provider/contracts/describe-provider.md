@@ -17,6 +17,13 @@ Show the active provider's detail.
 The active provider on stdout. When no provider is set, a line reporting that none
 is set; exits `0`.
 
+## Example
+
+```
+$ sauron describe provider
+name:  claude
+```
+
 ## Exit codes
 
 | Code | Condition |

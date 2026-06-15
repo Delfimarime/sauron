@@ -18,6 +18,13 @@ Register the OS-crontab automation for a reconcile operation.
 A confirmation of the operation and expression registered. Re-scheduling an
 operation replaces its existing entry rather than adding a second.
 
+## Example
+
+```
+$ sauron schedule sync "0 */6 * * *"
+scheduled sync: 0 */6 * * *
+```
+
 ## Exit codes
 
 | Code | Condition |

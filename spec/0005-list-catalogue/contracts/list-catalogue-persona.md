@@ -29,6 +29,15 @@ A table on stdout of the registry's offered personas, after filter, sort, and
 paging, with a line reporting the applied offset/limit; an entry may summarize the
 membership the persona declares.
 
+## Example
+
+```
+$ sauron list catalogue persona acme --limit 20
+NAME         MEMBERS
+backend-dev  skills: go-style, sql-review; agents: code-reviewer
+showing 1–1 of 1 (offset 0, limit 20)
+```
+
 ## Exit codes
 
 | Code | Condition |

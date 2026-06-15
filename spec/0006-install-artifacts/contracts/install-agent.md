@@ -19,6 +19,15 @@ The plan under an `agents:` heading, `+` for additions and `~` for updates,
 followed by a summary count. Per-name failures (a name the registry does not
 offer) are reported without stopping the run.
 
+## Example
+
+```
+$ sauron install agent acme code-reviewer
+agents:
+  + sauron-acme-code-reviewer
+1 added
+```
+
 ## Exit codes
 
 | Code | Condition |

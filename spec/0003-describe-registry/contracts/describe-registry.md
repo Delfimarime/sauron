@@ -23,6 +23,19 @@ Show one registry's full detail.
 The registry's fields on stdout. Credential fields render as their stored
 environment reference, never a resolved secret.
 
+## Example
+
+```
+$ sauron describe registry acme
+name:       acme
+transport:  git
+uri:        git@github.com:acme/artifacts.git
+auth:
+  username: ${env:ACME_USER}
+  password: ${env:ACME_TOKEN}
+timeout:    30s
+```
+
 ## Exit codes
 
 | Code | Condition |

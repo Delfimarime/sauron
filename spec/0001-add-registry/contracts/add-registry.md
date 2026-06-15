@@ -41,6 +41,13 @@ applicable set per transport is fixed by the
 On success, one confirmation line on stdout naming the registered registry and its
 transport. No output is written to stdout on failure.
 
+## Example
+
+```
+$ sauron add registry --kind git acme git@github.com:acme/artifacts.git
+registered registry "acme" (git)
+```
+
 ## Exit codes
 
 | Code | Condition |

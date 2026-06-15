@@ -70,3 +70,72 @@ redefine these meanings.
   line, prefixed `+` (added), `~` (updated in place), or `-` (removed), followed
   by a summary count line when changes are applied. Per-artifact failures are
   reported without stopping the run.
+
+### Canonical rendering
+
+Every command contract presents an `## Example` instantiating one of these
+formats; the formats themselves are fixed here.
+
+**Tables** (`list`) — aligned columns, uppercase headers, `—` for an absent
+optional value:
+
+```
+NAME        REGISTRY  VERSION  UPDATED
+go-style    acme      v1.4.0   2026-06-15
+sql-review  acme      —        2026-06-12
+```
+
+**Catalogue** (`list catalogue`) — a table followed by one paging line:
+
+```
+NAME         KIND
+go-style     skill
+code-helper  skill
+showing 1–20 of 57 (offset 0, limit 20)
+```
+
+**Detail** (`describe`) — left-aligned `key:` values, nested for persona
+membership:
+
+```
+name:      backend-dev
+registry:  acme
+version:   9f4d2a1
+members:
+  skills:  go-style, sql-review
+  agents:  code-reviewer
+```
+
+In `describe` detail, **provenance** renders as a comma-separated list of reasons —
+`direct` when installed explicitly, and `via persona <name>` for each persona that
+brings the artifact in. A persona is itself always direct, so its own detail and
+listing omit the field.
+
+**Plan / report** (bulk operations) — kind headings, two-space indent, `+`/`~`/`-`
+and the target name, then a summary line:
+
+```
+personas:
+  + backend-dev
+skills:
+  + sauron-acme-go-style
+  ~ sauron-acme-sql-review
+agents:
+  - sauron-acme-old-reviewer
+1 persona, 1 added, 1 updated, 1 removed
+```
+
+Under `--dry-run` the same plan is printed beneath a `(dry run)` header and nothing
+is applied.
+
+**Confirmation** (`add registry`, `schedule`, `unschedule`) — a single line:
+
+```
+registered registry "acme" (git)
+```
+
+**Failure** — exactly one `error:`-prefixed line to stderr, no partial stdout:
+
+```
+error: registry "acme" already exists
+```

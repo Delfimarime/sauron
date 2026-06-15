@@ -25,6 +25,15 @@ The plan under a `skills:` heading, prefixed `-`, with a summary count when
 applied. Uninstalling something not installed reports nothing was removed and
 exits `0`.
 
+## Example
+
+```
+$ sauron uninstall skill acme go-style
+skills:
+  - sauron-acme-go-style
+1 removed
+```
+
 ## Exit codes
 
 | Code | Condition |

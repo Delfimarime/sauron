@@ -21,6 +21,20 @@ members it brings in, `+` for additions and `~` for updates, followed by a summa
 count. A persona member the registry does not offer is reported without stopping
 the run.
 
+## Example
+
+```
+$ sauron install persona acme backend-dev
+personas:
+  + backend-dev
+skills:
+  + sauron-acme-go-style
+  + sauron-acme-sql-review
+agents:
+  + sauron-acme-code-reviewer
+1 persona, 3 artifacts added
+```
+
 ## Exit codes
 
 | Code | Condition |

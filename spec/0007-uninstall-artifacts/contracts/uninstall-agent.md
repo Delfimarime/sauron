@@ -25,6 +25,15 @@ The plan under an `agents:` heading, prefixed `-`, with a summary count when
 applied. Uninstalling something not installed reports nothing was removed and
 exits `0`.
 
+## Example
+
+```
+$ sauron uninstall agent acme code-reviewer
+agents:
+  - sauron-acme-code-reviewer
+1 removed
+```
+
 ## Exit codes
 
 | Code | Condition |

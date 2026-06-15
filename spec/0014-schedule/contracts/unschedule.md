@@ -17,6 +17,13 @@ Remove the OS-crontab automation for a reconcile operation.
 A confirmation of removal. Unscheduling an operation that is not scheduled reports
 that nothing was removed and exits `0`.
 
+## Example
+
+```
+$ sauron unschedule sync
+unscheduled sync
+```
+
 ## Exit codes
 
 | Code | Condition |

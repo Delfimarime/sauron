@@ -25,6 +25,17 @@ or `~` (updated), followed by a summary count when applied. No `-` lines ever
 appear: upgrade never removes. An already-current set prints no changes and exits
 `0`. Per-artifact failures are reported without stopping the run.
 
+## Example
+
+```
+$ sauron upgrade skills personas
+skills:
+  ~ sauron-acme-go-style
+personas:
+  + new-helper-skill (via backend-dev)
+1 added, 1 updated
+```
+
 ## Exit codes
 
 | Code | Condition |

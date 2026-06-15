@@ -18,6 +18,17 @@ On a change, the migration plan grouped under `skills:`, `agents:`, and
 `personas:` with a summary count. Setting the already-active provider reports no
 change and exits `0`.
 
+## Example
+
+```
+$ sauron set provider zencoder
+skills:
+  ~ sauron-acme-go-style
+agents:
+  ~ sauron-acme-code-reviewer
+provider set to "zencoder"; 2 artifacts migrated
+```
+
 ## Exit codes
 
 | Code | Condition |

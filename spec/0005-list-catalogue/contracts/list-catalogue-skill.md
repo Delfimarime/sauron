@@ -27,6 +27,16 @@ Browse the skills a registry offers, live and paginated.
 A table on stdout of the registry's offered skills, after filter, sort, and
 paging, with a line reporting the applied offset/limit.
 
+## Example
+
+```
+$ sauron list catalogue skill acme --limit 20
+NAME        KIND
+go-style    skill
+sql-review  skill
+showing 1–2 of 2 (offset 0, limit 20)
+```
+
 ## Exit codes
 
 | Code | Condition |
