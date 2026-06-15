@@ -213,7 +213,7 @@ Flags are bound into structs in package `internal/cmd`; command logic never
 reads flags off the `*cobra.Command`.
 
 - Flags shared across commands are defined once as small, concern-grouped
-  structs (e.g. listing, dry-run, timeout) in
+  structs (e.g. listing, paging, dry-run, timeout) in
   `internal/cmd/helper_flags.go`, each paired with a `bind<Group>Flags` function
   that registers the flags and binds them to the struct. These are the shared
   flags defined by the CLI conventions.
