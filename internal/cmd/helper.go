@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/delfimarime/sauron/internal/config"
-	"github.com/delfimarime/sauron/internal/infrastructure/backend"
 	"github.com/delfimarime/sauron/internal/infrastructure/provider"
 	"github.com/delfimarime/sauron/internal/infrastructure/registry"
 	"github.com/delfimarime/sauron/internal/infrastructure/storage"
@@ -25,7 +24,6 @@ func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
 		config.NewFxOptions(),
 		registry.NewFxOptions(),
 		provider.NewFxOptions(),
-		backend.NewFxOptions(),
 		storage.NewFxOptions(),
 		usecase.NewFxOptions(),
 		fx.Provide(

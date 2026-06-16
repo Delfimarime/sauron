@@ -50,8 +50,9 @@ internal/
     usecase_<name>.go      a command's UseCase entrypoint
     action_<name>.go       a reusable Action a use case composes
 pkg/
-  registry/              public interfaces implemented by internal/infrastructure/registry/<kind>
-  provider/              public interfaces implemented by internal/infrastructure/provider/<kind>
+  registry/              public interface implemented by internal/infrastructure/registry/<kind>
+  provider/              public interface implemented by internal/infrastructure/provider/<kind>
+  sauron/                shared domain & manifest types (Skill, Agent, Persona, Registry, Provider, Schedule, provenance)
 test/
   e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
     testdata/            Gherkin .feature files
@@ -64,10 +65,13 @@ The behavioral interfaces under `pkg/` are a public surface: external code may
 implement new registries or providers against them. Their adapters
 live under `internal/infrastructure/` — the driven-adapter layer reaching
 external systems — and are never imported across adapter boundaries: callers
-depend on the `pkg/` interfaces, not on a concrete adapter. `internal/infrastructure/`
+depend on the `pkg/` interfaces, not on a concrete adapter. Alongside the ports,
+`pkg/sauron` holds the shared **domain and manifest types** — data, not a port —
+that the CLI emits, the `test/e2e` harness decodes, and the ports, `storage`, and
+use cases all speak. `internal/infrastructure/`
 also houses **internal capabilities** that are not public extension points —
 [`storage`](#state-storage), which manipulates the `~/.sauron/` state — whose
-types stay wholly within their package with no `pkg/` port. The transversal
+manipulation logic stays wholly within its package with no `pkg/` port. The transversal
 framework modules (`internal/config`, `internal/telemetry`, `internal/cmd`) are
 not adapters and stay at the `internal/` root.
 
