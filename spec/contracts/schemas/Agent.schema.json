@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sauron.raitonbl.com/schemas/v1/Agent.schema.json",
+  "title": "Agent",
+  "description": "An installed agent, recorded in track.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "sauron.raitonbl.com/v1" },
+    "kind": { "const": "Agent" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "digest", "path", "provenance", "installedAt", "updatedAt"],
+      "properties": {
+        "registry": {
+          "type": "string",
+          "description": "Name of the source registry; with kind and name, the unique key."
+        },
+        "version": {
+          "type": "string",
+          "description": "Optional human-meaningful version; derivable for git, declared-only otherwise."
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content identity used to detect change and local drift; always present."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact installed location relative to the provider root (sauron-<registry>-<name>)."
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["direct"],
+          "properties": {
+            "direct": {
+              "type": "boolean",
+              "description": "True when the user installed this artifact explicitly."
+            },
+            "personas": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Personas that also bring this artifact in."
+            }
+          }
+        },
+        "installedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -19,3 +19,5 @@ linters:
           deny:
             - pkg: github.com/delfimarime/sauron/internal
               desc: "the e2e harness is graybox; consume the public pkg/ surface, never internal/"
+            - pkg: github.com/delfimarime/sauron/cmd
+              desc: "the e2e harness is graybox; consume the public pkg/ surface, never cmd/"

@@ -8,10 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/delfimarime/sauron/internal/config"
-	"github.com/delfimarime/sauron/internal/infrastructure/backend"
-	"github.com/delfimarime/sauron/internal/infrastructure/provider"
-	"github.com/delfimarime/sauron/internal/infrastructure/registry"
-	"github.com/delfimarime/sauron/internal/infrastructure/storage"
+	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
@@ -23,10 +20,7 @@ func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
 		fx.Supply(ctx),
 		telemetry.NewFxOptions(),
 		config.NewFxOptions(),
-		registry.NewFxOptions(),
-		provider.NewFxOptions(),
-		backend.NewFxOptions(),
-		storage.NewFxOptions(),
+		repository.NewFxOptions(),
 		usecase.NewFxOptions(),
 		fx.Provide(
 			newPondPool,

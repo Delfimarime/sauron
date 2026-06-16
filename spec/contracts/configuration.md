@@ -1,340 +1,167 @@
 # Configuration Data Contract
 
-The compiled data contract for everything Sauron persists. It owns the schema of
-every configuration file under `~/.sauron/`, the sub-schemas they share, and the
-key and write conventions they obey. A feature's `data/configuration.md`
-declares which file and fields the feature owns or writes — and the requirements
-(`FR-NNN`) that govern them — and links here for the schema; this contract does
-not depend on any feature.
+The normative schema of every document Sauron persists. Feature
+`data/configuration.md` files link here for the schema and never restate it; this
+contract never links back to feature requirements (the relationship is
+one-directional, no cycle).
 
-The machine-readable JSON Schemas for these files live under
-[schemas/](schemas/), one per file, and are the normative validation source; the
-tables below are their human-readable form.
+## Home and files
 
-## Files
+Sauron persists its state under a single home directory: `$SAURON_HOME` when set,
+the platform default `~/.sauron` otherwise. The home holds three files, each a
+multi-document YAML stream:
 
-Sauron's state is split by concern. Each file is an independent YAML document and
-is written independently.
+| File | Documents (`kind`) |
+|---|---|
+| `registries.yaml` | `Registry` |
+| `track.yaml` | `Skill`, `Agent`, `Persona` |
+| `settings.yaml` | `Provider`, `Schedule` |
 
-| File | Owned by | Holds | Schema |
-|---|---|---|---|
-| `registries.yaml` | [add registry](../0001-add-registry/spec.md) | the registered artifact sources | [registries.schema.json](schemas/registries.schema.json) |
-| `backend.yaml` | [backend](../0012-backend/spec.md) | the singleton backend connection | [backend.schema.json](schemas/backend.schema.json) |
-| `personas.yaml` | [set personas](../0014-select-personas/spec.md) | the installed personas, with their definitions | [personas.schema.json](schemas/personas.schema.json) |
-| `track.yaml` | [sync artifacts](../0006-sync-artifacts/spec.md) | the installed artifacts and their provenance | [track.schema.json](schemas/track.schema.json) |
-| `settings.yaml` | [set provider](../0009-set-provider/spec.md), [schedule artifact sync](../0011-schedule-sync/spec.md), [schedule persona sync](../0019-schedule-sync-personas/spec.md) | global settings: the active provider and the sync schedules | [settings.schema.json](schemas/settings.schema.json) |
+The **catalogue** is not persisted — what a registry offers is fetched live at
+command time — so it has no file and no schema here.
 
-- **Path**: each file lives at `<home>/<file>`, where `<home>` is `$SAURON_HOME`
-  when that environment variable is set and the platform default `~/.sauron`
-  otherwise. The home is resolved once at startup.
-- **Lifecycle**: a file is created on the first successful write that needs it; a
-  missing file is read as its empty state (no registries, no backend, no
-  installed personas, nothing tracked, defaults for global settings).
+## Manifest envelope
 
-There is **no persisted catalog**. The set of *available* personas is computed
-live (see [Live persona view](#live-persona-view)).
-
-## Conventions
-
-- **Keys are `snake_case`.** Multi-word keys use underscores
-  (`skip_verify`, `ca_cert`, `client_cert`, `client_key`, `key_path`,
-  `last_modified_at`, `last_synced_at`); single-word keys are bare (`kind`,
-  `name`, `priority`, `uri`, `timeout`, `provider`, `schedules`, `version`, `items`,
-  `auth`, `tls`, `ssh`, `type`, `username`, `password`, `tags`, `skills`,
-  `agents`, `description`, `path`, `registry`, `persona`).
-- **Collections are `items`.** A file that holds a list keeps it in a top-level
-  `items` array (`registries.yaml`, `personas.yaml`, `track.yaml`). Singleton
-  files (`backend.yaml`, `settings.yaml`) carry their fields at the root.
-- **Versioning.** Every file carries a top-level `version` (integer, starts at
-  `1`) so a future schema change can be detected and migrated.
-- **Atomic single-file writes.** A write serializes the whole document to a
-  temporary file in `~/.sauron/`, then renames it over the destination; the file
-  is left untouched on any failure.
-
-## Cross-file write semantics
-
-A single atomic rename covers one file, not a multi-file operation. The
-operations that touch more than one file are written in a fixed order and are
-**idempotent**: a run interrupted between two file writes is fully repaired by
-re-running the same command.
-
-- **set provider** writes `track.yaml` (migrated entries) **then** `settings.yaml`
-  (`provider`). If interrupted after `track.yaml`, re-running `set provider` with
-  the same target migrates nothing further and completes `settings.yaml`.
-- **unset backend** writes `track.yaml` and removes delivered artifacts (unless
-  `--keep-artifacts`), **then** `personas.yaml` (empties its `items`), **then**
-  `backend.yaml`. Each step is a no-op on a re-run once already applied.
-
-## Shared sub-schemas
-
-Used by both [registries.yaml](#registriesyaml) entries and the
-[backend.yaml](#backendyaml) connection.
-
-`auth` (http kinds) — HTTP Basic credentials held as environment references:
-
-| Field | Type | Required | Constraints | Description |
-|---|---|---|---|---|
-| `type` | string | Yes | `"basic"` | Auth scheme. |
-| `username` | string | No | `${env:VAR}` reference | Resolved from the environment at use time. |
-| `password` | string | No | `${env:VAR}` reference | Resolved from the environment at use time. |
-
-`tls` (http kinds):
-
-| Field | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `skip_verify` | boolean | No | false | Skip server cert verification. |
-| `ca_cert` | string | No | — | Path to a CA bundle. |
-| `client_cert` | string | No | — | Path to the client certificate (mutual TLS). |
-| `client_key` | string | No | — | Path to the client key (mutual TLS). |
-
-`ssh` (git kind):
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `key_path` | string | No | Path to the private key used to authenticate; omitted = system SSH credentials. |
-
-**Credentials & transport (binding for both files):** per
-[ADR-0001](../0001-add-registry/architecture/ADR-0001-credentials-via-env-only.md),
-`auth.username` / `auth.password` hold only an `${env:VAR}` reference; no secret
-is ever written to disk, and `tls` cert/key fields store **file paths**, not
-material. Per
-[ADR-0002](../0001-add-registry/architecture/ADR-0002-ssh-only-remotes.md), only
-SSH git URIs are supported; `ssh.key_path` stores a **file path**, not key
-material.
-
-## settings.yaml
-
-Global settings. Owned by [set provider](../0009-set-provider/spec.md)
-(`provider`), [schedule artifact sync](../0011-schedule-sync/spec.md)
-(`schedules.sync_artifacts`), and
-[schedule persona sync](../0019-schedule-sync-personas/spec.md)
-(`schedules.sync_personas`).
-Schema: [settings.schema.json](schemas/settings.schema.json).
-
-| Field | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `version` | integer | Yes | `1` | Schema version. |
-| `provider` | string | No | `claude` | The active provider: `claude` or `zencoder`. Absent means `claude`. |
-| `schedules` | object | No | — | The recorded sync schedules, keyed by operation; absent when nothing is scheduled. |
-
-`schedules` object — one optional key per scheduled operation:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `sync_artifacts` | object | No | The `sauron sync artifacts` schedule. |
-| `sync_personas` | object | No | The `sauron sync personas` schedule. |
-
-Each schedule object:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `expression` | string | Yes | The cron expression Sauron installs into the OS crontab. |
+Every document is a Kubernetes-style manifest with four top-level keys:
 
 ```yaml
-version: 1
-provider: zencoder
-schedules:
-  sync_artifacts:
-    expression: "0 * * * *"
-  sync_personas:
-    expression: "0 6 * * *"
+apiVersion: sauron.raitonbl.com/v1
+kind: <Registry|Skill|Agent|Persona|Provider|Schedule>
+metadata:
+  name: <identity>
+  labels: {}            # optional, free-form, on every kind
+spec:
+  ...                   # kind-specific (Provider has none beyond metadata)
 ```
 
-## registries.yaml
+- `apiVersion` is `sauron.raitonbl.com/v1`. Schema evolution is expressed by
+  advancing the version in this string; documents of an unknown `apiVersion` are
+  rejected.
+- `kind` selects the document type and thereby the `spec` schema below.
+- `metadata.name` is the document's identity. `metadata.labels` is an optional
+  string map available on every kind.
 
-The registered artifact sources. Owned by
-[add registry](../0001-add-registry/spec.md).
-Schema: [registries.schema.json](schemas/registries.schema.json).
+The JSON Schema for each kind lives under [schemas/](schemas/) and is the
+machine-checkable form of the rules below:
+[Registry](schemas/Registry.schema.json),
+[Skill](schemas/Skill.schema.json),
+[Agent](schemas/Agent.schema.json),
+[Persona](schemas/Persona.schema.json),
+[Provider](schemas/Provider.schema.json),
+[Schedule](schemas/Schedule.schema.json).
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `version` | integer | Yes | Schema version. |
-| `items` | array of Registry | Yes | Registered sources; empty array when none. |
+## Write semantics
 
-Registry entry — common fields (all kinds):
+- **Atomic writes.** A file is written to a temporary file and renamed into place,
+  so a reader never observes a half-written file.
+- **Lockfile.** Writes are guarded by a lockfile under the home, so a scheduled
+  run and a manual command cannot corrupt a file when they overlap.
+- **No secrets at rest.** Credentials are stored only as environment references
+  (`${env:VAR}`); resolved secret values are never written to any file. The track
+  file holds no credentials at all.
 
-| Field | Type | Required | Constraints | Description |
-|---|---|---|---|---|
-| `name` | string | Yes | slug `^[a-z0-9]+(-[a-z0-9]+)*$`; unique across all kinds | Registry identity. |
-| `kind` | string | Yes | enum: `http`, `filesystem`, `git` | Registry kind; selects the transport and which credentials apply. |
-| `priority` | integer | Yes | non-negative; unique; `0` for the first registry, `max + 1` when omitted on a later add; lower = higher precedence. See the [priority model](../AUTHORING.md#priority-model). | Registry ordering. |
-| `uri` | string | Yes | kind-shaped: `http`/`https` URL (`http`), absolute symlink-resolved path (`filesystem`), SSH git URI (`git`) | Source location. Not an identity key — entries may share a `uri`. |
-
-Kind-scoped fields:
-
-| Kind | Adds | From sub-schema |
-|---|---|---|
-| `http` | `auth`, `tls`, `timeout` (duration, default `30s`) | [`auth`](#shared-sub-schemas), [`tls`](#shared-sub-schemas) |
-| `filesystem` | — | — |
-| `git` | `ssh`, `timeout` (duration, default `30s`) | [`ssh`](#shared-sub-schemas) |
-
-A registry is identified by `name`; `name` and `priority` are each unique across
-all registries regardless of kind.
+## `Registry` (registries.yaml)
 
 ```yaml
-version: 1
-items:
-  - name: team-secure
-    kind: http
-    priority: 2
-    uri: https://secure.example.com
-    auth:
-      type: basic
-      username: ${env:SKILLS_USER}
-      password: ${env:SKILLS_PASS}
-    tls:
-      skip_verify: false
-      ca_cert: /home/user/.sauron/ca.pem
-    timeout: 30s
-  - name: team-skills
-    kind: filesystem
-    priority: 1
-    uri: /home/user/team-skills
-  - name: team-deploy
-    kind: git
-    priority: 3
-    uri: ssh://git@github.com/acme/agents.git
-    ssh:
-      key_path: /home/user/.ssh/deploy_ed25519
-    timeout: 30s
+apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: acme
+spec:
+  transport: git                 # git | http | filesystem
+  uri: git@github.com:acme/artifacts.git
+  auth:                          # optional
+    username: ${env:ACME_USER}
+    password: ${env:ACME_TOKEN}
+  tls:                           # optional
+    skipVerify: false
+    caCert: /path/ca.pem
+    clientCert: /path/client.pem
+    clientKey: /path/client.key
+  sshKey: /path/id_ed25519       # optional
+  timeout: 30s
 ```
 
-## backend.yaml
+- `metadata.name` is unique and path-safe — it is the namespacing segment in
+  `sauron-<registry>-<name>` and the value each tracked artifact references. There
+  is no rename; a name change is a delete plus a re-add.
+- `spec.transport` is the registry's transport. At the CLI it is selected by
+  `--kind`; this `--kind` → `spec.transport` mapping is intentional.
+- `spec.auth`, `spec.tls`, and `spec.sshKey` apply per transport; secret-bearing
+  fields carry environment references only.
 
-The singleton backend connection — the persona analog of a registry. Because it
-is a single instance, its connection fields sit at the **root** of the file (no
-wrapper key). Owned by [backend](../0012-backend/spec.md).
-Schema: [backend.schema.json](schemas/backend.schema.json).
-
-When no backend is configured, `backend.yaml` is absent (or carries only
-`version`).
-
-| Field | Type | Required | Constraints | Description |
-|---|---|---|---|---|
-| `version` | integer | Yes | — | Schema version. |
-| `kind` | string | Yes | enum: `http`, `filesystem`, `git` | Backend kind. |
-| `uri` | string | Yes | kind-shaped, as for a registry's `uri` | Where persona definitions live. |
-| `auth` | object | No | http only | [`auth`](#shared-sub-schemas) sub-schema. |
-| `tls` | object | No | http only | [`tls`](#shared-sub-schemas) sub-schema. |
-| `ssh` | object | No | git only | [`ssh`](#shared-sub-schemas) sub-schema. |
-| `timeout` | string | No | http/git; duration, default `30s` | Bounds network operations. |
-| `last_synced_at` | string | No | RFC 3339 timestamp | When persona definitions were last refreshed from this backend, by [sync personas](../0013-sync-personas/spec.md). |
+## `Skill` / `Agent` (track.yaml)
 
 ```yaml
-version: 1
-kind: http
-uri: https://secure-personas.example.com
-auth:
-  type: basic
-  username: ${env:PERSONAS_USER}
-  password: ${env:PERSONAS_PASS}
-tls:
-  skip_verify: false
-  ca_cert: /home/user/.sauron/ca.pem
-timeout: 30s
-last_synced_at: 2026-06-12T09:30:00Z
+apiVersion: sauron.raitonbl.com/v1
+kind: Skill                      # or Agent — identical spec shape
+metadata:
+  name: go-style
+  labels:
+    team: backend
+spec:
+  registry: acme
+  version: v1.4.0                # optional
+  digest: <content-identity>     # always present
+  path: skills/sauron-acme-go-style
+  provenance:
+    direct: true
+    personas: [backend-dev]
+  installedAt: 2026-06-15T10:00:00Z
+  updatedAt:   2026-06-15T10:00:00Z
 ```
 
-## personas.yaml
+- The unique key for any artifact is the triple `(kind, registry, name)`; the same
+  name may appear across registries and across kinds.
+- `spec.digest` is the content identity that `sync`/`upgrade` compare to detect
+  upstream change and local drift; it is always present.
+- `spec.version` is the optional human-meaningful label (derived for git,
+  declared-only for http/filesystem).
+- `spec.path` is the exact installed location, so removal and provider migration
+  are precise and independent of recomputing the naming scheme.
+- `spec.provenance` is the authoritative record of why the artifact is installed:
+  `direct` (installed explicitly) and `personas` (personas that bring it in). An
+  artifact is removed only when `direct` is false and `personas` is empty.
 
-The installed personas, each stored **with its full definition** so that
-[sync artifacts](../0006-sync-artifacts/spec.md) works without contacting the
-backend. Owned by [set personas](../0014-select-personas/spec.md).
-Schema: [personas.schema.json](schemas/personas.schema.json).
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `version` | integer | Yes | Schema version. |
-| `items` | array of Installed Persona | Yes | The installed personas; empty array when none. |
-
-Installed Persona entry:
-
-| Field | Type | Required | Constraints | Description |
-|---|---|---|---|---|
-| `name` | string | Yes | unique within `items` | Persona identity, as offered by the backend. |
-| `priority` | integer | Yes | non-negative; unique within `items`; assigned positionally by `set persona` argument order (`0` first). See the [priority model](../AUTHORING.md#priority-model). | Installed-persona ordering. |
-| `description` | string | No | — | Human-readable summary from the definition. |
-| `tags` | array of string | No | — | Free-form labels from the definition. |
-| `skills` | array of string | No | — | Skill artifacts the persona bundles. |
-| `agents` | array of string | No | — | Agent artifacts the persona bundles. |
-| `last_modified_at` | string | No | RFC 3339 timestamp | The backend's last-modified time for the definition when it was fetched. |
-| `last_synced_at` | string | No | RFC 3339 timestamp | When this definition was last refreshed into `personas.yaml`. |
+## `Persona` (track.yaml)
 
 ```yaml
-version: 1
-items:
-  - name: backend-developer
-    priority: 0
-    description: Backend service development persona.
-    tags: [backend, go]
-    skills:
-      - design-oas3
-      - code-review
-    agents:
-      - software-engineer
-    last_modified_at: 2026-06-11T18:00:00Z
-    last_synced_at: 2026-06-12T09:30:00Z
-  - name: qa-engineer
-    priority: 1
-    description: Test-authoring and quality persona.
-    tags: [qa]
-    skills:
-      - test-plan
-    agents: []
-    last_modified_at: 2026-06-10T12:00:00Z
-    last_synced_at: 2026-06-12T09:30:00Z
+apiVersion: sauron.raitonbl.com/v1
+kind: Persona
+metadata:
+  name: backend-dev
+spec:
+  registry: acme
+  version: 9f4d2a1               # optional
+  digest: <definition-identity>
+  members:
+    skills: [go-style, sql-review]
+    agents: [code-reviewer]
+  installedAt: 2026-06-15T10:00:00Z
+  updatedAt:   2026-06-15T10:00:00Z
 ```
 
-## track.yaml
+- `spec.members` is the snapshot of the last-resolved membership; `sync`/`upgrade`
+  diff the freshly-resolved definition against it. It is distinct from each
+  member's `provenance`, which records why that member is installed.
+- `spec.digest` is the content identity of the persona definition itself.
 
-The record of installed artifacts and their provenance. Created and maintained by
-[sync artifacts](../0006-sync-artifacts/spec.md).
-Schema: [track.schema.json](schemas/track.schema.json).
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `version` | integer | Yes | Schema version. |
-| `items` | array of Installed Artifact | Yes | Delivered artifacts; empty array when none. |
-
-Installed Artifact entry:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `type` | string | Yes | `skill` or `agent`. |
-| `name` | string | Yes | Artifact name, as installed. |
-| `provider` | string | Yes | Provider the artifact was delivered to (`claude` or `zencoder`). |
-| `path` | string | Yes | Where it was installed (the provider's location for this artifact). |
-| `registry` | string | Yes | Source registry name — the winning registry, resolved by pin then priority per [ADR-0001](../0006-sync-artifacts/architecture/ADR-0001-conflict-resolution-by-registry-priority.md). |
-| `persona` | string | No | Installed persona that brought the artifact into the desired set; the highest-precedence one when several do; absent when synced without personas. |
-| `pinned` | boolean | No | `true` when `registry` is a user pin set by [pin artifact](../0020-pin-artifact/spec.md) rather than the priority-resolved winner; absent or `false` otherwise. |
-
-An entry is identified by (`provider`, `type`, `name`): the same artifact
-delivered to two providers yields two entries.
+## `Provider` / `Schedule` (settings.yaml)
 
 ```yaml
-version: 1
-items:
-  - type: skill
-    name: code-review
-    provider: claude
-    path: /home/user/.claude/skills/code-review
-    registry: team-deploy
-    persona: backend-developer
-    pinned: true
+apiVersion: sauron.raitonbl.com/v1
+kind: Provider
+metadata:
+  name: claude                   # claude | zencoder
+---
+apiVersion: sauron.raitonbl.com/v1
+kind: Schedule
+metadata:
+  name: sync                     # sync | upgrade
+spec:
+  cron: "0 */6 * * *"
 ```
 
-## Live persona view
-
-Sauron does **not** persist a catalog. The set of *available* personas a user can
-browse or install is assembled at command time:
-
-- **Installed personas** come from [personas.yaml](#personasyaml) and are always
-  available, including offline.
-- **Backend personas** are fetched live from [backend.yaml](#backendyaml)'s
-  connection when the command runs. When the backend is unreachable, the live
-  fetch is skipped and only installed personas are shown.
-
-Consequently [list personas](../0005-list-personas/spec.md) and
-[describe persona](../0016-describe-persona/spec.md) degrade gracefully offline,
-and [sync personas](../0013-sync-personas/spec.md) refreshes the stored
-definitions of installed personas rather than maintaining a mirror.
+- There is exactly one `Provider` document; its identity is its `metadata.name`.
+- There is at most one `Schedule` document per operation (`sync`, `upgrade`);
+  `spec.cron` is the expression registered in the OS crontab.

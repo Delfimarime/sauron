@@ -1,23 +1,17 @@
-# Data Model: Configuration — List Registries (registries.yaml)
+# List Registries — configuration
 
-**Spec**: [List Registries](../spec.md)
-
-This feature reads `registries.yaml`'s `items` block — each entry's
-`name`, `kind`, `priority`, and `uri` — to render the listing; it never writes.
-The schema is owned by the
-[configuration data contract](../../contracts/configuration.md#registriesyaml);
-this document does not restate it.
+This feature **reads** `registries.yaml` and writes nothing. The document schema
+is owned by the [configuration data contract](../../contracts/configuration.md).
 
 ## Reads
 
-- `registries.yaml` `items`: `name`, `kind`, `priority`, `uri` — the
-  columns shown by the listing. `--search` matches case-insensitively against
-  `name` and `uri`; `--sort` orders by `name`, `priority`, or `kind`.
+- File: `registries.yaml` (a stream of `Registry` documents).
+- Fields surfaced as columns: `metadata.name`, `spec.transport`, `spec.uri`,
+  `spec.timeout`.
 
-## Owns
+## Field realization
 
-- Nothing.
-
-## Writes
-
-- Nothing. Listing is read-only.
+| Field | Requirement |
+|---|---|
+| `metadata.name` | FR-001, FR-002, FR-003 |
+| `spec.transport` | FR-002, FR-004 |

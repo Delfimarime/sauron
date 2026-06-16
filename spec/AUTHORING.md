@@ -2,10 +2,9 @@
 
 Normative rules for authoring and organizing specifications in this registry.
 Domain concepts live in [the spec README](README.md); the conventions every CLI
-command obeys are defined in [CLI conventions](#cli-conventions) below, and the
-compiled per-command reference lives in [contracts/cli.md](contracts/cli.md).
-When authoring specs in this repo, the `sauron-authoring-specs` skill loads and
-points here.
+command obeys — command grammar, shared flags, exit status, and output
+discipline — are the [CLI contract](contracts/cli.md). When authoring specs in
+this repo, the `sauron-authoring-specs` skill loads and points here.
 
 ## Spec types
 
@@ -13,8 +12,8 @@ Every spec declares one of two types:
 
 - **Feature** — user-observable behavior. Requirements are phrased around what
   the user can see: commands, inputs, outputs, exit codes, and observable
-  outcomes. A feature that owns a CLI command also owns a
-  `contracts/command-line.md`.
+  outcomes. A feature **owns one or more commands**; for each command it owns it
+  has a `contracts/<verb>-<noun>.md` contract file.
 - **Capability** — platform/technical behavior that enables one or more
   features (transports, validation mechanics, scheduling internals). A
   capability has **no CLI surface of its own** and lives nested under the
@@ -30,7 +29,7 @@ Every spec declares one of two types:
   cross-link declarations, requirement text, Decision Records, and Notes — is a
   relative markdown link to the provider file, resolved from the referencing
   file's own location. For example, a feature's `spec.md` declares
-  `Depends on: [sync](../0006-sync-artifacts/spec.md)`, and a
+  `Depends on: [install](../0006-install-artifacts/spec.md)`, and a
   `data/configuration.md` links the schema as
   `[configuration data contract](../../contracts/configuration.md)`. Bare ids or
   unlinked feature names are not allowed.
@@ -44,16 +43,20 @@ Every spec declares one of two types:
   ```
   spec/NNNN-<name>/
   ├── spec.md                      required
-  ├── contracts/command-line.md    required when the feature owns a command
+  ├── contracts/<verb>-<noun>.md   one per command the feature owns
   ├── data/configuration.md        required when the feature touches config
   ├── capabilities/<name>.md       optional, one file per capability
   └── architecture/ADR-NNNN-*.md   optional decision records
   ```
 
-- Global, cross-feature contracts live in `spec/contracts/` — the compiled
-  [CLI command reference](contracts/cli.md), the
+  A feature owning a command family (e.g. `list skills` / `list agents` /
+  `list personas`) has one contract file per command
+  (`contracts/list-skills.md`, …), each specifying that command's own output.
+
+- Global, cross-feature contracts live in `spec/contracts/` — the
+  [CLI contract](contracts/cli.md) (the command conventions), the
   [configuration data contract](contracts/configuration.md) (the schema of every
-  file Sauron persists), and the
+  document Sauron persists), and the
   [architecture contract](contracts/architecture.md).
 - Project-level ADRs — cross-cutting decisions owned by no single feature (e.g.
   an accepted dependency vulnerability) — live in
@@ -67,8 +70,8 @@ written:
 | Path | Present when | Holds | Content rules |
 |---|---|---|---|
 | `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
-| `contracts/command-line.md` | the feature owns a command | the command's synopsis, arguments, flags, output, and exit codes | [CLI conventions](#cli-conventions) (and the `sauron-authoring-cli-contracts` skill) |
-| `data/configuration.md` | the feature reads or writes config | which configuration file(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/configuration.md](contracts/configuration.md) and linked from here | [Glossary](#glossary) terms; link the [configuration data contract](contracts/configuration.md). The contract never links back to feature requirements (one-directional, no cycle) |
+| `contracts/<verb>-<noun>.md` | per command the feature owns | the command's synopsis, arguments, flags, output, and exit codes | [CLI contract](contracts/cli.md) (and the `sauron-authoring-cli-contracts` skill) |
+| `data/configuration.md` | the feature reads or writes config | which configuration document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/configuration.md](contracts/configuration.md) and linked from here | [Glossary](#glossary) terms; link the [configuration data contract](contracts/configuration.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
 
@@ -112,7 +115,7 @@ its feature. Files are named `architecture/ADR-NNNN-<kebab-slug>.md`, where
 `0001`) and never reused. Every ADR is linked from the spec's
 `## Decision Records` section. A **project-level ADR** — a cross-cutting decision
 owned by no single feature — instead lives at
-`spec/architecture/ADR-NNNN-<kebab-slug>.md`, numbered project-wide, and is not
+`spec/architecture/ADR-NNNN-<slug>.md`, numbered project-wide, and is not
 linked from any feature's `## Decision Records`.
 
 Structure, in this order:
@@ -146,32 +149,36 @@ One canonical term per concept; specs do not use synonyms for these:
 
 | Term | Meaning |
 |---|---|
-| artifact | A skill or an agent distributed by Sauron |
-| skill | An artifact under a registry's `.skills/` directory |
-| agent | An artifact under a registry's `.agents/` directory |
+| artifact | A unit Sauron distributes: a skill, an agent, or a persona |
+| skill | An artifact hosted under a registry's `.skills/` directory |
+| agent | An artifact hosted under a registry's `.agents/` directory |
+| persona | A first-class artifact that references a set of skills and agents within the same registry; installed, listed, and described like any artifact |
+| membership | The set of skills and agents a persona references; resolved at install and re-resolved by `sync`/`upgrade` |
 | registry | A registered source of artifacts |
-| kind | A registry's or backend's type: `http`, `filesystem`, or `git`; it selects how the source is validated and how artifacts are fetched |
-| persona | A named set of artifacts shared by a group |
-| backend | The singleton source that owns persona definitions; the persona analog of a `registry` (one per instance) |
-| catalog | The live view of *available* personas, assembled at command time from the installed personas plus a live fetch from the backend; it is never persisted, and the backend portion is omitted when the backend is unreachable |
-| installed persona | A persona activated locally via `set persona`, stored with its definition in `personas.yaml`; it participates in artifact sync and carries a priority |
-| available persona | A persona the backend offers live but that is not installed; it appears in the catalog yet has no entry in `personas.yaml` |
-| provider | The destination environment where artifacts are installed (e.g. `claude`, `zencoder`); a single global setting recorded in `settings` |
-| priority | Integer precedence, always defined and unique within its kind; lower value wins (`0` is highest). See the [priority model](#priority-model) |
-| pin | A user-declared binding of an artifact to a specific registry that overrides priority-based conflict resolution; recorded as `pinned` on the artifact's `track file` entry |
-| sync | Either reconcile operation: `sync artifacts` reconciles the provider with the desired artifact set, while `sync personas` refreshes the installed personas' definitions from the backend |
-| plan | The printed list of pending additions/removals (`+`/`-` lines) |
-| track file | `track.yaml`, recording installed artifacts and provenance |
-| provenance | The origin recorded for each installed artifact in the `track file`: its source registry, the installed persona that brought it in (when any), and the provider |
-| configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `backend.yaml`, `personas.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
-| settings | `settings.yaml`, the global settings file: the active `provider` and the sync `schedules` |
+| transport | A registry's type — `git`, `http`, or `filesystem` — selecting how the source is reached, validated, and fetched from; persisted as `spec.transport` and selected at the CLI by `--kind` |
+| kind | In a manifest, the document type (`Registry`, `Skill`, `Agent`, `Persona`, `Provider`, `Schedule`). At the CLI, the `--kind` flag selects a registry's `transport` |
+| catalogue | The live, paginated view of what a registry offers, fetched fresh at command time; it is never persisted and has no offline form |
+| provider | The destination environment where artifacts are installed (`claude`, `zencoder`); a single global setting recorded as the `Provider` document in `settings` |
+| namespacing | The installed-target naming `sauron-<registry>-<name>`, which lets two registries offer the same artifact name without conflict; the `sauron-` prefix marks Sauron ownership |
+| install | Fetching named artifacts from a registry and placing them under the provider; installing a persona installs its members |
+| uninstall | Removing named installed artifacts; uninstalling a persona removes the members it brought in |
+| sync | The full reconcile of the installed set against its sources: refresh, drift repair, removal of what vanished upstream, and persona membership re-resolution (additions and removals) |
+| upgrade | The non-destructive refresh of the installed set: refresh changed artifacts and add newly-added persona members; never removes |
+| plan | The printed list of pending changes — `+` additions, `~` updates, `-` removals |
+| digest | The content identity recorded per artifact, used to detect change and local drift; always present |
+| version | An optional, human-meaningful artifact label; derivable for `git` (the last commit touching the artifact directory), declared-only otherwise |
+| provenance | The origin recorded for each installed artifact in the `track file`: whether it was installed directly and which personas brought it in |
+| track file | `track.yaml`, the multi-document stream of `Skill`/`Agent`/`Persona` manifests recording installed artifacts and provenance |
+| configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
+| settings | `settings.yaml`, holding the `Provider` document and the `Schedule` documents |
+| manifest | A persisted document carrying `apiVersion` (`sauron.raitonbl.com/v1`) and `kind`, with `metadata` and `spec`, in the spirit of a Kubernetes object |
 
 ## Canonical boilerplate
 
 Shared semantics use these sentences verbatim (entity substituted):
 
-- Idempotent deletion: `When a user deletes a <entity> that does not exist,
-  Sauron shall exit successfully and report that nothing was deleted.`
+- Idempotent deletion: `When a user uninstalls a <entity> that is not installed,
+  Sauron shall exit successfully and report that nothing was removed.`
 - Dry run: `Where --dry-run is provided, Sauron shall print the plan without
   changing the environment or the track file.`
 - Validation transactionality: `While a <entity> is being validated, Sauron
@@ -183,96 +190,8 @@ Shared semantics use these sentences verbatim (entity substituted):
 
 ## CLI conventions
 
-Command grammar, shared flags, exit-status semantics, and output discipline are
-normative here. Every command's `contracts/command-line.md` conforms to them,
-and the compiled [CLI command reference](contracts/cli.md) summarizes each
-command. Per-feature contracts may refine which conditions map to which exit
-code; they may not redefine the meanings.
-
-### Command grammar
-
-```
-sauron <verb> [<noun> [<noun>]] [flags] <args...>
-```
-
-- Verb–noun hierarchy: `add registry`, `list personas`,
-  `set priority registry`, `unset backend`, `describe persona`,
-  `schedule sync artifacts`, `pin skill`. `unset` is the inverse of `set` (clears
-  a setting or selection, as opposed to `delete`, which destroys an owned
-  resource); `unschedule` is the inverse of `schedule` (removes a scheduled job);
-  `unpin` is the inverse of `pin` (removes an artifact's registry binding);
-  `describe` shows a single resource's detail.
-- Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
-  otherwise. Repeatable flags are marked `...` in synopses.
-- Positional arguments follow flags in synopses and are written `<name>`.
-
-### Shared flags
-
-These flags mean the same thing in every command that accepts them. A feature
-contract may narrow a shared flag (e.g. restrict `--sort` values) but may not
-contradict it.
-
-| Flag | Meaning |
-|---|---|
-| `--dry-run` | Print the plan without changing the environment or the track file |
-| `--priority <n>` | Optional integer precedence (lower value wins), unique within its kind; the first resource is `0`, an omitted value appends at the end (`max + 1`). See the [priority model](#priority-model) |
-| `--kind <kind>` | Registry kind: `http` (default), `filesystem`, or `git` |
-| `--search <term>` | Case-insensitive substring filter |
-| `--sort <field>` | Sort field for list output |
-| `--order <asc\|desc>` | Sort direction, default `asc` |
-| `--persona <name>` | Scope the operation to one persona's artifacts |
-| `--fields <list>` | Comma-separated columns to display, in order, for `list` and `describe`; the identity field is always present and first. Each contract defines its valid field set |
-| `--force` | Re-pull authoritatively, reconciling away local entries no longer present upstream |
-| `--reconcile` | Apply the change immediately by reconciling the affected artifacts (a scoped sync), instead of only recording it |
-| `--timeout <duration>` | Bound on network operations, default `30s` |
-
-### Exit status
-
-| Code | Meaning |
-|---|---|
-| `0` | Success — including idempotent no-ops: deleting an absent resource, an empty list, an already-up-to-date sync, an already-set value, and any `--dry-run` run |
-| `2` | Usage error — invalid or missing arguments/flags; nothing was executed |
-| `1` | Runtime error — validation failure, unreadable configuration or track file, unreachable external resource, or a failed artifact operation |
-
-Feature contracts may only refine *which conditions* map to each code; they
-never redefine these meanings.
-
-### Output discipline
-
-- Results (confirmations, tables, plans) go to stdout.
-- A failing command writes exactly one human-readable message to stderr and
-  produces no partial output.
-- Commands that apply changes in bulk (`sync artifacts`, `sync personas`, `prune artifacts`, `delete artifacts`, `set provider`)
-  print a shared plan/report format: artifacts grouped under `skills:` and
-  `agents:` headings, one artifact per line, prefixed `+` for additions/updates
-  and `-` for removals, followed by a summary count line when changes are
-  applied. Per-artifact failures are reported without stopping the run.
-
-## Priority model
-
-Registries and personas share one priority model; they differ only in *when and
-how* a priority is assigned:
-
-- A **registry** takes its priority at add time, via an optional `--priority` on
-  [add registry](0001-add-registry/spec.md).
-- A **persona** takes its priority at install time, from its position in
-  [set personas](0014-select-personas/spec.md)' `set persona` argument order
-  (the first listed persona is highest precedence).
-
-Both then obey the same rules:
-
-- **First resource of its kind** is priority `0` — for a registry, an omitted
-  `--priority` defaults to `0` and an explicit `--priority` is accepted only when
-  it is `0`; for personas, the first persona in the `set persona` list.
-- **Each subsequent resource** appends at the end of the priority-ordered list —
-  one greater than the current highest priority (`max + 1`) — which never
-  collides. For a registry, an explicit `--priority <n>` overrides this and is
-  rejected when another registry already holds it.
-- Priority is **always defined** and **unique** within its kind. Lower value
-  wins; `0` is the highest precedence.
-- Priorities change afterward only through
-  [set registry priority](0008-set-registry-priority/spec.md) and
-  [set persona priority](0007-set-persona-priority/spec.md), each **blocked while
-  a single resource of that kind exists** — that lone resource keeps `0`.
-  Re-running `set persona` redeclares the installed set and resets positional
-  priorities.
+The command conventions — command grammar, shared flags, exit-status semantics,
+and output discipline — are normative in the [CLI contract](contracts/cli.md).
+Every command's `contracts/<verb>-<noun>.md` conforms to them; a feature contract
+may refine which conditions map to which exit code but may not redefine the
+meanings.

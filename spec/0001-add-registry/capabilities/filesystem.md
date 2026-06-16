@@ -1,43 +1,39 @@
-# Filesystem Registry Support
+# Filesystem Transport
 
 **Type:** capability
 
 **Enables:** [add registry](../spec.md)
 
+**Enables:** [list catalogue](../../0005-list-catalogue/spec.md)
+
+**Enables:** [install](../../0006-install-artifacts/spec.md)
+
 ## Overview
 
-Registries of kind `filesystem` are local directories holding artifacts
-under `.skills/` and `.agents/`. This capability defines the
-filesystem-specific behavior of [add registry](../spec.md): directory
-existence and accessibility checks, artifact-presence validation, and stable
-path resolution so re-registering the same directory yields the same recorded
-`uri`. Common registration behavior (name, priority, persistence,
-transactionality) is owned by the [feature spec](../spec.md).
+The filesystem transport reaches a registry rooted at a local directory. It
+validates the source at add time and reads artifact content for browsing,
+installing, and reconciling, organized under `.skills/` and `.agents/`.
 
 ## Requirements
 
 ### Ubiquitous
 
-- **FR-001**: Sauron shall provide the ability to register a filesystem
-  directory as a registry source of artifacts.
+- FR-001: Sauron shall reach filesystem registries at the URI's path, treating
+  each directory under `.skills/` or `.agents/` as one skill or agent.
+- FR-002: Sauron shall compute an artifact's `digest` from a hash of its directory
+  content.
 
 ### Event-driven
 
-- **FR-002**: When a user submits a `uri` (a directory path), Sauron shall
-  verify that the directory exists and is accessible before registering it.
-- **FR-003**: When a user submits a `uri` (a directory path), Sauron shall
-  verify that the directory contains at least one artifact under `.skills/` or
-  `.agents/` before registering it.
-- **FR-004**: When a user submits a `uri` (a directory path), Sauron shall
-  resolve it to an absolute, symlink-resolved path and record that resolved
-  path as the `uri`, so that registering the same directory again yields the
-  same recorded `uri`.
+- FR-003: When validating a filesystem registry, Sauron shall confirm the path
+  exists, is readable, and hosts at least one skill or agent.
 
 ### Unwanted behavior
 
-- **FR-005**: If the directory does not exist or cannot be accessed, then
-  Sauron shall reject the request, leave the configuration unchanged, and
-  report that the registry cannot be accessed.
-- **FR-006**: If the directory contains neither a populated `.skills/` nor a
-  populated `.agents/`, then Sauron shall reject the request and report that
-  no skills or agents were found.
+- FR-004: If the path does not exist or is not readable, then Sauron shall fail
+  with a runtime error.
+
+### Notes
+
+A filesystem registry exposes no version history, so a filesystem artifact's
+optional `version` is recorded only when the artifact declares one.

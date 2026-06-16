@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sauron.raitonbl.com/schemas/v1/Persona.schema.json",
+  "title": "Persona",
+  "description": "An installed persona and its last-resolved membership, recorded in track.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "sauron.raitonbl.com/v1" },
+    "kind": { "const": "Persona" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "digest", "members", "installedAt", "updatedAt"],
+      "properties": {
+        "registry": {
+          "type": "string",
+          "description": "Name of the source registry; with kind and name, the unique key."
+        },
+        "version": {
+          "type": "string",
+          "description": "Optional human-meaningful version of the persona definition."
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content identity of the persona definition; used to detect change."
+        },
+        "members": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Snapshot of last-resolved membership, for diffing on sync/upgrade.",
+          "properties": {
+            "skills": { "type": "array", "items": { "type": "string" } },
+            "agents": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "installedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
