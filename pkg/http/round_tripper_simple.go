@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// errInvalidTrustStore reports a truststore file whose contents are not valid PEM.
+var errInvalidTrustStore = errors.New("invalid PEM contents in truststore")
+
+// WithSimpleRoundTripper installs an *http.Transport on the client, applying each
+// option to it.
 func WithSimpleRoundTripper(opts ...func(*http.Transport) error) func(*http.Client) error {
 	return func(c *http.Client) error {
 		transport := &http.Transport{
@@ -27,6 +32,7 @@ func WithSimpleRoundTripper(opts ...func(*http.Transport) error) func(*http.Clie
 	}
 }
 
+// NewSimpleRoundTripper builds an *http.Transport configured by the given options.
 func NewSimpleRoundTripper(
 	opts ...func(*http.Transport),
 ) (http.RoundTripper, error) {
@@ -40,6 +46,8 @@ func NewSimpleRoundTripper(
 	return transport, nil
 }
 
+// WithTLS configures the transport's TLS: optional trust roots loaded from
+// trustStoreURI, the expected server name, and an opt-in skip-verify.
 func WithTLS(serverName, trustStoreURI string, skipVerify bool) (func(*http.Transport), error) {
 	var roots *x509.CertPool
 	sys, err := x509.SystemCertPool()
@@ -49,7 +57,7 @@ func WithTLS(serverName, trustStoreURI string, skipVerify bool) (func(*http.Tran
 		roots = x509.NewCertPool()
 	}
 	if trustStoreURI != "" {
-		pem, prob := os.ReadFile(trustStoreURI)
+		pem, prob := os.ReadFile(trustStoreURI) //nolint:gosec // trustStoreURI is an operator-provided configuration path, not attacker-controlled input
 		if prob != nil {
 			if pe, ok := errors.AsType[*fs.PathError](prob); ok {
 				return nil, fmt.Errorf("cannot read truststore %q: %w", trustStoreURI, pe)
@@ -57,19 +65,20 @@ func WithTLS(serverName, trustStoreURI string, skipVerify bool) (func(*http.Tran
 			return nil, prob
 		}
 		if ok := roots.AppendCertsFromPEM(pem); !ok {
-			return nil, fmt.Errorf("invalid PEM contents in truststore %q", trustStoreURI)
+			return nil, fmt.Errorf("%w: %q", errInvalidTrustStore, trustStoreURI)
 		}
 	}
 	return func(t *http.Transport) {
 		t.TLSClientConfig = &tls.Config{
 			RootCAs:            roots,
-			InsecureSkipVerify: skipVerify,
+			InsecureSkipVerify: skipVerify, //nolint:gosec // skipVerify is an explicit operator opt-in for non-production trust
 			ServerName:         serverName,
 			MinVersion:         tls.VersionTLS12,
 		}
 	}, nil
 }
 
+// WithConnectionPool configures the transport's idle-connection limits and idle timeout.
 func WithConnectionPool(
 	maximumNumberOfIdleConnections int,
 	maximumNumberOfConnectionsPerHost int,
@@ -88,6 +97,8 @@ func WithConnectionPool(
 	}, nil
 }
 
+// WithTimeouts configures the transport's TLS-handshake, response-header, and
+// expect-continue timeouts.
 func WithTimeouts(
 	handshakeTimeout time.Duration,
 	responseHeaderTimeout time.Duration,

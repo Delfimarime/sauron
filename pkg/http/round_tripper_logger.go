@@ -8,11 +8,14 @@ import (
 	"github.com/delfimarime/sauron/pkg/telemetry"
 )
 
+// LoggerRoundTripper is an http.RoundTripper that debug-logs each request and
+// the response (or error) it produces.
 type LoggerRoundTripper struct {
 	logger *zap.Logger
 	next   http.RoundTripper
 }
 
+// NewLoggerRoundTripper wraps next with one that debug-logs traffic through logger.
 func NewLoggerRoundTripper(
 	logger *zap.Logger,
 	next http.RoundTripper,
@@ -22,6 +25,8 @@ func NewLoggerRoundTripper(
 	}
 }
 
+// RoundTrip debug-logs the outgoing request and the response (or error) around
+// the next round-tripper.
 func (rt *LoggerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	path := "/"
 	host := ""
@@ -72,6 +77,7 @@ func (rt *LoggerRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	return resp, err
 }
 
+// WithLoggerRoundTripper installs a request/response logging round-tripper on the client.
 func WithLoggerRoundTripper(logger *zap.Logger) func(*http.Client) error {
 	return func(c *http.Client) error {
 		c.Transport = NewLoggerRoundTripper(logger, c.Transport)

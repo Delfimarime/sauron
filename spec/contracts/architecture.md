@@ -365,9 +365,11 @@ addition:
   extracted unless it is reused by more than three callers, to avoid
   fragmentation.
 - **Doc comments are minimal.** A single concise doc line on each exported
-  symbol (and one package comment per package); no comment on a trivial
-  unexported helper. Comments clarify what code cannot — they never paraphrase
-  this contract or narrate the obvious.
+  symbol; no comment on a trivial unexported helper. Comments clarify what code
+  cannot — they never paraphrase this contract or narrate the obvious.
+- **Package comments live in `doc.go`.** Every package carries exactly one
+  package comment, placed in a dedicated `doc.go` that holds only that comment
+  and the `package` clause — never on an arbitrary source file.
 
 ## Telemetry & logging
 

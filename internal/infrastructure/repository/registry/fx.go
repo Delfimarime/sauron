@@ -1,4 +1,5 @@
-// Package registry wires the registry adapters implementing the pkg/registry port.
+// Package registry wires the registry adapters implementing the extension.Registry
+// port (pkg/sauron/extension).
 package registry
 
 import "go.uber.org/fx"

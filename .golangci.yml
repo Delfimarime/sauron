@@ -76,6 +76,9 @@ linters:
       - path: internal/cmd/helper\.go
         linters:
           - forbidigo
+      # Test files carry relaxed style enforcement: production code is the strict
+      # surface; test idioms (closures, long table-driven cases, fixture reads)
+      # are exempt. Correctness linters stay on.
       - path: _test\.go
         linters:
           - forbidigo
@@ -83,4 +86,5 @@ linters:
           - dupl
           - err113
           - gocognit
+          - gocritic
           - gosec

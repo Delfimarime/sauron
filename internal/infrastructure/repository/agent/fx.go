@@ -1,4 +1,5 @@
-// Package agent wires the provider adapters implementing the pkg/provider port.
+// Package agent wires the provider adapters implementing the extension.Provider
+// port (pkg/sauron/extension).
 package agent
 
 import "go.uber.org/fx"
