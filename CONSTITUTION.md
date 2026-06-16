@@ -134,19 +134,20 @@ never `internal/`. Its layout is fixed by the
 
 ### Article 3 — Ports and adapters
 
-Public behavioral interfaces live under `pkg/` (`pkg/registry`, `pkg/provider`)
-and are implemented by adapters under `internal/infrastructure/`
-— the driven-adapter layer reaching external systems
-(`internal/infrastructure/registry/{fs,git,http}`,
-`internal/infrastructure/provider/{claude,zencoder}`). Each adapter family exposes
-its wiring through an uberfx `NewFxOptions() fx.Option`. The interfaces are a
-public surface: external code may implement new registries or providers
-against them. `internal/infrastructure/` also houses internal capabilities that
-are not public extension points — `internal/infrastructure/storage`, which owns
-all manipulation of the `~/.sauron/` state — kept wholly inside their package
-with no `pkg/` port. The transversal framework modules (`internal/config`,
+Public behavioral interfaces (ports) live under `pkg/sauron/extension`
+(`Registry`, `Provider`), with shared data types in `pkg/sauron/types`, and are
+implemented by adapters under `internal/infrastructure/repository/`
+— the driven-adapter layer reaching external systems, grouped under one
+`repository` module: `registry/{fs,git,http}` and `agent/{claude,zencoder}`. Each
+adapter family exposes its wiring through an uberfx `NewFxOptions() fx.Option`. The
+ports are a public surface: external code may implement new registries or providers
+against them. The `repository` module also houses internal capabilities that
+are not public extension points — `internal/infrastructure/repository/storage`,
+which owns all manipulation of the `~/.sauron/` state — kept wholly inside their
+package with no `pkg/` port. The transversal framework modules (`internal/config`,
 `internal/telemetry`, `internal/cmd`) are not adapters and stay at the
-`internal/` root.
+`internal/` root. Exact paths are fixed by the
+[architecture contract](spec/contracts/architecture.md).
 
 ### Article 4 — Use Case orchestration
 

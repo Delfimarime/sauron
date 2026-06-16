@@ -87,8 +87,8 @@ marks ownership: Sauron only ever touches artifacts it installed.
   │  name · uri · kind   │         │  claude | zencoder   │
   │   (transport) · …    │         │  one global setting  │
   └──────────┬───────────┘         └──────────┬───────────┘
-             │ hosts                           │
-             ▼                                 │
+             │ hosts                          │
+             ▼                                │
    ┌──────────────────────────────────┐       │
    │             ARTIFACT             │       │
    │  skill (.skills/) ·              │       │

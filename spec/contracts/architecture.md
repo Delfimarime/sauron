@@ -31,28 +31,32 @@ internal/
     fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
-    constants.go           shared ECS log/trace field keys
+    logger.go              logger construction; references pkg/telemetry for shared ECS keys
   infrastructure/
-    registry/
-      fx.go                exposes NewFxOptions() fx.Option
-      fs/                  filesystem registry adapter
-      git/                 git registry adapter
-      http/                HTTP registry adapter
-    provider/
-      fx.go                exposes NewFxOptions() fx.Option
-      claude/              Claude provider adapter
-      zencoder/            Zencoder provider adapter
-    storage/
-      fx.go                NewFxOptions() fx.Option; provides the afero.Fs and stores
-      <store>.go           per-type store over the ~/.sauron state files
+    repository/            umbrella module; its fx.go aggregates the adapters + storage below
+      fx.go                NewFxOptions() fx.Option; composes storage + registry + agent
+      registry/            extension.Registry adapters
+        fx.go              exposes NewFxOptions() fx.Option
+        fs/                filesystem registry adapter
+        git/               git registry adapter
+        http/              HTTP registry adapter
+      agent/               extension.Provider adapters (the destination agent environments)
+        fx.go              exposes NewFxOptions() fx.Option
+        claude/            Claude provider adapter
+        zencoder/          Zencoder provider adapter
+      storage/             manifest state over ~/.sauron (internal capability)
+        fx.go              NewFxOptions() fx.Option; provides the afero.Fs and stores
+        <store>.go         per-type store over the ~/.sauron state files
   usecase/
     fx.go                  NewFxOptions() fx.Option; provides use cases and actions
     usecase_<name>.go      a command's UseCase entrypoint
     action_<name>.go       a reusable Action a use case composes
 pkg/
-  registry/              public interface implemented by internal/infrastructure/registry/<kind>
-  provider/              public interface implemented by internal/infrastructure/provider/<kind>
-  sauron/                shared domain & manifest types (Skill, Agent, Persona, Registry, Provider, Schedule, provenance)
+  http/                  public HTTP client: functional-options New() + composable round trippers (basic-auth, zap logger)
+  telemetry/             shared ECS field-key vocabulary, referenced by public packages and internal/telemetry
+  sauron/
+    extension/           public ports (SPI): Registry, Provider — implemented under internal/infrastructure/repository
+    types/               public domain & manifest types (Skill, Agent, Persona, Registry, Provider, Schedule, provenance)
 test/
   e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
     testdata/            Gherkin .feature files
@@ -61,27 +65,32 @@ test/
 dist/                    build output (git-ignored): the per-OS sauron binaries (sauron-<os>-<arch>) and coverage report
 ```
 
-The behavioral interfaces under `pkg/` are a public surface: external code may
-implement new registries or providers against them. Their adapters
-live under `internal/infrastructure/` — the driven-adapter layer reaching
-external systems — and are never imported across adapter boundaries: callers
-depend on the `pkg/` interfaces, not on a concrete adapter. Alongside the ports,
-`pkg/sauron` holds the shared **domain and manifest types** — data, not a port —
-that the CLI emits, the `test/e2e` harness decodes, and the ports, `storage`, and
-use cases all speak. `internal/infrastructure/`
-also houses **internal capabilities** that are not public extension points —
-[`storage`](#state-storage), which manipulates the `~/.sauron/` state — whose
-manipulation logic stays wholly within its package with no `pkg/` port. The transversal
+The public surface lives under `pkg/`. The **ports** are in `pkg/sauron/extension`
+(`Registry`, `Provider`) — external code may implement new registries or providers
+against them — and the shared **domain and manifest types** are in
+`pkg/sauron/types` (data, not ports), spoken by the ports, `storage`, the use
+cases, and the CLI output the `test/e2e` harness decodes. `pkg/` also carries two
+public toolkits: `pkg/telemetry` (the ECS field-key vocabulary, see
+[Telemetry & logging](#telemetry--logging)) and `pkg/http` (a composable HTTP
+client). The port adapters live under `internal/infrastructure/repository/` — the
+driven-adapter layer reaching external systems, grouped under a single
+`repository` module whose `fx.go` aggregates them: `registry/{fs,git,http}`
+implements `extension.Registry`, and `agent/{claude,zencoder}` implements
+`extension.Provider` (a provider destination is modeled as an agent environment).
+Adapters are never imported across boundaries — callers depend on the
+`pkg/sauron/extension` ports, not a concrete adapter. The same `repository` module
+also houses the **internal capability** [`storage`](#state-storage), which
+manipulates the `~/.sauron/` state and has no `pkg/` port. The transversal
 framework modules (`internal/config`, `internal/telemetry`, `internal/cmd`) are
 not adapters and stay at the `internal/` root.
 
 ## Dependency wiring (uberfx)
 
 - Module packages own an `fx.go` exposing `NewFxOptions() fx.Option`
-  (`internal/config/fx.go`, `internal/telemetry/fx.go`,
-  `internal/infrastructure/registry/fx.go`,
-  `internal/infrastructure/provider/fx.go`,
-  `internal/infrastructure/storage/fx.go`). An `fx.go` holds only `NewFxOptions`
+  (`internal/config/fx.go`, `internal/telemetry/fx.go`, and
+  `internal/infrastructure/repository/fx.go`, which aggregates its
+  `registry/`, `agent/`, and `storage/` sub-modules — each of which owns its own
+  `fx.go`). An `fx.go` holds only `NewFxOptions`
   and its supporting (unexported) provider helpers — it carries no business
   interfaces, structs, or construction logic; those live in sibling files
   (`api.go`, `configuration.go`, `logger.go`, `<store>.go`). Configuration is
@@ -364,10 +373,14 @@ addition:
 
 Logging is structured: `go.uber.org/zap` encoded for Elastic Common Schema via
 `go.elastic.co/ecszap`, conforming to the
-[ECS field reference](https://www.elastic.co/docs/reference/ecs). Shared field
-keys are defined once as constants in `internal/telemetry/constants.go` and
-referenced from there — never written as scattered string literals. The
-`internal/telemetry` package owns logger construction and its fx wiring.
+[ECS field reference](https://www.elastic.co/docs/reference/ecs). Shared ECS field
+keys are defined once as constants in **`pkg/telemetry`** — the public home — so
+public packages (e.g. `pkg/http`) and `internal/telemetry` reference the same
+vocabulary without a public→internal dependency, and are never written as
+scattered string literals. A key lives in exactly one place: keys emitted by
+public packages live in `pkg/telemetry`; any internal-only key stays in
+`internal/telemetry`, which references `pkg/telemetry` for the shared set and never
+redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 
 ## Testing
 

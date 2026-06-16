@@ -87,7 +87,14 @@ func TestNewAppLifecycle(t *testing.T) {
 func TestProvidePool(t *testing.T) {
 	// Arrange.
 	var pool pond.Pool
-	app := fx.New(fx.Provide(newPondPool), fx.Populate(&pool))
+	app := fx.New(
+		fx.Provide(
+			func() context.Context {
+				return context.Background()
+			},
+		),
+		fx.Provide(newPondPool), fx.Populate(&pool),
+	)
 	require.NoError(t, app.Err())
 	require.NotNil(t, pool)
 

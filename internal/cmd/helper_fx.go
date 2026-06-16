@@ -7,8 +7,10 @@ import (
 	"go.uber.org/fx"
 )
 
-func newPondPool(lc fx.Lifecycle) pond.Pool {
-	pool := pond.NewPool(0)
+func newPondPool(ctx context.Context, lc fx.Lifecycle) pond.Pool {
+	pool := pond.NewPool(0,
+		pond.WithContext(ctx),
+	)
 	lc.Append(fx.Hook{
 		OnStop: func(context.Context) error {
 			pool.StopAndWait()

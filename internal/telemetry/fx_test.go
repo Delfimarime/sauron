@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+
+	pkgtelemetry "github.com/delfimarime/sauron/pkg/telemetry"
 )
 
 // TestNewLogger verifies the constructor returns a usable ECS-encoded logger.
@@ -16,7 +18,7 @@ func TestNewLogger(t *testing.T) {
 
 	// Assert.
 	require.NotNil(t, log)
-	assert.NotPanics(t, func() { log.Info("smoke", zap.String(FieldEventAction, "test")) })
+	assert.NotPanics(t, func() { log.Info("smoke", zap.String(pkgtelemetry.FieldEventAction, "test")) })
 }
 
 // TestNewFxOptions verifies the *zap.Logger is provided into the container.
