@@ -315,11 +315,16 @@ directly.
   `internal/infrastructure/storage` and are consumed by use cases.
 - **Files are multi-document manifest streams.** Each file holds Kubernetes-style
   documents (`apiVersion: sauron.raitonbl.com/v1`, `kind`, `metadata`, `spec`);
-  storage decodes and encodes the stream and validates every document against its
-  per-kind JSON Schema (under `spec/contracts/schemas/`) with
-  `github.com/google/jsonschema-go`. Writes are atomic (write-temp + rename) and
-  serialized by a lockfile under the home, so a scheduled run and a manual command
-  never corrupt a file.
+  storage decodes and encodes the stream and validates every document **it reads**
+  against its per-kind JSON Schema (under `spec/contracts/schemas/`) with
+  `github.com/google/jsonschema-go`. Validation guards externally-modifiable
+  input: the home files are hand-editable, so every document is validated on load
+  before any action uses it, and an invalid document is a runtime error. Documents
+  the app itself authors are written **without** re-validation — they are
+  constructed from typed values, so schema validation is a concern for input, not
+  for app output. Writes are atomic (write-temp + rename) and serialized by a
+  lockfile under the home, so a scheduled run and a manual command never corrupt a
+  file.
 - **The `afero.Fs` is injected by uberfx**, not carried on the `Request`:
   `storage`'s `fx.go` provides the filesystem (`afero.NewOsFs()` in production,
   an `afero.NewMemMapFs()` override in tests) into the container, and the stores
