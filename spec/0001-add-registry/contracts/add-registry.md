@@ -1,7 +1,7 @@
 # `add registry` — command line
 
 ```
-sauron add registry [--kind git|http|filesystem] [--timeout <duration>]
+sauron add registry [--kind git|http|filesystem] [--ref <ref>] [--timeout <duration>]
                      [--username <ref>] [--password <ref>] [--skip-tls-verify]
                      [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
                      [--ssh-key <path>]
@@ -30,6 +30,7 @@ Register an artifact source of any transport.
 | `--client-cert <path>` | Client certificate path (http/git) |
 | `--client-key <path>` | Client key path (http/git) |
 | `--ssh-key <path>` | SSH private key path (git over SSH) |
+| `--ref <ref>` | Git ref (branch, tag, or commit) to resolve artifacts from; persisted as `spec.ref`; git only |
 
 Auth and TLS flags are accepted only for the transports that use them; the
 applicable set per transport is fixed by the

@@ -58,6 +58,9 @@ this feature is realized by.
   document.
 - FR-012: Where `--timeout` is provided, Sauron shall bound the validation network
   operation by it (default `30s`).
+- FR-013: Where `--ref` is provided for a git registry, Sauron shall apply it when
+  validating and persist it on the `Registry` document as `spec.ref`; when `--ref`
+  is absent, the registry resolves from the repository's default branch.
 
 ## Key Entities
 

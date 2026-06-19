@@ -82,6 +82,9 @@ meaning layered on top.
   is no rename; a name change is a delete plus a re-add.
 - `spec.transport` is the registry's transport; at the CLI it is selected by
   `--kind` (the `--kind` → `spec.transport` mapping is intentional).
+- `spec.ref` is the optional git ref (branch, tag, or commit) the registry is
+  pinned to; it applies to the `git` transport only and, when absent, resolution
+  uses the repository's default branch.
 - `spec.auth`, `spec.tls`, and `spec.sshKey` apply per transport; secret-bearing
   fields carry environment references only (see **No secrets at rest**).
 

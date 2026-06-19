@@ -13,9 +13,9 @@
 Every installed artifact carries a content `digest` and an optional, human-readable
 `version`. The `digest` is the always-present identity that reconcile operations
 compare to detect change and local drift; the `version` is a label whose
-availability depends on the registry transport. There is no version pinning:
-install takes what the registry currently offers, and sync/upgrade move to the
-source's latest.
+availability depends on the registry transport. There is no artifact-level
+version pinning: install takes what the registry currently offers, and
+sync/upgrade move to the source's latest.
 
 ## Requirements
 
@@ -38,5 +38,7 @@ source's latest.
 
 ## Notes
 
-The schema reserves room for a future explicit pin (an `install --ref` and a
-`spec.ref`) without a breaking change; v1 implements no pinning.
+`version` is metadata, not a pin: there is no artifact-level version pinning, and
+none is reserved (YAGNI). A `git` registry's content — and therefore each
+artifact's derived `version` and `digest` — is resolved at the registry's
+[`spec.ref`](../../0001-add-registry/capabilities/git.md) when one is set.

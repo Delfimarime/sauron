@@ -158,6 +158,7 @@ One canonical term per concept; specs do not use synonyms for these:
 | registry | A registered source of artifacts |
 | transport | A registry's type — `git`, `http`, or `filesystem` — selecting how the source is reached, validated, and fetched from; persisted as `spec.transport` and selected at the CLI by `--kind` |
 | kind | In a manifest, the document type (`Registry`, `Skill`, `Agent`, `Persona`, `Provider`, `Schedule`). At the CLI, the `--kind` flag selects a registry's `transport` |
+| ref | A git revision — a branch, tag, or commit — a `git`-transport registry is pinned to; persisted as `spec.ref` and selected at the CLI by `--ref`; when absent, the repository's default branch is used |
 | catalogue | The live, paginated view of what a registry offers, fetched fresh at command time; it is never persisted and has no offline form |
 | provider | The destination environment where artifacts are installed (`claude`, `zencoder`); a single global setting recorded as the `Provider` document in `settings` |
 | namespacing | The installed-target naming `sauron-<registry>-<name>`, which lets two registries offer the same artifact name without conflict; the `sauron-` prefix marks Sauron ownership |

@@ -20,6 +20,7 @@ read/write semantics and the field→requirement realization are stated here.
 | `spec.auth.username` / `spec.auth.password` | FR-003, FR-011 |
 | `spec.tls.*`, `spec.sshKey` | FR-011 |
 | `spec.timeout` | FR-012 |
+| `spec.ref` | FR-013 |
 
 A registry of an existing `metadata.name` is rejected (FR-007); the existing
 document is left unchanged until validation succeeds (FR-006).
