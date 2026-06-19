@@ -13,25 +13,6 @@ import (
 
 const sampleBanner = "sauron v0.0.0-SNAPSHOT\nHash abc1234\nHome: /tmp/h\n"
 
-// fakeRuntime is a runtime.Runtime stub returning a canned result and recording
-// the args it was called with, so basicController can be tested without a host
-// process or Docker.
-type fakeRuntime struct {
-	code int
-	out  string
-	err  error
-	args []string
-}
-
-func (*fakeRuntime) IsReadOnly() bool                          { return false }
-func (*fakeRuntime) Start(context.Context) error               { return nil }
-func (*fakeRuntime) Stop(context.Context) error                { return nil }
-func (*fakeRuntime) CopyTo(context.Context, string, []byte) error { return nil }
-func (f *fakeRuntime) Execute(_ context.Context, args ...string) (int, string, error) {
-	f.args = args
-	return f.code, f.out, f.err
-}
-
 func TestBasicControllerIsVersion(t *testing.T) {
 	rt := &fakeRuntime{out: sampleBanner}
 	b := &basicController{rt: rt}

@@ -23,6 +23,10 @@ apply where the project says nothing.
 - **Technical contract** — [spec/contracts/architecture.md](spec/contracts/architecture.md)
   (layout, fx wiring, Use Case/Action interfaces, storage, root command,
   versioning, CI/CD, gates, approved dependencies).
+- **Integration tests** — [test/e2e/CONSTITUTION.md](test/e2e/CONSTITUTION.md)
+  (the black-box `test/e2e` harness: intent, the runtime/Source architecture,
+  controllers, the `#{}` resolver, fixtures, tags, and the integration gate).
+  Anything touching the integration tests follows this constitution.
 - **Contributing & workflow** — [CONTRIBUTING.md](CONTRIBUTING.md) (Trunk flow,
   Conventional Commits, SemVer bump, `PROPOSAL:` and bug issues, templates).
 

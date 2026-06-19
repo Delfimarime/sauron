@@ -3,12 +3,12 @@ module github.com/delfimarime/sauron/test/e2e
 go 1.26
 
 // The root production module is resolved from the working tree, so the harness
-// needs no version tag. The directive is dormant until the root module exists
-// alongside this one (it is produced by a sibling bootstrap unit); once merged,
+// needs no version tag: the placeholder require below binds to this replace, and
 // pkg/-typed step definitions resolve against ../..
 replace github.com/delfimarime/sauron => ../..
 
 require (
+	github.com/delfimarime/sauron v0.0.0
 	github.com/cucumber/godog v0.15.1
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/stretchr/testify v1.11.1
