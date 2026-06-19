@@ -12,7 +12,7 @@ func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
 	for _, each := range []Controller{
 		&basicController{rt: rt},
 		&commandController{rt: rt},
-		&configurationController{rt: rt},
+		&stateController{rt: rt},
 		newRegistryFsController(rt),
 		newRegistryHTTPController(rt),
 		newRegistryGitController(rt),

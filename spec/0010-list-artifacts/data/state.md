@@ -1,7 +1,7 @@
-# List Artifacts — configuration
+# List Artifacts — state
 
 This feature **reads** `track.yaml` and writes nothing. The document schema is
-owned by the [configuration data contract](../../contracts/configuration.md).
+owned by the [state data contract](../../contracts/state.md).
 
 ## Reads
 

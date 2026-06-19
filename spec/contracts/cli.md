@@ -3,7 +3,7 @@
 The normative conventions every `sauron` command obeys: command grammar, shared
 flags, exit-status semantics, and output discipline. This is a binding contract,
 alongside the [architecture contract](architecture.md) and the
-[configuration data contract](configuration.md). Each feature owns one or more
+[state data contract](state.md). Each feature owns one or more
 commands; every command's `contracts/<verb>-<noun>.md` conforms to the rules here.
 A feature contract may refine *which conditions* map to which exit code; it may
 not redefine the meanings.
@@ -54,7 +54,7 @@ contradict it.
 |---|---|
 | `0` | Success — including idempotent no-ops: uninstalling an absent artifact, an empty list, an already-current sync/upgrade, an already-set value, and any `--dry-run` run |
 | `2` | Usage error — invalid or missing arguments/flags; nothing was executed |
-| `1` | Runtime error — validation failure, unreadable configuration or track file, unreachable registry, or a failed artifact operation |
+| `1` | Runtime error — validation failure, unreadable state or track file, unreachable registry, or a failed artifact operation |
 
 Feature contracts may only refine *which conditions* map to each code; they never
 redefine these meanings.

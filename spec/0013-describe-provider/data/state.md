@@ -1,7 +1,7 @@
-# Describe Provider — configuration
+# Describe Provider — state
 
 This feature **reads** `settings.yaml` and writes nothing. The document schema is
-owned by the [configuration data contract](../../contracts/configuration.md).
+owned by the [state data contract](../../contracts/state.md).
 
 ## Reads
 

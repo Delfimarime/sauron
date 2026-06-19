@@ -85,12 +85,12 @@ func TestRegistryField(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestConfigurationControllerAssertsThroughRuntime drives a couple of Then steps end
+// TestStateControllerAssertsThroughRuntime drives a couple of Then steps end
 // to end against an in-memory file served by the fake runtime (no real fs).
-func TestConfigurationControllerAssertsThroughRuntime(t *testing.T) {
+func TestStateControllerAssertsThroughRuntime(t *testing.T) {
 	ctx := context.Background()
 	rt := &fakeRuntime{files: map[string][]byte{registriesFile: []byte(twoRegistries)}}
-	c := &configurationController{rt: rt}
+	c := &stateController{rt: rt}
 
 	require.NoError(t, c.registryCount(ctx, 2))
 	require.NoError(t, c.registryExists(ctx, "acme"))

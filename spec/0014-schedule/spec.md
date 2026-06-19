@@ -44,4 +44,4 @@ them. Each operation has at most one schedule, recorded as a `Schedule` document
 ## Key Entities
 
 - **Schedule** — the per-operation cron schedule, recorded as a `Schedule`
-  document; see the [configuration data contract](../contracts/configuration.md).
+  document; see the [state data contract](../contracts/state.md).

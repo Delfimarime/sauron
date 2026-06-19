@@ -52,6 +52,6 @@ run; a dry run previews the plan.
 ## Key Entities
 
 - **Installed set** — the tracked artifacts, per the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).
 - **Digest** — the content identity compared to detect change.
 - **Membership** — re-resolved per persona, additions only.

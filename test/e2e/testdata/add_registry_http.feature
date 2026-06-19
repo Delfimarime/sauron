@@ -19,4 +19,4 @@ Feature: Add an http registry
     When the user adds the http registry acme from #{.webserver.default.url} with username acme and password ${env:ACME_TOKEN}
     Then the command succeeds
     And the registry acme stores password as the reference ${env:ACME_TOKEN}
-    And the stored configuration does not contain s3cr3t
+    And the stored state does not contain s3cr3t

@@ -38,7 +38,7 @@ this feature is realized by.
 ### State-driven
 
 - FR-006: While a registry is being validated, Sauron shall leave the existing
-  configuration unchanged until validation succeeds.
+  state unchanged until validation succeeds.
 
 ### Unwanted behavior
 
@@ -62,6 +62,6 @@ this feature is realized by.
 ## Key Entities
 
 - **Registry** — the registered source, persisted as a `Registry` document; see
-  the [configuration data contract](../contracts/configuration.md).
+  the [state data contract](../contracts/state.md).
 - **Transport** — `git`, `http`, or `filesystem`, selected by `--kind` and stored
   as `spec.transport`.

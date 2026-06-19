@@ -1,7 +1,7 @@
-# Uninstall Artifacts — configuration
+# Uninstall Artifacts — state
 
 This feature **writes** `track.yaml` and reads nothing else. The document schema
-is owned by the [configuration data contract](../../contracts/configuration.md).
+is owned by the [state data contract](../../contracts/state.md).
 
 ## Writes
 

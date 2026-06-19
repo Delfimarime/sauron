@@ -41,4 +41,4 @@ filtering, column selection, and sorting. This is the local counterpart to
 ## Key Entities
 
 - **Artifact** — the installed skill, agent, or persona; tracked per the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).

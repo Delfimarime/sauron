@@ -1,7 +1,7 @@
-# Schedule — configuration
+# Schedule — state
 
 This feature **writes** `settings.yaml`. The document schema is owned by the
-[configuration data contract](../../contracts/configuration.md).
+[state data contract](../../contracts/state.md).
 
 ## Writes
 

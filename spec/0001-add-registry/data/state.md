@@ -1,8 +1,8 @@
-# Add Registry — configuration
+# Add Registry — state
 
 This feature **writes** `registries.yaml`, appending one `Registry` document. The
 document schema is owned by the
-[configuration data contract](../../contracts/configuration.md); only the
+[state data contract](../../contracts/state.md); only the
 read/write semantics and the field→requirement realization are stated here.
 
 ## Writes

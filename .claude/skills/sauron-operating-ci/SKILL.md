@@ -6,9 +6,9 @@ description: Use when writing or modifying CI/CD pipeline files for this reposit
 # Operating Sauron's CI/CD
 
 When writing or maintaining CI pipeline files, follow the
-[Continuous integration & delivery](../../../spec/contracts/architecture.md#continuous-integration--delivery)
-and [Versioning](../../../spec/contracts/architecture.md#versioning) sections of
-the architecture contract. The pipeline is provider-agnostic; GitHub Actions and
+[Continuous integration & delivery](../../../spec/contracts/delivery.md#continuous-integration--delivery)
+and [Versioning](../../../spec/contracts/delivery.md#versioning) sections of
+the delivery contract. The pipeline is provider-agnostic; GitHub Actions and
 GitLab CI are the reference targets.
 
 ## Procedural reminders

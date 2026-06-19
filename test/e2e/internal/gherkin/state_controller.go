@@ -15,18 +15,18 @@ import (
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
-// registriesFile is the configuration document the registry assertions read,
+// registriesFile is the state document the registry assertions read,
 // relative to $SAURON_HOME (the runtime resolves it per backend).
 const registriesFile = "registries.yaml"
 
-// configurationController owns the file-based Then steps: it reads the persisted
-// configuration through the runtime, decodes it into the public pkg/sauron/types
+// stateController owns the file-based Then steps: it reads the persisted
+// state through the runtime, decodes it into the public pkg/sauron/types
 // (graybox — no internal/), and asserts on the result.
-type configurationController struct {
+type stateController struct {
 	rt runtime.Runtime
 }
 
-func (c *configurationController) Init(sc *godog.ScenarioContext) {
+func (c *stateController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^there is exactly one registry$`, c.exactlyOneRegistry)
 	sc.Step(`^there are (\d+) registries$`, c.registryCount)
 	sc.Step(`^a registry named (\S+) exists$`, c.registryExists)
@@ -34,14 +34,14 @@ func (c *configurationController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the registry (\S+) has label (\S+) with value (\S+)$`, c.registryLabel)
 	sc.Step(`^the registry (\S+) is described by:$`, c.registryDescribedBy)
 	sc.Step(`^the registry (\S+) stores password as the reference (\S+)$`, c.registryPasswordRef)
-	sc.Step(`^the stored configuration does not contain (.+)$`, c.configDoesNotContain)
+	sc.Step(`^the stored state does not contain (.+)$`, c.stateDoesNotContain)
 }
 
-func (c *configurationController) exactlyOneRegistry(ctx context.Context) error {
+func (c *stateController) exactlyOneRegistry(ctx context.Context) error {
 	return c.registryCount(ctx, 1)
 }
 
-func (c *configurationController) registryCount(ctx context.Context, want int) error {
+func (c *stateController) registryCount(ctx context.Context, want int) error {
 	regs, err := c.readRegistries(ctx)
 	if err != nil {
 		return err
@@ -49,12 +49,12 @@ func (c *configurationController) registryCount(ctx context.Context, want int) e
 	return assertExpected("registry count", want, len(regs))
 }
 
-func (c *configurationController) registryExists(ctx context.Context, name string) error {
+func (c *stateController) registryExists(ctx context.Context, name string) error {
 	_, err := c.findRegistry(ctx, name)
 	return err
 }
 
-func (c *configurationController) registryTransport(ctx context.Context, name, transport string) error {
+func (c *stateController) registryTransport(ctx context.Context, name, transport string) error {
 	reg, err := c.findRegistry(ctx, name)
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func (c *configurationController) registryTransport(ctx context.Context, name, t
 	return assertExpected("transport of "+name, transport, string(reg.Spec.Transport))
 }
 
-func (c *configurationController) registryLabel(ctx context.Context, name, key, value string) error {
+func (c *stateController) registryLabel(ctx context.Context, name, key, value string) error {
 	reg, err := c.findRegistry(ctx, name)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (c *configurationController) registryLabel(ctx context.Context, name, key, 
 	return assertExpected("label "+key+" of "+name, value, got)
 }
 
-func (c *configurationController) registryDescribedBy(ctx context.Context, name string, table *godog.Table) error {
+func (c *stateController) registryDescribedBy(ctx context.Context, name string, table *godog.Table) error {
 	reg, err := c.findRegistry(ctx, name)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (c *configurationController) registryDescribedBy(ctx context.Context, name 
 	return nil
 }
 
-func (c *configurationController) registryPasswordRef(ctx context.Context, name, ref string) error {
+func (c *stateController) registryPasswordRef(ctx context.Context, name, ref string) error {
 	reg, err := c.findRegistry(ctx, name)
 	if err != nil {
 		return err
@@ -106,19 +106,19 @@ func (c *configurationController) registryPasswordRef(ctx context.Context, name,
 	return assertExpected("password reference of "+name, ref, reg.Spec.Auth.Password)
 }
 
-func (c *configurationController) configDoesNotContain(ctx context.Context, secret string) error {
+func (c *stateController) stateDoesNotContain(ctx context.Context, secret string) error {
 	data, err := c.rt.ReadFile(ctx, registriesFile)
 	if err != nil {
 		return err
 	}
 	if bytes.Contains(data, []byte(secret)) {
-		return fmt.Errorf("stored configuration unexpectedly contains %q", secret)
+		return fmt.Errorf("stored state unexpectedly contains %q", secret)
 	}
 	return nil
 }
 
 // readRegistries reads and decodes registries.yaml through the runtime.
-func (c *configurationController) readRegistries(ctx context.Context) ([]types.Registry, error) {
+func (c *stateController) readRegistries(ctx context.Context) ([]types.Registry, error) {
 	data, err := c.rt.ReadFile(ctx, registriesFile)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (c *configurationController) readRegistries(ctx context.Context) ([]types.R
 	return decodeRegistries(data)
 }
 
-func (c *configurationController) findRegistry(ctx context.Context, name string) (types.Registry, error) {
+func (c *stateController) findRegistry(ctx context.Context, name string) (types.Registry, error) {
 	regs, err := c.readRegistries(ctx)
 	if err != nil {
 		return types.Registry{}, err

@@ -41,4 +41,4 @@ registry "acme" removed; 2 artifacts removed
 |---|---|
 | `0` | The registry and its artifacts were removed, or it did not exist, or `--dry-run` |
 | `2` | Missing/invalid arguments or flags |
-| `1` | Configuration or track file unreadable, or the registry removal could not be persisted |
+| `1` | State or track file unreadable, or the registry removal could not be persisted |

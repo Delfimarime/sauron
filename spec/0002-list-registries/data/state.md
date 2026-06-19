@@ -1,7 +1,7 @@
-# List Registries — configuration
+# List Registries — state
 
 This feature **reads** `registries.yaml` and writes nothing. The document schema
-is owned by the [configuration data contract](../../contracts/configuration.md).
+is owned by the [state data contract](../../contracts/state.md).
 
 ## Reads
 

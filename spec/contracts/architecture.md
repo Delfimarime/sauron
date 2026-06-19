@@ -136,7 +136,7 @@ Home: <home>
 
 `<home>` is the resolved home directory: `$SAURON_HOME` when set, the platform
 default `~/.sauron` otherwise, exactly as fixed by the
-[configuration data contract](configuration.md). `internal/config` owns that
+[state data contract](state.md). `internal/config` owns that
 resolution as a package-level function — callable eagerly by `New` (which runs at
 bootstrap, before any `fx.App` exists) and also used to populate
 `Configuration.HomeDirectory` for the fx graph, so the banner and `storage`
@@ -146,79 +146,14 @@ The root command is the **one exception** to the spec-and-contract rules: it has
 no feature spec and no command contract; its behavior is fixed here in
 the architecture contract.
 
-## Build, versioning & gates
+## Build, versioning & delivery
 
-A `Taskfile` at the repo root — run with `task` — is the project's canonical
-build and verification entrypoint. Its task names match the CI job names
-one-to-one, so each CI job runs the identically-named target. It exposes at
-least:
-
-- `test` — runs the unit tests with the race detector and writes a coverage
-  report under `dist/`.
-- `gate-lint` — lints with `golangci-lint` (the enforcement point for the Uber
-  style guide and the gocognit ≤15 ceiling).
-- `build` — cross-compiles the binary `CGO_ENABLED=0` from a single toolchain to
-  each supported target (`linux/amd64`, `darwin/arm64`, `darwin/amd64`), writing
-  `dist/sauron-<os>-<arch>` (made executable) and injecting the version variables
-  via the Go linker (`-ldflags`).
-- `gate-coverage` — reads the `test` report and enforces the coverage gate: 90%
-  ideal, failing below the project-level floor of 80%.
-- `gate-security` — depends on `build` and runs `trivy` over the built
-  `dist/sauron-linux-amd64` binary, enforcing the [verification gate](../../CONSTITUTION.md)
-  (no CRITICAL, at most two HIGH), with accepted exceptions carried by a
-  project-level ADR under `spec/architecture/`.
-- `gate-integration` — depends on `build`; runs the black-box BDD suite in the
-  `test/e2e` module against the **host's** binary
-  (`SAURON_BIN=$ROOT/dist/sauron-$(go env GOOS)-$(go env GOARCH)`), so it runs on
-  any platform with a Docker daemon (the suite provisions its dependencies via
-  Testcontainers). The task carries **no OS guard** — the Linux restriction is a
-  CI concern (see below), not a property of the task; on a Linux CI runner the
-  host binary resolves to `sauron-linux-amd64`.
-- `all` — builds and runs every gate.
-
-### Continuous integration & delivery
-
-The CI pipeline is provider-agnostic — GitHub Actions and GitLab CI are the
-reference targets — and runs the Taskfile gates in dependency-gated stages:
-
-1. `test` and `gate-lint` in parallel.
-2. On their success, `build` and `gate-coverage` in parallel — `build`
-   cross-compiles all targets (`CGO_ENABLED=0`) in one Linux job, and
-   `gate-coverage` consumes the coverage report `test` published as an artifact.
-3. On their success, `gate-security` — scanning the `dist/sauron-linux-amd64`
-   binary `build` published as an artifact.
-4. On its success, `gate-integration` — runs alone, **pinned to a Linux runner**
-   (this is where the Linux-only constraint is enforced; the suite needs a Docker
-   daemon), against the `dist/sauron-linux-amd64` artifact.
-5. On its success and **only on the `main`/`master` branch**, `publish` —
-   generates each binary's SHA-256 checksum and publishes every
-   `dist/sauron-<os>-<arch>` binary and its `.sha256` as **release assets**
-   (a GitHub Release / a GitLab Release).
-
-### Versioning
-
-Go exposes no built-in version mechanism, so `AppName` and `AppVersion` are kept
-in a root `package.json` (its `name` and `version`), and `AppHash` is the short
-git hash of the worktree. The `build` task injects all three into the
-`cmd/main.go` variables with `-ldflags -X main.<var>=<value>`; they are not
-sourced any other way. `package.json`'s `version` is the strict-SemVer source of
-truth, bumped by hand to match the change type (see
-[CONTRIBUTING.md](../../CONTRIBUTING.md)); CI only *decorates* it into the
-artifact label, via the build task's overridable `AppVersion`, by build context:
-
-| Context | `AppVersion` | Published |
-|---|---|---|
-| local `task build` | `<version>` | no |
-| `main`/`master` branch | `<version>-RELEASE` | yes |
-| PR/MR into `main`/`master` | `<version>-PRE-RELEASE.<ci-number>` | no |
-| any other build | `<version>-SNAPSHOT.<ci-number>` | no |
-
-All three decorations are valid SemVer pre-release identifiers (hyphen-prefixed),
-so the artifact label remains SemVer-parseable.
-
-`task`, `golangci-lint`, `trivy`, and `jq` are development/CI tooling, not module
-dependencies, so they are absent from the
-[approved-dependency table](#approved-dependencies).
+How sauron is built, gated, versioned, and shipped — the `Taskfile` gates, the
+CI/CD pipeline, and the version-decoration scheme — is the
+[delivery contract](delivery.md). The gate names there (`test`, `gate-lint`,
+`build`, `gate-coverage`, `gate-security`, `gate-integration`, `all`) are the
+enforcement points for the standards this contract defines (coverage target,
+gocognit ceiling, the approved-dependency set, the CGO-free build).
 
 ## Command flags
 
@@ -272,7 +207,7 @@ type Action[R, P any] interface {
   [Coding standards](#coding-standards) — it *is* the context rather than storing
   one as data.
 - **`UseCase` is the command entrypoint and is stateless.** Its collaborators —
-  the `pkg/` ports (`pkg/registry`, `pkg/provider`), the
+  the `pkg/` ports (`pkg/sauron/extension`), the
   [`storage`](#state-storage) stores, and the zap logger — are injected by
   uberfx; everything call-scoped arrives through the `Request`, so a single
   instance is safe to reuse across invocations. `Execute` takes the `Request`
@@ -302,9 +237,9 @@ the cobra API, consistent with the [`Serve()`/`serve()` split](#testing).
 
 ## State storage
 
-`internal/infrastructure/storage` owns all manipulation of Sauron's persisted
-state — the files under `~/.sauron/` whose schema is fixed by the
-[configuration data contract](configuration.md) (`registries.yaml`,
+`internal/infrastructure/repository/storage` owns all manipulation of Sauron's
+persisted state — the files under `~/.sauron/` whose schema is fixed by the
+[state data contract](state.md) (`registries.yaml`,
 `track.yaml`, `settings.yaml`). It is the single
 package that reads and writes those files; no use case or adapter touches them
 directly.
@@ -312,7 +247,7 @@ directly.
 - **It is an internal capability, not a public port.** Unlike registry and
   provider, storage has no `pkg/` interface — there is one way to persist
   state and no external implementation plugs in. Its types live entirely in
-  `internal/infrastructure/storage` and are consumed by use cases.
+  `internal/infrastructure/repository/storage` and are consumed by use cases.
 - **Files are multi-document manifest streams.** Each file holds Kubernetes-style
   documents (`apiVersion: sauron.raitonbl.com/v1`, `kind`, `metadata`, `spec`);
   storage decodes and encodes the stream and validates every document **it reads**
@@ -410,35 +345,25 @@ redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 
 ## Integration tests
 
-The black-box BDD suite lives in its own module, `test/e2e`
+The black-box BDD suite lives in its **own module**, `test/e2e`
 (`github.com/delfimarime/sauron/test/e2e`), under the project-layout `/test`
-directory. It is **not** bound by the Use Case/Action or ports-and-adapters
-rules — it is a test harness.
+directory, and is governed by [`test/e2e/CONSTITUTION.md`](../../test/e2e/CONSTITUTION.md)
+(intent, runtime/Source architecture, controllers, fixtures, tags, the gate). The
+two facts that bind on *this* contract:
 
-- **Graybox.** Steps `exec` the built `dist/sauron-<os>-<arch>` binary (located
-  via the `SAURON_BIN` environment variable) and decode its output into the
-  public `pkg/` types for type-safe assertions — an external consumer of the
-  `pkg/` surface.
-- **Own module, `replace` to root.** `test/e2e/go.mod` requires the root module
-  and resolves it with `replace github.com/delfimarime/sauron => ../..`, so it
-  needs no version tag. Its dependencies — `github.com/cucumber/godog`,
-  `github.com/testcontainers/testcontainers-go`, `github.com/stretchr/testify` —
-  live in this module's `go.mod` only and are **absent from the
-  approved-dependency table** below, which governs the production module alone.
-- **`pkg/`-only.** The harness imports `pkg/` and never `internal/`. Go's
-  `internal/` rule does not enforce this (the harness import paths share the root
-  module prefix), so it is enforced by a `depguard` rule in the module's
-  `golangci-lint` config.
-- **Gherkin.** Feature files are `test/e2e/testdata/*.feature`; the runner is
-  `test/e2e/integration_test.go` (`godog.TestSuite`, no `main`), invoked by the
-  `gate-integration` task.
-- **Platform.** The suite runs on **any host with a Docker daemon** (Testcontainers
-  needs one); `gate-integration` exercises the host's own `sauron-<os>-<arch>`
-  binary, so a developer on macOS runs it against the `darwin` build. **CI** pins
-  the gate to a Linux runner — that is the only Linux-only constraint, and it is a
-  CI policy, not a property of the suite or the task.
-- **Hermeticity.** Per-scenario git and HTTP dependencies are provisioned in-test
-  via Testcontainers; the concrete fixture strategy is still being settled.
+- **Module boundary & dependency isolation.** `test/e2e/go.mod` resolves the root
+  with `replace github.com/delfimarime/sauron => ../..`; its test-only
+  dependencies live in that module's `go.mod` and are **absent from the
+  [approved-dependency table](#approved-dependencies)** below, which governs the
+  production module alone.
+- **`pkg/`-only graybox.** The harness `exec`s the built binary and decodes its
+  output into the public `pkg/` types — never importing `internal/` (enforced by a
+  `depguard` rule, since Go's `internal/` rule does not apply across the shared
+  module prefix). It is **not** bound by the Use Case/Action or ports-and-adapters
+  rules.
+
+The gate that runs it (`gate-integration`) is defined in the
+[delivery contract](delivery.md).
 
 ## Approved dependencies
 
@@ -450,7 +375,7 @@ recorded as verified at vetting time.
 |---|---|---|
 | `github.com/spf13/cobra` | CLI command framework | Apache-2.0 |
 | `github.com/spf13/viper` | Configuration management | MIT |
-| `github.com/spf13/afero` | Filesystem abstraction; injected into `internal/infrastructure/storage` | Apache-2.0 |
+| `github.com/spf13/afero` | Filesystem abstraction; injected into `internal/infrastructure/repository/storage` | Apache-2.0 |
 | `net/http` (stdlib) | HTTP client | BSD-3-Clause |
 | `os/exec` (stdlib) | Invoking external provider CLIs and the OS scheduler (`crontab`) | BSD-3-Clause |
 | `github.com/go-git/go-git/v5` | Git operations | Apache-2.0 |

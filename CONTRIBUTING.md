@@ -27,7 +27,7 @@ in [spec/AUTHORING.md](spec/AUTHORING.md), and the technical
   - `refactor`/`chore` that change no behavior → no bump.
 - CI decorates that version into the build artifact label (`-RELEASE`,
   `-PRE-RELEASE.<n>`, `-SNAPSHOT.<n>`); see the
-  [architecture contract](spec/contracts/architecture.md#versioning).
+  [delivery contract](spec/contracts/delivery.md#versioning).
 
 ## Proposing a feature
 

@@ -13,7 +13,7 @@ import (
 )
 
 // hostRuntime executes the binary directly on the host OS. It owns one per-scenario
-// directory pinned as $SAURON_HOME: the binary writes its configuration there, and
+// directory pinned as $SAURON_HOME: the binary writes its state there, and
 // CopyTo/ReadFile/Folder all operate under it, so the suite never touches the real
 // ~/.sauron. Being execution + a local folder and nothing networked keeps
 // IsReadOnly() honest — Webserver and Git require the sandbox and so error here.

@@ -17,7 +17,7 @@ its architecture, and the principles the harness must never violate.
 
 The suite drives the **built binary** exactly as an external operator would —
 spawning the process, passing CLI args, reading its exit code, stdout/stderr,
-and the configuration files it persists. It never calls a use case, an action,
+and the state files it persists. It never calls a use case, an action,
 or anything under `internal/` in-process. "Graybox" means the *assertions* are
 allowed to decode the binary's output into the public `pkg/sauron/types` DTOs,
 but the *exercise* is strictly external.
@@ -135,7 +135,7 @@ becomes a shared "world".
       gherkin.Init(sc, rt)
              ▼
    ┌──────────────── Controllers (godog step registrars) ────────────────┐
-   │ basic   command   configuration   registry-fs   registry-http   git │
+   │ basic   command   state           registry-fs   registry-http   git │
    └────┬───────┬───────────┬──────────────┬──────────────┬──────────────┘
         └───────┴───────────┴──────────────┴──────────────┘
                               │ all share ONE handle; resolve via valueOf[T]

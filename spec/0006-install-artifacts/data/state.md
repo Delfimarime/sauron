@@ -1,8 +1,8 @@
-# Install Artifacts — configuration
+# Install Artifacts — state
 
 This feature **reads** `registries.yaml` and `settings.yaml` and **writes**
 `track.yaml`. The document schema is owned by the
-[configuration data contract](../../contracts/configuration.md).
+[state data contract](../../contracts/state.md).
 
 ## Reads
 

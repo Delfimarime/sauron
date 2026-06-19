@@ -1,8 +1,8 @@
-# Delete Registry — configuration
+# Delete Registry — state
 
 This feature **writes** both `registries.yaml` and `track.yaml`. The document
 schema is owned by the
-[configuration data contract](../../contracts/configuration.md).
+[state data contract](../../contracts/state.md).
 
 ## Writes
 

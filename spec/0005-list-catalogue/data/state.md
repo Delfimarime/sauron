@@ -1,8 +1,8 @@
-# List Catalogue — configuration
+# List Catalogue — state
 
 This feature **reads** `registries.yaml` to resolve the registry's connection and
 writes nothing. The catalogue itself is not persisted. The document schema is
-owned by the [configuration data contract](../../contracts/configuration.md).
+owned by the [state data contract](../../contracts/state.md).
 
 ## Reads
 

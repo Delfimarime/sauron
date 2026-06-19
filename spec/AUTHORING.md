@@ -30,8 +30,8 @@ Every spec declares one of two types:
   relative markdown link to the provider file, resolved from the referencing
   file's own location. For example, a feature's `spec.md` declares
   `Depends on: [install](../0006-install-artifacts/spec.md)`, and a
-  `data/configuration.md` links the schema as
-  `[configuration data contract](../../contracts/configuration.md)`. Bare ids or
+  `data/state.md` links the schema as
+  `[state data contract](../../contracts/state.md)`. Bare ids or
   unlinked feature names are not allowed.
 
 ## Numbering and layout
@@ -44,7 +44,7 @@ Every spec declares one of two types:
   spec/NNNN-<name>/
   ├── spec.md                      required
   ├── contracts/<verb>-<noun>.md   one per command the feature owns
-  ├── data/configuration.md        required when the feature touches config
+  ├── data/state.md                required when the feature touches persisted state
   ├── capabilities/<name>.md       optional, one file per capability
   └── architecture/ADR-NNNN-*.md   optional decision records
   ```
@@ -55,9 +55,10 @@ Every spec declares one of two types:
 
 - Global, cross-feature contracts live in `spec/contracts/` — the
   [CLI contract](contracts/cli.md) (the command conventions), the
-  [configuration data contract](contracts/configuration.md) (the schema of every
-  document Sauron persists), and the
-  [architecture contract](contracts/architecture.md).
+  [state data contract](contracts/state.md) (the schema of every document Sauron
+  persists), the [architecture contract](contracts/architecture.md) (code
+  structure and wiring), and the [delivery contract](contracts/delivery.md)
+  (build, gates, CI/CD, versioning).
 - Project-level ADRs — cross-cutting decisions owned by no single feature (e.g.
   an accepted dependency vulnerability) — live in
   `spec/architecture/ADR-NNNN-<slug>.md`, numbered sequentially **project-wide**
@@ -71,7 +72,7 @@ written:
 |---|---|---|---|
 | `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
 | `contracts/<verb>-<noun>.md` | per command the feature owns | the command's synopsis, arguments, flags, output, and exit codes | [CLI contract](contracts/cli.md) (and the `sauron-authoring-cli-contracts` skill) |
-| `data/configuration.md` | the feature reads or writes config | which configuration document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/configuration.md](contracts/configuration.md) and linked from here | [Glossary](#glossary) terms; link the [configuration data contract](contracts/configuration.md). The contract never links back to feature requirements (one-directional, no cycle) |
+| `data/state.md` | the feature reads or writes persisted state | which state document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/state.md](contracts/state.md) and linked from here | [Glossary](#glossary) terms; link the [state data contract](contracts/state.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
 
@@ -169,7 +170,7 @@ One canonical term per concept; specs do not use synonyms for these:
 | version | An optional, human-meaningful artifact label; derivable for `git` (the last commit touching the artifact directory), declared-only otherwise |
 | provenance | The origin recorded for each installed artifact in the `track file`: whether it was installed directly and which personas brought it in |
 | track file | `track.yaml`, the multi-document stream of `Skill`/`Agent`/`Persona` manifests recording installed artifacts and provenance |
-| configuration | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [configuration data contract](contracts/configuration.md) |
+| state | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [state data contract](contracts/state.md). Distinct from the `Configuration` DI struct, which is app configuration (resolved home), not persisted state |
 | settings | `settings.yaml`, holding the `Provider` document and the `Schedule` documents |
 | manifest | A persisted document carrying `apiVersion` (`sauron.raitonbl.com/v1`) and `kind`, with `metadata` and `spec`, in the spirit of a Kubernetes object |
 
@@ -182,7 +183,7 @@ Shared semantics use these sentences verbatim (entity substituted):
 - Dry run: `Where --dry-run is provided, Sauron shall print the plan without
   changing the environment or the track file.`
 - Validation transactionality: `While a <entity> is being validated, Sauron
-  shall leave the existing configuration unchanged until validation succeeds.`
+  shall leave the existing state unchanged until validation succeeds.`
 - Usage error: `If required arguments or flags are missing or invalid, then
   Sauron shall exit with code 2 without executing the command.`
 - Failure output: `If a command fails, then Sauron shall write exactly one
