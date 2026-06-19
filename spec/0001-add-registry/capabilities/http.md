@@ -10,29 +10,32 @@
 
 ## Overview
 
-The http transport reaches a registry served over HTTP(S). It validates the source
-at add time and fetches artifact content for browsing, installing, and
-reconciling, organized under `.skills/` and `.agents/`.
+The http transport reaches a registry that implements the
+[Sauron HTTP Registry API](../../contracts/registry-http-api.oas3.yaml) — a JSON
+REST API served over HTTP(S). It validates the source at add time and lists,
+describes, and downloads artifacts through that API rather than browsing a raw
+directory tree. The API exposes skills under `/skills`, agents under `/agents`,
+and personas under `/personas`.
 
 ## Requirements
 
 ### Ubiquitous
 
-- FR-001: Sauron shall reach http registries over HTTP(S), supporting credentials
-  passed as environment references and TLS options (`--skip-tls-verify`,
-  `--ca-cert`, `--client-cert`, `--client-key`).
-- FR-002: Sauron shall compute an artifact's `digest` from its content (the
-  server's ETag when offered, otherwise a content hash).
+- FR-001: Sauron shall reach http registries over HTTP(S) using the
+  [HTTP Registry API](../../contracts/registry-http-api.oas3.yaml), supporting
+  HTTP Basic credentials passed as environment references and TLS options
+  (`--skip-tls-verify`, `--ca-cert`, `--client-cert`, `--client-key`).
+- FR-002: Sauron shall compute an artifact's `digest` from its downloaded content.
 
 ### Event-driven
 
-- FR-003: When validating an http registry, Sauron shall confirm the source is
-  reachable and hosts at least one skill or agent.
+- FR-003: When validating an http registry, Sauron shall confirm the API is
+  reachable and lists at least one skill or agent.
 
 ### Optional
 
-- FR-004: Where the server declares an artifact version, Sauron shall record it as
-  the artifact's optional `version`.
+- FR-004: Where the API declares an artifact's version (the `Artifact-Version`
+  response header), Sauron shall record it as the artifact's optional `version`.
 
 ### Unwanted behavior
 

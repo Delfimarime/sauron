@@ -36,7 +36,7 @@ directories; a skill or agent is the directory under one of those.
 
 - FR-005: Where an explicit version is not declared, Sauron shall derive a git
   artifact's optional `version` from the most recent commit that touched the
-  artifact's directory.
+  artifact's directory (that commit's SHA).
 - FR-007: Where a ref is provided, Sauron shall resolve the registry's artifacts
   from that ref (a branch, tag, or commit); where no ref is provided, Sauron shall
   resolve from the repository's default branch.

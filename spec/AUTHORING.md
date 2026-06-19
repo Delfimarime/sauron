@@ -168,7 +168,7 @@ One canonical term per concept; specs do not use synonyms for these:
 | upgrade | The non-destructive refresh of the installed set: refresh changed artifacts and add newly-added persona members; never removes |
 | plan | The printed list of pending changes — `+` additions, `~` updates, `-` removals |
 | digest | The content identity recorded per artifact, used to detect change and local drift; always present |
-| version | An optional, human-meaningful artifact label; derivable for `git` (the last commit touching the artifact directory), declared-only otherwise |
+| version | An optional artifact label or revision identifier; for `git` it is the commit that last touched the artifact (that commit's SHA), and is declared by the source otherwise |
 | provenance | The origin recorded for each installed artifact in the `track file`: whether it was installed directly and which personas brought it in |
 | track file | `track.yaml`, the multi-document stream of `Skill`/`Agent`/`Persona` manifests recording installed artifacts and provenance |
 | state | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [state data contract](contracts/state.md). Distinct from the `Configuration` DI struct, which is app configuration (resolved home), not persisted state |
