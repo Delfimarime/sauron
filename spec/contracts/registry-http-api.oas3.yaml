@@ -1,0 +1,554 @@
+openapi: 3.0.3
+
+info:
+  title: Sauron Registry HTTP API
+  version: "1.0.0"
+  description: |
+    The contract that an **http**-transport Sauron registry server MUST implement.
+    Sauron is the **client** of this API.
+
+    This contract replaces the previous "static directory listing" model: with this
+    transport, an `http` registry is no longer a browsable directory of files but a
+    server that implements the operations described here.
+
+    ## Domain
+
+    A registry hosts **artifacts** of three kinds:
+
+    - `skill` and `agent` are directory-tree artifacts. Their content is downloaded
+      as a gzip-compressed archive of the artifact's file tree.
+    - `persona` is a reference-set manifest. Its membership is a set of skills and
+      agents that live in the **same** registry; a persona is not a file tree and
+      therefore has no downloadable content.
+
+    Each artifact has a `name` and an OPTIONAL `version`. The `version` is an opaque
+    string: for git-backed registries it happens to be a commit SHA, but this API
+    treats it purely as an optional opaque token.
+
+    Single-artifact paths accept either the artifact's **name** or one of its
+    **aliases** as the `{name}` path parameter.
+
+    ## Security
+
+    Authentication is HTTP **Basic** over TLS, matching Sauron's `--username` /
+    `--password` (environment-reference) flags. Public registries MAY serve every
+    operation anonymously; the security requirement is therefore optional, and a
+    server MAY reject anonymous access with `401`.
+
+servers:
+  - url: https://{host}{basePath}
+    description: A TLS-served Sauron http registry.
+    variables:
+      host:
+        default: registry.example.com
+        description: Host (and optional port) serving the registry.
+      basePath:
+        default: ""
+        description: Optional base path under which the registry is mounted.
+
+tags:
+  - name: skills
+    description: Skill artifacts (directory-tree artifacts).
+  - name: agents
+    description: Agent artifacts (directory-tree artifacts).
+  - name: personas
+    description: Persona artifacts (reference-set manifests over skills and agents).
+
+security:
+  - basicAuth: []
+  - {}
+
+paths:
+  /skills:
+    get:
+      operationId: GetSkills
+      summary: List skills
+      description: |
+        Return a paginated list of the skill artifacts hosted by this registry,
+        optionally filtered by a case-insensitive substring match on the artifact name.
+      tags: [skills]
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          $ref: '#/components/responses/ArtifactListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /skills/{name}:
+    get:
+      operationId: GetSkill
+      summary: Describe a skill
+      description: |
+        Return the metadata of a single skill artifact identified by its name or one
+        of its aliases. The response carries the artifact's version (when known) in
+        the `Artifact-Version` header.
+      tags: [skills]
+      parameters:
+        - $ref: '#/components/parameters/Name'
+      responses:
+        '200':
+          description: Skill metadata.
+          headers:
+            Artifact-Version:
+              $ref: '#/components/headers/ArtifactVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /skills/{name}/content:
+    get:
+      operationId: GetSkillContent
+      summary: Download skill content
+      description: |
+        Download the content of a single skill artifact (identified by name or alias)
+        as a gzip-compressed archive (`application/gzip`).
+
+        Because a skill is a directory of files, the response body is a gzip-compressed
+        archive of the artifact's file tree. The artifact's version (when known) is
+        returned in the `Artifact-Version` header.
+      tags: [skills]
+      parameters:
+        - $ref: '#/components/parameters/Name'
+      responses:
+        '200':
+          $ref: '#/components/responses/ArtifactContentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents:
+    get:
+      operationId: GetAgents
+      summary: List agents
+      description: |
+        Return a paginated list of the agent artifacts hosted by this registry,
+        optionally filtered by a case-insensitive substring match on the artifact name.
+      tags: [agents]
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          $ref: '#/components/responses/ArtifactListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /agents/{name}:
+    get:
+      operationId: GetAgent
+      summary: Describe an agent
+      description: |
+        Return the metadata of a single agent artifact identified by its name or one
+        of its aliases. The response carries the artifact's version (when known) in
+        the `Artifact-Version` header.
+      tags: [agents]
+      parameters:
+        - $ref: '#/components/parameters/Name'
+      responses:
+        '200':
+          description: Agent metadata.
+          headers:
+            Artifact-Version:
+              $ref: '#/components/headers/ArtifactVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{name}/content:
+    get:
+      operationId: GetAgentContent
+      summary: Download agent content
+      description: |
+        Download the content of a single agent artifact (identified by name or alias)
+        as a gzip-compressed archive (`application/gzip`).
+
+        Because an agent is a directory of files, the response body is a gzip-compressed
+        archive of the artifact's file tree. The artifact's version (when known) is
+        returned in the `Artifact-Version` header.
+      tags: [agents]
+      parameters:
+        - $ref: '#/components/parameters/Name'
+      responses:
+        '200':
+          $ref: '#/components/responses/ArtifactContentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /personas:
+    get:
+      operationId: GetPersonas
+      summary: List personas
+      description: |
+        Return a paginated list of the persona artifacts hosted by this registry,
+        optionally filtered by a case-insensitive substring match on the artifact name.
+      tags: [personas]
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          $ref: '#/components/responses/ArtifactListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /personas/{name}:
+    get:
+      operationId: GetPersona
+      summary: Describe a persona
+      description: |
+        Return the metadata of a single persona artifact identified by its name or one
+        of its aliases. In addition to the common artifact metadata, the response
+        includes the persona's `members`: the names of the skills and agents (in this
+        same registry) that make up its membership. The artifact's version (when
+        known) is returned in the `Artifact-Version` header.
+
+        Personas have no downloadable content; there is intentionally no
+        `/personas/{name}/content` endpoint.
+      tags: [personas]
+      parameters:
+        - $ref: '#/components/parameters/Name'
+      responses:
+        '200':
+          description: Persona metadata, including its membership.
+          headers:
+            Artifact-Version:
+              $ref: '#/components/headers/ArtifactVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonaDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: |
+        HTTP Basic authentication, served over TLS. Credentials correspond to
+        Sauron's `--username` / `--password` (environment-reference) flags. Public
+        registries MAY omit authentication entirely.
+
+  parameters:
+    Name:
+      name: name
+      in: path
+      required: true
+      description: |
+        Identifier of a single artifact: either its `name` or one of its aliases.
+      schema:
+        type: string
+        minLength: 1
+      example: code-reviewer
+
+    Search:
+      name: search
+      in: query
+      required: false
+      description: |
+        Case-insensitive substring filter applied to the artifact name. When omitted,
+        no name filtering is performed.
+      schema:
+        type: string
+      example: review
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: |
+        Maximum number of items to return in one page. Defaults to 50 when omitted
+        and is capped at 200; larger values are clamped to the maximum.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 200
+        default: 50
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: |
+        Number of matching items to skip before collecting the page, enabling
+        offset-based pagination. Defaults to 0.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: |
+        Sort directive for the result set. A leading `+` (ascending, the default) or
+        `-` (descending) followed by a field name. Currently only `name` is
+        sortable, e.g. `+name` or `-name`.
+      schema:
+        type: string
+        pattern: '^[+-]?name$'
+        default: '+name'
+      example: '+name'
+
+  headers:
+    ArtifactVersion:
+      description: |
+        The artifact's opaque version string, when the registry knows one. Absent
+        when the artifact has no declared version.
+      required: false
+      schema:
+        type: string
+      example: 9f1c2ab3de45f6789012345678901234567890ab
+
+  schemas:
+
+    ArtifactSummary:
+      type: object
+      description: A condensed view of an artifact, as returned in list responses.
+      required: [name, version, size]
+      properties:
+        name:
+          type: string
+          description: The artifact's name.
+          example: code-reviewer
+        version:
+          type: string
+          nullable: true
+          description: |
+            The artifact's opaque version string, or `null` when the registry
+            declares no version for it.
+          example: 9f1c2ab3de45f6789012345678901234567890ab
+        size:
+          type: integer
+          format: int64
+          nullable: true
+          minimum: 0
+          description: |
+            The artifact's content size in bytes, or `null` when unknown or not
+            applicable (for example, personas have no downloadable content).
+          example: 20480
+
+    ArtifactList:
+      type: object
+      description: A page of artifact summaries together with the total match count.
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          description: The artifact summaries on this page.
+          items:
+            $ref: '#/components/schemas/ArtifactSummary'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            Total number of artifacts matching the request criteria (the `search`
+            filter), across all pages and independent of `limit`/`offset`.
+          example: 137
+
+    ArtifactDetail:
+      type: object
+      description: |
+        Full metadata for a single directory-tree artifact (skill or agent).
+      required: [name, version, size]
+      properties:
+        name:
+          type: string
+          description: The artifact's name.
+          example: code-reviewer
+        version:
+          type: string
+          nullable: true
+          description: |
+            The artifact's opaque version string, or `null` when the registry
+            declares no version for it.
+          example: 9f1c2ab3de45f6789012345678901234567890ab
+        size:
+          type: integer
+          format: int64
+          nullable: true
+          minimum: 0
+          description: The artifact's content size in bytes, or `null` when unknown.
+          example: 20480
+
+    PersonaDetail:
+      type: object
+      description: |
+        Full metadata for a persona artifact, including its membership. A persona is a
+        reference-set manifest; its members are skills and agents that live in this
+        same registry. Personas have no downloadable content, so `size` is typically
+        `null`.
+      required: [name, version, size, members]
+      properties:
+        name:
+          type: string
+          description: The persona's name.
+          example: full-stack
+        version:
+          type: string
+          nullable: true
+          description: |
+            The persona's opaque version string, or `null` when the registry declares
+            no version for it.
+          example: 9f1c2ab3de45f6789012345678901234567890ab
+        size:
+          type: integer
+          format: int64
+          nullable: true
+          minimum: 0
+          description: |
+            Size in bytes; typically `null` since a persona has no downloadable
+            content.
+          example: null
+        members:
+          type: object
+          description: |
+            The persona's membership: the names of the skills and agents (in this same
+            registry) that the persona references.
+          required: [skills, agents]
+          properties:
+            skills:
+              type: array
+              description: Names of the referenced skill artifacts.
+              items:
+                type: string
+              example: [code-reviewer, test-author]
+            agents:
+              type: array
+              description: Names of the referenced agent artifacts.
+              items:
+                type: string
+              example: [release-manager]
+
+    Problem:
+      type: object
+      description: |
+        A problem detail object as defined by RFC 9457 / RFC 7807, returned with the
+        `application/problem+json` media type.
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+          description: A URI reference identifying the problem type.
+          example: about:blank
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+          example: Not Found
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
+          description: The HTTP status code for this occurrence of the problem.
+          example: 404
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence.
+          example: No artifact named 'code-reviewer' exists in this registry.
+        instance:
+          type: string
+          format: uri-reference
+          description: A URI reference identifying this specific occurrence.
+
+  responses:
+
+    ArtifactListResponse:
+      description: A page of matching artifacts.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ArtifactList'
+
+    ArtifactContentResponse:
+      description: The artifact content as a gzip-compressed archive of its file tree.
+      headers:
+        Artifact-Version:
+          $ref: '#/components/headers/ArtifactVersion'
+      content:
+        application/gzip:
+          schema:
+            type: string
+            format: binary
+
+    BadRequest:
+      description: The request query parameters are malformed or out of range.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Unauthorized:
+      description: |
+        Authentication is required for this registry and was missing or invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Forbidden:
+      description: |
+        The authenticated principal is not permitted to access this resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    NotFound:
+      description: No artifact with the given name or alias exists in this registry.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
