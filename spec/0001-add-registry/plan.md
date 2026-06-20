@@ -58,8 +58,8 @@ goes green for every `add registry` scenario.
   `track`/`settings` files stay untouched.
 - A reusable `ScanRegistryAction` — the `.skills`/`.agents` presence scan is a
   use-case helper for now; it graduates to an `Action` when `list catalogue` /
-  `install` need richer enumeration. Git's clone is checked out **at the resolved
-  ref**, so the `List` scan reflects the pin.
+  `install` need richer enumeration. Git's **shallow** clone (depth 1) is checked
+  out **at the resolved ref**, so the `List` scan reflects the pin.
 - An artifact-level `--ref` / per-artifact version pin — the registry-level
   `spec.ref` is the only pin.
 
@@ -81,7 +81,7 @@ graph TD
   end
   subgraph reg["internal/.../repository/registry (adapters)"]
     FS["fs → local dir"]
-    GIT["git → go-git clone @ ref"]
+    GIT["git → go-git shallow clone @ ref"]
     HTTP["http → Registry HTTP API client"]
   end
   subgraph store["internal/.../repository/storage"]
@@ -135,7 +135,7 @@ sequenceDiagram
   Note over UC: (3) exists? yes → conflict (exit 1)
   Note over UC: (4) resolve ${env:U} → Options (unset → unreachable, exit 1)
   UC->>R: Open(ctx, opts{Ref:"release-2.0"})
-  Note over R: clone @ ref / open dir / connect API<br/>(unreachable/auth/bad-ref → exit 1)
+  Note over R: shallow clone @ ref / open dir / connect API<br/>(unreachable/auth/bad-ref → exit 1)
   R-->>UC: source.FileSystem
   UC->>FSx: List(".skills", limit 1) / List(".agents", limit 1)
   Note over UC: (5) any artifact? none → unreachable (exit 1, "hosts no artifact")
@@ -276,7 +276,7 @@ Legend: **DONE** = exists as needed, no change. **EDIT** = modify in place.
 | File | Change |
 |---|---|
 | `fs/factory.go` (+`fs/factory_test.go`) | **NEW** — `extension.Registry`; `Validate` rejects auth/tls/ssh **and `--ref`**; `Open` returns a `source.FileSystem` over `uri` (local dir) + existence/readability check; `List` enumerates `.skills/`/`.agents/`, `Describe`/`Get` stubbed. |
-| `git/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts ssh/auth/tls **and `ref`**; `Open` = go-git clone → ctx-bound temp dir, **checked out at `opts.Ref` (empty → remote default branch)**, returned as a `source.FileSystem`; auth resolved into `Options`; cleanup on ctx done; unresolvable ref → error. `List` over the checkout; `Describe`/`Get` stubbed. |
+| `git/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts ssh/auth/tls **and `ref`**; `Open` = go-git **shallow clone (`Depth: 1`)** → ctx-bound temp dir, **checked out at `opts.Ref` (empty → remote default branch)**, returned as a `source.FileSystem`; auth resolved into `Options`; cleanup on ctx done; unresolvable ref → error. (Shallow is sufficient because `add` only `List`s — no history is read.) `List` over the checkout; `Describe`/`Get` stubbed. |
 | `http/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts auth/tls, **rejects `--ref`**; `Open` returns a `source.FileSystem` that is a **client of the [Registry HTTP API](../../../../spec/contracts/registry-http-api.oas3.yaml)** (Basic auth + TLS from `Options`). `List` = `GET /skills` / `GET /agents` (`limit=1` for the presence scan), parsing `{items,total}`; `Describe`/`Get` stubbed. |
 | `fx.go` | **EDIT** — replace empty `fx.Options()`; provide the three as **named** `extension.Registry` (`name:"registry.filesystem|git|http"`). |
 | `{fs,git,http}/doc.go` | **EDIT** — trim package docs to the adapter's responsibility. |
@@ -455,7 +455,7 @@ http-API fixtures, and adds the `--ref` scenario. See
    `Open(ctx,...Opt) (source.FileSystem, error)`: opening proves reachability, and
    a transport adapter carries no stable identity.
 3. **`source.FileSystem` is the cross-transport content seam** — fs = a local
-   directory, git = a clone **checked out at `Ref`**, http = a
+   directory, git = a **shallow clone (depth 1) checked out at `Ref`**, http = a
    [Registry HTTP API](../contracts/registry-http-api.oas3.yaml) client. The
    presence scan is `List(".skills"/".agents", limit:1)`, written once and reused
    across all three and by later features. `Describe` (metadata/`version`) and
@@ -504,6 +504,16 @@ http-API fixtures, and adds the `--ref` scenario. See
 - **Confirm the git-ssh ADR.** ADR-0002 ("remotes are ssh-only") is referenced by
   the integration-test skill; verify it exists/covers the git fixture before
   building the SSH testcontainers source, and reference it rather than re-deciding.
+- **Shallow clone vs. version derivation (note for 0005/0006).** `add` shallow-clones
+  at depth 1 — enough to `List` for the presence scan, and it computes no `version`.
+  But [git.md](capabilities/git.md) FR-005 derives an artifact's `version` from *the
+  most recent commit that touched its directory*, which a depth-1 clone lacks the
+  history for. When `Describe`/version lands (list catalogue / install), the git
+  adapter must either deepen the clone (full, or a `--filter=blob:none` partial clone
+  that keeps history but not blobs) or `version` must be redefined as the resolved
+  ref's tip commit SHA. Separately: shallow clone is clean for **branch/tag** refs;
+  pinning shallowly to a raw **commit SHA** depends on the server allowing fetch-by-SHA
+  (`uploadpack.allowAnySHA1InWant`), else a deeper fetch is the fallback.
 - **No ADR for `--ref` or the HTTP API.** Ref pinning is a contract/schema-level
   addition realized by a single `Options` field + a go-git checkout; the HTTP
   Registry API is captured by the [OAS3 contract](../contracts/registry-http-api.oas3.yaml).
