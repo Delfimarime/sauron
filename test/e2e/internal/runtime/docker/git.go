@@ -44,6 +44,7 @@ type gitSource struct {
 	resourceSet
 	alias string
 	keys  *sshKeyPair
+	exec  serviceExec
 }
 
 // URL is the ssh remote the binary clones. Resolving it forces Start (the proxy
@@ -62,6 +63,26 @@ func (s *gitSource) Path(context.Context) (string, error) {
 // mounted at the default location, so no host-key checking is disabled.
 func (s *gitSource) SSHKey(context.Context) (string, error) {
 	return gitClientKey, nil
+}
+
+// Revision is the commit the served repository's default branch resolves to,
+// read by running git in the sshd sidecar. A scenario pins it via
+// #{.git.<alias>.revision} to exercise commit-addressed resolution (a SHA is
+// neither a branch nor a tag). safe.directory disarms the dubious-ownership guard,
+// since the bare repo is owned by the git account but the exec runs as root.
+func (s *gitSource) Revision(ctx context.Context) (string, error) {
+	if s.exec == nil {
+		return "", fmt.Errorf("docker: git source %q cannot resolve a revision", s.alias)
+	}
+	code, out, err := s.exec(ctx, gitService(s.alias),
+		"git", "-c", "safe.directory=*", "-C", gitRepoPath, "rev-parse", gitDefaultRef)
+	if err != nil {
+		return "", fmt.Errorf("docker: resolve git revision for %q: %w", s.alias, err)
+	}
+	if code != 0 {
+		return "", fmt.Errorf("docker: resolve git revision for %q: rev-parse exited %d: %s", s.alias, code, out)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 // gitService is the compose service name (and in-network DNS host) of a git

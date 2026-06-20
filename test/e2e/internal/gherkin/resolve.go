@@ -89,8 +89,10 @@ func resolveReference(ctx context.Context, rt runtime.Runtime, s string) (string
 			return rt.Git(ref.alias).URL(ctx)
 		case "sshKey":
 			return rt.Git(ref.alias).SSHKey(ctx)
+		case "revision":
+			return rt.Git(ref.alias).Revision(ctx)
 		default:
-			return "", fmt.Errorf("git reference %q: only .url and .sshKey are supported", s)
+			return "", fmt.Errorf("git reference %q: only .url, .sshKey, and .revision are supported", s)
 		}
 	default:
 		return "", fmt.Errorf("unknown capability %q in reference %q", ref.capability, s)

@@ -31,6 +31,7 @@ func (c *commandController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) with username (\S+) and password (\S+)$`, c.addRegistryWithAuth)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) using ssh key (\S+)$`, c.addRegistryWithSSHKey)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) pinned to (\S+) using ssh key (\S+)$`, c.addRegistryPinnedWithSSHKey)
+	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) with client certificate (\S+) and key (\S+)$`, c.addRegistryWithClientCert)
 
 	sc.Step(`^the command succeeds$`, c.succeeds)
 	sc.Step(`^the command exits with status (\d+)$`, c.exitsWith)
@@ -74,6 +75,14 @@ func (c *commandController) addRegistryPinnedWithSSHKey(ctx context.Context, tra
 	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, ref: ref, sshKeyRef: sshKeyRef})
 }
 
+// addRegistryWithClientCert is addRegistry forwarding --client-cert/--client-key,
+// the mutual-TLS flags the git transport rejects (it cannot apply a client
+// certificate); the cert and key arguments are paths the command never reads
+// before rejecting them.
+func (c *commandController) addRegistryWithClientCert(ctx context.Context, transport, name, uriRef, clientCert, clientKey string) error {
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, clientCert: clientCert, clientKey: clientKey})
+}
+
 // addRegistryFromTable is the canonical table-driven form; the uri cell is resolved
 // through valueOf like the sugar steps.
 func (c *commandController) addRegistryFromTable(ctx context.Context, table *godog.Table) error {
@@ -95,18 +104,21 @@ func (c *commandController) addRegistryFromTable(ctx context.Context, table *god
 // addOptions carries the fields every "adds the registry" step contributes; the
 // optional ones default to empty and are forwarded only when set.
 type addOptions struct {
-	transport string
-	name      string
-	uriRef    string
-	ref       string
-	username  string
-	password  string
-	sshKeyRef string
+	transport  string
+	name       string
+	uriRef     string
+	ref        string
+	username   string
+	password   string
+	sshKeyRef  string
+	clientCert string
+	clientKey  string
 }
 
-// add is the shared body of every "adds the registry" step: resolve the uri (and
-// the ssh-key path, when given) references, then run `sauron add registry` with the
-// optional ref, basic-auth, and ssh-key flags.
+// add is the shared body of every "adds the registry" step: resolve the uri, and
+// the ssh-key and ref references when given (a ref may be a #{.git.<alias>.revision}
+// placeholder), then run `sauron add registry` with the optional ref, basic-auth,
+// and ssh-key flags.
 func (c *commandController) add(ctx context.Context, o addOptions) error {
 	uri, err := valueOf[string](ctx, c.rt, o.uriRef)
 	if err != nil {
@@ -119,7 +131,17 @@ func (c *commandController) add(ctx context.Context, o addOptions) error {
 			return err
 		}
 	}
-	return c.run(ctx, addRegistryArgs(o.name, o.transport, uri, o.ref, o.username, o.password, sshKey))
+	ref := o.ref
+	if ref != "" {
+		ref, err = valueOf[string](ctx, c.rt, o.ref)
+		if err != nil {
+			return err
+		}
+	}
+	o.uriRef = uri
+	o.sshKeyRef = sshKey
+	o.ref = ref
+	return c.run(ctx, addRegistryArgs(o))
 }
 
 func (c *commandController) succeeds(context.Context) error {
@@ -181,24 +203,31 @@ func (c *commandController) requireRun() error {
 }
 
 // addRegistryArgs assembles the `sauron add registry` invocation shared by every
-// When step. The command takes the transport as --kind and the name and uri as
-// positional arguments; the ref, basic-auth, and ssh-key flags are appended only
-// when set, before the positionals.
-func addRegistryArgs(name, transport, uri, ref, username, password, sshKey string) []string {
-	args := []string{"sauron", "add", "registry", "--kind", transport}
-	if ref != "" {
-		args = append(args, "--ref", ref)
+// When step. It takes the option struct with its uri and ssh-key references already
+// resolved to concrete values. The command takes the transport as --kind and the
+// name and uri as positional arguments; the ref, basic-auth, ssh-key, and
+// client-certificate flags are appended only when set, before the positionals.
+func addRegistryArgs(o addOptions) []string {
+	args := []string{"sauron", "add", "registry", "--kind", o.transport}
+	if o.ref != "" {
+		args = append(args, "--ref", o.ref)
 	}
-	if username != "" {
-		args = append(args, "--username", username)
+	if o.username != "" {
+		args = append(args, "--username", o.username)
 	}
-	if password != "" {
-		args = append(args, "--password", password)
+	if o.password != "" {
+		args = append(args, "--password", o.password)
 	}
-	if sshKey != "" {
-		args = append(args, "--ssh-key", sshKey)
+	if o.sshKeyRef != "" {
+		args = append(args, "--ssh-key", o.sshKeyRef)
 	}
-	return append(args, name, uri)
+	if o.clientCert != "" {
+		args = append(args, "--client-cert", o.clientCert)
+	}
+	if o.clientKey != "" {
+		args = append(args, "--client-key", o.clientKey)
+	}
+	return append(args, o.name, o.uriRef)
 }
 
 // tableFields flattens a two-column |field|value| table into a map, skipping the
