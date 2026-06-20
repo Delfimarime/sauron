@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+
+	"github.com/delfimarime/sauron/internal/infrastructure/repository"
+	"github.com/delfimarime/sauron/internal/usecase"
 )
 
 // TestNewApp asserts the transversal fx graph wires and validates cleanly — the
@@ -32,11 +35,14 @@ func TestNewApp(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// A caller opt that overrides the filesystem with an in-memory one
-			// must compose without breaking the graph.
-			name: "caller opt is appended",
+			// The command-owned opts (repository + usecase) compose onto the
+			// transversal graph, and a caller may still decorate the storage
+			// filesystem with an in-memory one.
+			name: "command opts are appended",
 			opts: func() []fx.Option {
 				return []fx.Option{
+					repository.NewFxOptions(),
+					usecase.NewFxOptions(),
 					fx.Decorate(func(afero.Fs) afero.Fs { return afero.NewMemMapFs() }),
 				}
 			},
@@ -81,6 +87,36 @@ func TestNewAppLifecycle(t *testing.T) {
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer stopCancel()
 	assert.NoError(t, app.Stop(stopCtx))
+}
+
+// TestNewAppCommandGraph asserts the add-registry use case resolves when its
+// command-owned opts (repository + usecase) are appended to the transversal
+// graph — the wiring the command itself performs.
+func TestNewAppCommandGraph(t *testing.T) {
+	// Arrange.
+	t.Setenv("SAURON_HOME", t.TempDir())
+	var uc *usecase.AddRegistryUseCase
+	app := NewApp(context.Background(),
+		repository.NewFxOptions(),
+		usecase.NewFxOptions(),
+		fx.Decorate(func(afero.Fs) afero.Fs { return afero.NewMemMapFs() }),
+		fx.Populate(&uc),
+	)
+	require.NoError(t, app.Err())
+
+	startCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Act.
+	require.NoError(t, app.Start(startCtx))
+	defer func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stopCancel()
+		assert.NoError(t, app.Stop(stopCtx))
+	}()
+
+	// Assert.
+	assert.NotNil(t, uc)
 }
 
 // TestProvidePool runs the pool through fx, submits a task, then stops the app to exercise the OnStop hook.
