@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/modules/compose"
+	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
@@ -110,6 +111,12 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	stack, err := c.newStack(path)
 	if err != nil {
 		return err
+	}
+	// The git sidecar's entrypoint seeds the repo before `exec sshd`, so port 22
+	// is not open the instant the container starts; wait until sshd announces it
+	// is listening, otherwise an early clone races it and is refused.
+	for _, alias := range sortedKeys(c.gits) {
+		stack = stack.WaitForService(gitService(alias), wait.ForLog("Server listening on"))
 	}
 	c.stack = stack
 
