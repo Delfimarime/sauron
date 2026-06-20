@@ -1,9 +1,10 @@
 # Implementation Plan — Add Registry
 
-Implementation plan for the [Add Registry](spec.md) feature. It captures **what**
-changes, **how** the pieces fit, and the **execution** order — not the code
-itself. It conforms to the [architecture contract](../contracts/architecture.md),
-the [CLI contract](../contracts/cli.md), and the
+Implementation plan for the [Add Registry](spec.md) feature, **aligned to the
+code as built**. It captures **what** was delivered, **how** the pieces fit, and
+the **status** of each checkpoint — not the code itself. It conforms to the
+[architecture contract](../contracts/architecture.md), the
+[CLI contract](../contracts/cli.md), and the
 [state data contract](../contracts/state.md), and realizes the
 [`add registry` command contract](contracts/add-registry.md), the
 [HTTP Registry API](../contracts/registry-http-api.oas3.yaml), and the
@@ -12,91 +13,96 @@ the [CLI contract](../contracts/cli.md), and the
 
 ## 1. Goal & scope
 
-Implement `sauron add registry`: register a named source (`<name> <uri>` +
-`--kind` + auth/TLS/timeout flags, and **`--ref` for git**), prove it is reachable
-**and hosts ≥1 skill or agent**, and append one `Registry` document to
-`registries.yaml` atomically. Establish the foundations every later feature
-reuses: the `extension.Registry` transport port (producing a `source.FileSystem`
-content view), the storage engine + typed `RegistriesStore`, the
-`usecase.Error{Type,Reason}` model, and the wired `internal/cmd` command surface.
-All three transports ship a `source.FileSystem` adapter — git honoring `--ref`,
-http speaking the [Registry HTTP API](../contracts/registry-http-api.oas3.yaml) —
-with **only `List` implemented** this round, and the black-box `test/e2e` BDD suite
-goes green for every `add registry` scenario.
+`sauron add registry` registers a named source (`<name> <uri>` + `--kind` +
+auth/TLS/timeout flags, and **`--ref` for git**), proves it is reachable **and
+hosts ≥1 skill or agent**, and appends one `Registry` document to
+`registries.yaml` atomically. All three transports (filesystem, http, git) ship,
+git honoring `--ref`, and the black-box `test/e2e` BDD suite covers every
+`add registry` scenario.
 
-**Foundations present and reused:**
+The feature also established the foundations every later feature reuses: the
+`extension.Registry` transport port (returning a `source.FileSystem` content
+view), the `pkg/sauron/marketplace` REST client, the storage engine + typed
+`RegistriesStore`, the `usecase.Error{Type,Reason}` model, and the wired
+`internal/cmd` command surface.
 
-- `pkg/sauron/types` — `Registry`, `RegistrySpec` (`Transport`, `URI`, `Auth`,
-  `TLS`, `SSHKey`, `Timeout`), `Auth`, `TLS`, `Transport` (+consts), `TypeMeta`,
-  `Metadata`, `Kind*`. Each document is a concrete typed struct embedding
-  `TypeMeta` — no generic envelope.
-- `internal/usecase/api.go` — `Request`, `UseCase[R]`, `Action[R,P]`.
-- `internal/infrastructure/repository/storage` — `Store` skeleton (`{fs}` +
-  `NewStore`), `newFilesystem` (home-rooted `afero.BasePathFs` for `~/.sauron/*`),
-  and `fx.go`.
-- `internal/infrastructure/repository/registry` — `fs/`, `git/`, `http/`
-  placeholders and an empty `fx.go`.
-- `pkg/sauron/extension` — `Registry` and `Provider` ports.
-- `internal/cmd` — `root.go` (`New`), `helper_flags.go` (`timeoutFlags` + the
-  listing/paging/dry-run groups), `helper.go`, `helper_fx.go`.
-- `test/e2e` — godog runner (strict, `~@git` filter, host vs docker-compose
-  runtime), the six controllers, the source/content/resolve fixtures, and
-  `state_controller.go` (decodes `registries.yaml` via `pkg/sauron/types.Registry`).
-  Feature files exist for filesystem, http, git, and version.
+**Delivered (this feature):**
 
-**Out of scope (YAGNI):**
+- Registration across the three transports + the git `--ref` pin, the presence
+  scan, atomic persistence, and the e2e suite.
 
-- The `Describe` and `Get` halves of `source.FileSystem`. For `add`, only **`List`**
-  is implemented — enough to detect ≥1 artifact via a `limit:1` query. `Describe`
-  (per-artifact metadata, incl. `version`) and `Get` (gzip content download) are
-  stubs that land with `list catalogue` (0005) / `install` (0006).
-- Digest & version computation. The persisted `spec.ref` *defines the resolution
-  point* later features read against ([git.md](capabilities/git.md)), but `add`
-  computes no digest/version.
+**Out of scope — deferred to later features (YAGNI):**
+
+- Browsing and downloading registry content. This feature only proves presence
+  (a listing); it computes no per-artifact metadata, digest, or `version`. The
+  persisted `spec.ref` records the resolution point for later use.
 - The `Skill` / `Agent` / `Persona` / `Provider` / `Schedule` stores, and
-  `List` / `Remove` on the registries store (arrive with 0002 / 0004). The
-  `track`/`settings` files stay untouched.
-- A reusable `ScanRegistryAction` — the `.skills`/`.agents` presence scan is a
-  use-case helper for now; it graduates to an `Action` when `list catalogue` /
-  `install` need richer enumeration. Git's **shallow** clone (depth 1) is checked
-  out **at the resolved ref**, so the `List` scan reflects the pin.
-- An artifact-level `--ref` / per-artifact version pin — the registry-level
-  `spec.ref` is the only pin.
+  `List` / `Remove` on the registries store.
+- Result `total` / pagination: the listing returns items only (Zalando #254 — no
+  total count); `add` reads `len(items) > 0`.
 
-## 2. Component & dependency flow
+## 2. Pre-requirements
+
+Before executing the tasks in [TASKS.md](TASKS.md):
+
+- **Toolchain** — Go `1.26`, the [Task](https://taskfile.dev) runner, a
+  `CGO_ENABLED=0` build; `golangci-lint`, `gofmt`, and `trivy` for the gates.
+- **Specification surface** — the contracts this plan realizes are in place: the
+  [`add registry` command contract](contracts/add-registry.md), the
+  [git](capabilities/git.md) / [http](capabilities/http.md) /
+  [filesystem](capabilities/filesystem.md) capabilities, the
+  [HTTP Registry API](../contracts/registry-http-api.oas3.yaml), and the
+  [state data contract](../contracts/state.md) plus the `Registry` JSON schema
+  under [`schemas/`](../contracts/schemas/).
+- **Approved dependencies** — `go-git/v5`, `google/jsonschema-go`, and
+  `go-resty/resty/v2` are on the
+  [architecture contract](../contracts/architecture.md) approved list.
+- **Existing scaffolding** — the cobra root command, the uberfx wiring
+  (`NewFxOptions` per module, the `NewApp` bootstrap, the pond pool), the
+  `internal/config` home resolution, and the zap+ECS telemetry, as fixed by the
+  architecture contract.
+- **Integration tooling** — the `test/e2e` module's godog + testcontainers stack
+  for `task gate-integration`; its git scenarios run on a Linux runner.
+
+## 3. Component & dependency flow (as built)
 
 ```mermaid
 graph TD
   subgraph cmd["internal/cmd (cobra — thin)"]
-    AR["add.go (parent) · add_registry.go<br/>Serve()/serve() · ExactArgs(2)<br/>--ref (git) bound here<br/>map Error.Type → exit code · error: → stderr"]
+    AR["add.go: Add() · add_registry.go: AddRegistry()/addRegistry()<br/>usageArgs(ExactArgs(2)) · inline flags · --ref<br/>fx.Invoke(uc.Execute) — fx drives the call<br/>main.go: single error site → exit code"]
   end
   subgraph uc["internal/usecase (stateless)"]
-    UC["AddRegistryUseCase.Execute(req)<br/>path-safe · env-ref · select transport · List scan<br/>req.Ref → Options + spec.ref"]
+    UC["AddRegistryUseCase.Execute(req)<br/>path-safe · cred-format · Validate · conflict<br/>env-resolve · Open · List scan · persist"]
   end
   subgraph ext["pkg/sauron/extension (port)"]
-    P["Registry<br/>Validate(...Opt) error<br/>Open(ctx,...Opt) → source.FileSystem<br/>Options{…, Ref}"]
+    P["Registry: Validate(...Opt) · Open(ctx,...Opt) → source.FileSystem<br/>Options{URI,Ref,Timeout,auth,tls,ssh}"]
   end
   subgraph src["pkg/sauron/source (port)"]
-    SRC["FileSystem · File · Stat<br/>List (impl) · Describe/Get (stub)"]
+    SRC["FileSystem: List → []File<br/>File · Stat · Options{Search,Limit,Offset,Sort}"]
   end
-  subgraph reg["internal/.../repository/registry (adapters)"]
-    FS["fs → local dir"]
-    GIT["git → go-git shallow clone @ ref"]
-    HTTP["http → Registry HTTP API client"]
+  subgraph reg["internal/.../repository/registry (one package + api)"]
+    OS["os_filesystem.go (osFactory)"]
+    GIT["git_filesystem.go (gitFactory, shallow clone @ ref)"]
+    REST["rest_filesystem.go (restFactory)"]
+    API["api/: Directory (dir-backed FS) · ErrUsage/ErrRuntime · Resolve/HasAuth/HasTLS"]
   end
+  MKT["pkg/sauron/marketplace<br/>Client · Skills()/Agents()/Personas().List → ArtifactList{Items}<br/>plain resty · APIError"]
   subgraph store["internal/.../repository/storage"]
-    RS["RegistriesStore (facade)<br/>FindByName · Add  over types.Registry"]
-    ST["Store (engine)<br/>kind→file · parse · validate-on-read<br/>lock-on-write · atomic rename"]
+    RS["RegistriesStore: FindByName · Add"]
+    ST["Store engine: FindOne (validate-on-read) · Append (lock+atomic) · kind→file"]
   end
-  TYPES["pkg/sauron/types<br/>Registry · RegistrySpec(+Ref) · Transport · Auth · TLS"]
+  TYPES["pkg/sauron/types: Registry · RegistrySpec(+Ref) · Transport · Auth · TLS"]
 
-  AR -->|Execute req| UC
+  AR -->|fx.Invoke Execute| UC
   UC -->|port| P
   UC -->|capability| RS
   P -->|returns| SRC
-  SRC -.implemented by.-> FS
-  SRC -.implemented by.-> GIT
-  SRC -.implemented by.-> HTTP
+  OS -.implements.-> P
+  GIT -.implements.-> P
+  REST -.implements.-> P
+  OS --> API
+  GIT --> API
+  REST --> MKT
   RS --> ST
   SRC -->|List .skills/.agents| CONTENT["≥1 skill or agent?"]
   ST -->|injected afero.Fs| HOME["~/.sauron/registries.yaml"]
@@ -105,424 +111,249 @@ graph TD
   TYPES -.shared.-> RS
 ```
 
-Two distinct content views are in play and never mix: the storage engine's
-**home-rooted `afero.Fs`** for `~/.sauron/*.yaml` (fx-injected by `newFilesystem`,
-unchanged), and the per-call **registry-content `source.FileSystem`** the
-`Registry` port produces — a git temp clone checked out at `Ref`, a local base
-directory, or a [Registry HTTP API](../contracts/registry-http-api.oas3.yaml)
-client.
+Two content views never mix: the storage engine's **home-rooted `afero.Fs`** for
+`~/.sauron/*.yaml` (fx-injected by `newFilesystem`), and the per-call
+**registry-content `source.FileSystem`** the `Registry` port returns — a
+`Directory` over a git shallow-clone (checked out at `Ref`) or a local dir, or a
+[Registry HTTP API](../contracts/registry-http-api.oas3.yaml) client.
 
-## 3. Runtime sequence
+## 4. Runtime sequence
 
-```mermaid
-sequenceDiagram
-  actor U as User
-  participant C as cmd.serve()
-  participant UC as AddRegistryUseCase
-  participant R as Registry(git|http|fs)
-  participant FSx as source.FileSystem
-  participant RS as RegistriesStore
-  participant ST as Store
-
-  U->>C: add registry --kind git --ref release-2.0 acme <uri> --username ${env:U}
-  C->>UC: Execute(req)  // req.Ref = "release-2.0"
-  Note over UC: (1) path-safe(name)? no → usage (exit 2)
-  Note over UC: (2) requireEnvRef / Registry.Validate bad → usage (exit 2)<br/>(--ref on http/fs → usage, exit 2)
-  UC->>RS: FindByName("acme")
-  RS->>ST: FindOne(Registry,"acme") read + validate-on-load
-  ST-->>RS: nil
-  RS-->>UC: nil
-  Note over UC: (3) exists? yes → conflict (exit 1)
-  Note over UC: (4) resolve ${env:U} → Options (unset → unreachable, exit 1)
-  UC->>R: Open(ctx, opts{Ref:"release-2.0"})
-  Note over R: shallow clone @ ref / open dir / connect API<br/>(unreachable/auth/bad-ref → exit 1)
-  R-->>UC: source.FileSystem
-  UC->>FSx: List(".skills", limit 1) / List(".agents", limit 1)
-  Note over UC: (5) any artifact? none → unreachable (exit 1, "hosts no artifact")
-  UC->>RS: Add(types.Registry{…, Spec.Ref:"release-2.0"})  // stamps APIVersion + Kind
-  RS->>ST: encode → Node · lock · append · atomic rename (write error → io, exit 1)
-  ST-->>RS: ok
-  RS-->>UC: ok
-  UC-->>C: Out(): registered registry "acme" (git)
-  C-->>U: stdout + exit 0
+```text
+User                 cmd           UseCase           Registry       FileSystem        Store
+  │                   │               │                  │               │              │
+  │ add registry (1)  │               │                  │               │              │
+  │───────────────────▶               │                  │               │              │
+  │                   │ Execute(req)  (2)                │               │              │
+  │                   │───────────────▶                  │               │              │
+  │                   │               │                  │               │              │
+  │                   │               │ Validate(opts)   │               │              │
+  │                   │               │──────────────────▶               │              │
+  │                   │               ◀─ ─ ─ ─ ─ ─ ─ ─ ─ │ ok            │              │
+  │                   │               │ FindByName(name) │               │              │
+  │                   │               │─────────────────────────────────────────────────▶
+  │                   │               ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ nil
+  │                   │               │ Open(ctx, ref)   │               │              │
+  │                   │               │──────────────────▶               │              │
+  │                   │               ◀─ ─ ─ ─ ─ ─ ─ ─ ─ │ source.FS     │              │
+  │                   │               │ List(roots, 1)   │               │              │
+  │                   │               │──────────────────────────────────▶              │
+  │                   │               ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │ files        │
+  │                   │               │ Add(registry)    │               │              │
+  │                   │               │─────────────────────────────────────────────────▶
+  │                   │               ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ ok
+  │                   │               │                  │               │              │
+  │                   ◀─ ─ ─ ─ ─ ─ ─ ─│ stdout           │               │              │
+  ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ exit 0        │                  │               │              │
 ```
 
-## 4. Interfaces (final)
+Solid `──▶` is a synchronous call, dashed `◀─ ─` a return. The pipeline stops at
+the first failing step, with the exit code shown.
+
+- `(1)` `sauron add registry --kind git --ref release-2.0 acme <uri> --username ${env:VAR}`
+- `(2)` `cmd` runs it via `NewApp(ctx, fx.Invoke(uc.Execute))` — fx drives the call;
+  the use case is never extracted and hand-invoked. `roots` = `.skills` + `.agents`.
+- path-safe `name` + credentials-are-`${env:VAR}` — invalid -> **usage (2)**
+- `Validate(opts)` — flags inapplicable to the transport (`--ref` on http/fs) -> **usage (2)**
+- `FindByName` — name already exists -> **conflict (1)**
+- resolve `${env:VAR}` — unset -> **unreachable (1)**
+- `Open` — unreachable / auth / bad ref -> **unreachable (1)**; git shallow-clones at
+  the ref, fs opens the directory, http connects the REST API
+- `List(roots, 1)` — no entries -> **unreachable (1, "hosts no artifact")**
+- `Add` — lock + atomic append to `~/.sauron/registries.yaml`; write error -> **io (1)**
+- success -> writes `registered registry "acme" (git)` to stdout, **exit 0**
+
+
+## 5. Interfaces (as built)
 
 ```go
 // pkg/sauron/types — RegistrySpec carries Ref (git only; persisted; omitempty).
 type RegistrySpec struct {
     Transport Transport `json:"transport" yaml:"transport"`
     URI       string    `json:"uri" yaml:"uri"`
-    Ref       string    `json:"ref,omitempty" yaml:"ref,omitempty"` // git ref (branch/tag/commit)
+    Ref       string    `json:"ref,omitempty" yaml:"ref,omitempty"`
     Auth      *Auth     `json:"auth,omitempty" yaml:"auth,omitempty"`
     TLS       *TLS      `json:"tls,omitempty" yaml:"tls,omitempty"`
     SSHKey    string    `json:"sshKey,omitempty" yaml:"sshKey,omitempty"`
     Timeout   string    `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 }
-```
 
-```go
-// pkg/sauron/source — the cross-transport content view of a registry. Only List
-// is implemented in this feature; Describe/Get are stubs returning a
-// not-implemented sentinel until list catalogue / install.
+// pkg/sauron/source — the cross-transport content view this feature relies on.
 type FileSystem interface {
-    List(ctx context.Context, uri string, opts ...Option) ([]File, error) // IMPLEMENTED
-    Describe(ctx context.Context, uri string) (Stat, error)                     // STUB
-    Get(ctx context.Context, uri string) (File, error)                          // STUB
+    List(ctx context.Context, uri string, opts ...Option) ([]File, error)
+    // the port declares further read methods not exercised by this feature
 }
-type File interface {
-    Stat
-    Read(ctx context.Context) (io.ReadCloser, error)
-}
-type Stat interface {
-    Name() string
-    IsDirectory() bool
-    Size() int64
-    Version() string // git: commit SHA · http: Artifact-Version header · fs: ""
-}
-type Option func(*Options)
+type File interface { Stat; Read(ctx context.Context) (io.ReadCloser, error) }
+type Stat interface { Name() string; IsDirectory() bool; Size() int64; Version() string }
 type Options struct { Search *string; Limit, Offset *int64; Sort *string }
-```
 
-```go
-// pkg/sauron/extension — the Registry port. Validate flag-appropriateness, then
-// open a source.FileSystem view of the registry's content. One implementation per
-// transport (fs/git/http).
+// pkg/sauron/extension — the transport port.
+type Registry interface {
+    Validate(opts ...Option) error                                  // inapplicable flags → usage
+    Open(ctx context.Context, opts ...Option) (source.FileSystem, error) // construct + reach → runtime
+}
 type Options struct {
-    URI                string
-    Ref                string // git ref (branch/tag/commit); empty → default branch
-    Timeout            time.Duration
-    Username, Password string // RESOLVED values, for connecting only — never persisted
-    SSHKey             string
-    SkipTLSVerify      bool
+    URI, Ref                      string
+    Timeout                       time.Duration
+    Username, Password, SSHKey    string
+    SkipTLSVerify                 bool
     CACert, ClientCert, ClientKey string
 }
-type Option func(*Options) // WithURI, WithRef, WithTimeout, WithBasicAuth, WithSSHKey, WithTLS…
 
-type Registry interface {
-    Validate(opts ...Option) error                                  // inapplicable flags → usage (exit 2)
-    Open(ctx context.Context, opts ...Option) (source.FileSystem, error) // construct + reach → runtime (exit 1)
-}
-```
+// pkg/sauron/marketplace — fluent, plain-resty client of the HTTP Registry API.
+type Client interface { Skills() ArtifactClient; Agents() ArtifactClient; Personas() ArtifactClient }
+type ArtifactClient interface { List(ctx context.Context, opts ...ListOption) (*ArtifactList, error) }
+type ArtifactList struct { Items []ArtifactSummary } // no total (Zalando #254)
+// + APIError + IsNotFound/IsUnauthorized/IsForbidden/IsBadRequest, sentinels ErrInvalidConfig/ErrTransport.
 
-*What these ports contribute (SOLID/DRY):* **DIP** — the use case depends on
-`extension.Registry` + `source.FileSystem`, not on go-git / net/http / the OS
-filesystem, and selects an implementation by `--kind`. **ISP** — `Registry` is two
-cohesive methods; `source.FileSystem` separates listing (`List`) from metadata
-(`Describe`) from content (`Get`), so `add` pulls in only `List`. The
-`source.FileSystem` return is the **DRY pivot**: the artifact-presence scan
-(`List` over `.skills`/`.agents`, `limit:1`) is written once and reused by every
-transport and by every later feature (`list catalogue`, `install`). `Ref` rides on
-`extension.Options`: only the git adapter reads it, and the git adapter's
-`Validate` is the single place that rejects `--ref` on a non-git transport (usage,
-exit 2).
-
-```go
-// internal/infrastructure/repository/storage
-//
-// Store — the kind-agnostic file ENGINE: kind→file map, multi-document stream
-// parse, validate-on-read against the embedded JSON schema, lockfile-serialized
-// writes, atomic temp+rename. Operates on yaml.Node so pkg/ types never couple to
-// the engine.
-type Store struct { /* fs afero.Fs; lock; validator */ }
-func (s *Store) FindOne(ctx context.Context, kind, name string) (*yaml.Node, error) // nil if absent; validates on read
-func (s *Store) Append(ctx context.Context, kind string, doc *yaml.Node) error      // lock + atomic; no re-validation
-
-// RegistriesStore — typed, use-case-facing facade over Store for the Registry kind.
+// internal/.../storage — engine over yaml.Node + typed facade.
+func (s *Store) FindOne(ctx, kind, name string) (*yaml.Node, error) // nil if absent; validate-on-read
+func (s *Store) Append(ctx, kind string, doc *yaml.Node) error      // lock + atomic; no re-validation
 type RegistriesStore interface {
-    FindByName(ctx context.Context, name string) (*types.Registry, error) // nil if absent
-    Add(ctx context.Context, r types.Registry) error                      // stamps APIVersion + Kind=Registry
+    FindByName(ctx context.Context, name string) (*types.Registry, error)
+    Add(ctx context.Context, r types.Registry) error // stamps APIVersion + Kind=Registry
 }
-```
 
-```go
-// internal/usecase (added to api.go)
+// internal/usecase
 type Error struct { Type, Reason string } // cmd maps Type → exit code; Reason → stderr
-func (e *Error) Error() string { return e.Reason }
-// Type ∈ {"usage","conflict","unreachable","validation","io"};  cmd: usage → 2, else → 1
+// Type ∈ {usage,conflict,unreachable,validation,io};  cmd: usage → 2, else → 1
 ```
 
-## 5. Affected files
+## 6. Delivered file layout
 
-Legend: **DONE** = exists as needed, no change. **EDIT** = modify in place.
-**NEW** = create. **RENAME/REMOVE** = as noted.
-
-### `pkg/sauron/source/` — **NEW**
-
-| File | Change |
+### `pkg/sauron/`
+| Path | Holds |
 |---|---|
-| `source.go` | **NEW** — `FileSystem`, `File`, `Stat`, `Options`, `Option` (+`With*`) and a `ErrNotImplemented` sentinel for the stubbed `Describe`/`Get`. |
-| `mock_based_file_system.go` | **NEW** — `MockBasedFileSystem` (testify) beside the interface, for use-case tests. |
+| `types/registry.go` (+ `manifest.go`, `skill.go`, `agent.go`, `persona.go`, `provider.go`, `schedule.go`) | domain & manifest types; `RegistrySpec.Ref` added |
+| `source/source.go` (+ `mock_based_file_system.go`) | the `FileSystem`/`File`/`Stat` port, `Options`/`WithX`, `ErrNotImplemented` |
+| `extension/registry.go` (+ `mock_based_registry.go`, `provider.go`, `doc.go`) | `Registry{Validate,Open→source.FileSystem}`, `Options`/`WithX` |
+| `marketplace/{client,resources,types,options,errors}.go` (+ `mock_based_client.go`, `doc.go`) | the List-only resty client + `APIError` |
+| `telemetry/fields.go` | standard ECS field-key constants |
 
-### `pkg/sauron/types/`
-
-| File | Change |
+### `internal/`
+| Path | Holds |
 |---|---|
-| `registry.go` | **EDIT** — add `Ref string` (`json/yaml:"ref,omitempty"`) to `RegistrySpec`, between `URI` and `Auth`. |
-| `registry_test.go` | **EDIT/NEW** — round-trip a `Registry` with `Spec.Ref` set and unset (omitempty). |
-| `manifest.go`, `doc.go` | **DONE** — `TypeMeta`/`Metadata`/`Kind*`; no generic envelope. |
-
-### `pkg/sauron/extension/`
-
-| File | Change |
-|---|---|
-| `registry.go` | **EDIT** — define `Registry{Validate,Open}` where `Open` returns `source.FileSystem`; plus `Options` (incl. `Ref`) and `Option` (+`WithRef` and the other `With*`). |
-| `mock_based_registry.go` | **NEW** — `MockBasedRegistry` (testify), for use-case tests. |
-| `provider.go` | **DONE** — untouched. |
-
-### `internal/infrastructure/repository/registry/`
-
-| File | Change |
-|---|---|
-| `fs/factory.go` (+`fs/factory_test.go`) | **NEW** — `extension.Registry`; `Validate` rejects auth/tls/ssh **and `--ref`**; `Open` returns a `source.FileSystem` over `uri` (local dir) + existence/readability check; `List` enumerates `.skills/`/`.agents/`, `Describe`/`Get` stubbed. |
-| `git/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts ssh/auth/tls **and `ref`**; `Open` = go-git **shallow clone (`Depth: 1`)** → ctx-bound temp dir, **checked out at `opts.Ref` (empty → remote default branch)**, returned as a `source.FileSystem`; auth resolved into `Options`; cleanup on ctx done; unresolvable ref → error. (Shallow is sufficient because `add` only `List`s — no history is read.) `List` over the checkout; `Describe`/`Get` stubbed. |
-| `http/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts auth/tls, **rejects `--ref`**; `Open` returns a `source.FileSystem` that is a **client of the [Registry HTTP API](../../../../spec/contracts/registry-http-api.oas3.yaml)** (Basic auth + TLS from `Options`). `List` = `GET /skills` / `GET /agents` (`limit=1` for the presence scan), parsing `{items}`; `Describe`/`Get` stubbed. |
-| `fx.go` | **EDIT** — replace empty `fx.Options()`; provide the three as **named** `extension.Registry` (`name:"registry.filesystem|git|http"`). |
-| `{fs,git,http}/doc.go` | **EDIT** — trim package docs to the adapter's responsibility. |
-
-### `internal/infrastructure/repository/storage/`
-
-| File | Change |
-|---|---|
-| `store.go` | **EDIT** — evolve `Store` into the engine: hold the lock + validator; add `FindOne` (validate-on-read) and `Append` (lock + atomic temp+rename); kind→file map (`Registry`→`registries.yaml`). Home fs stays `afero`. |
-| `registries_store.go` (+test) | **NEW** — `RegistriesStore` interface + impl over `Store` (`types.Registry` ↔ `yaml.Node`, stamps `TypeMeta`; carries `spec.ref` through unchanged). |
-| `lock.go` | **NEW** — home lockfile guard for writes. |
-| `schema.go` (+test) | **NEW** — `go:embed schemas/*.json`; validate a `yaml.Node` (as JSON) for a kind via `github.com/google/jsonschema-go`. |
-| `schemas/` | **NEW (generated, git-ignored)** — `task generate` copies `spec/contracts/schemas/*.json` here for `go:embed` (cannot reach `..`). The copied `Registry.schema.json` carries `spec.ref`. |
-| `mock_based_registries_store.go` | **NEW** — `MockBasedRegistriesStore`, for use-case tests. |
-| `fx.go` | **EDIT** — provide `Store`, `RegistriesStore`; keep `newFilesystem`. |
-| `filesystem.go` | **DONE** — home-rooted `afero.Fs`, untouched. |
-| `store_test.go` | **EDIT** — engine round-trip / validate-on-read (incl. a `spec.ref` doc) / lock tests over `afero.MemMapFs`. |
-
-### `internal/usecase/`
-
-| File | Change |
-|---|---|
-| `api.go` | **EDIT** — add `Error{Type,Reason}` + `Error()` + Type constants/constructors. |
-| `usecase_add_registry.go` (+test) | **NEW** — `AddRegistryUseCase`, `AddRegistryRequest` (**incl. `Ref`**), fx `In` (the three named `extension.Registry`, `RegistriesStore`, logger), `Execute` + private helpers: `isPathSafe`, `requireEnvRef`/`resolveEnvRef`, `hostsArtifact(fs)` (a `source.FileSystem.List` with `limit:1`), transport selection. Threads `req.Ref` → `WithRef(...)` on the git `Open` and into `types.Registry.Spec.Ref` on persist. |
-| `fx.go` | **EDIT** — provide `AddRegistryUseCase`. |
-
-### `internal/cmd/`
-
-| File | Change |
-|---|---|
-| `add.go` | **NEW** — `add` parent command (group, no `RunE`); attaches the `registry` subcommand. |
-| `add_registry.go` (+test) | **NEW** — the `registry` command builder (`Args: ExactArgs(2)`) + cobra-free private logic (`Serve()`/`serve()` split), `addRegistryFlags` (**binds `--ref`**), build `AddRegistryRequest` (incl. `Ref`), `fx.Populate`, run, map `*usecase.Error` → exit code, write `error: <reason>` to stderr on failure. |
-| `helper_flags.go` | **EDIT** — add the shared `--kind` binder (`kindFlags`, default `http` per FR-002). `--ref` is git-specific and lives in `addRegistryFlags` (embeds `timeoutFlags`), alongside auth/tls/ssh. |
-| `helper.go` | **EDIT (if needed)** — exit-code mapping helper (`*usecase.Error`→code; cobra arg/flag parse error→2). |
-| `root.go` | **EDIT** — `New` wires `add` via `root.AddCommand`. |
-
-### `test/e2e/`
-
-| File | Change |
-|---|---|
-| `internal/gherkin/command_controller.go` | **EDIT** — `addRegistryArgs` builds positional `<name> <uri>`: `add registry --kind <t> [--ref ..][--username ..][--password ..] <name> <uri>`, threading an optional `ref`. |
-| `internal/gherkin/registry_git_controller.go` | **EDIT** — implement the git steps against the SSH fixture; add the ref-pinned scenario step. |
-| `internal/runtime/*` (git source) | **NEW/EDIT** — git SSH server testcontainers fixture backing `#{.git.default.url}` (ADR-0002: ssh-only), seeding a **non-default branch/tag** for the ref scenario. |
-| `internal/runtime/*` (http source) | **NEW/EDIT** — the http fixture now serves the **[Registry HTTP API](../contracts/registry-http-api.oas3.yaml)** (at minimum `GET /skills` / `GET /agents` for the presence scan), replacing any directory-listing webserver. |
-| `integration_test.go` | **EDIT** — drop the `Tags: "~@git"` filter once git is green (or scope it to CI). |
-| `testdata/add_registry_git.feature` | **EDIT** — add a scenario pinning a git registry to a ref and asserting `spec.ref` read-back + content from that ref. |
-| `testdata/*.feature` (others) | **VERIFY** — adjust step wording only if a fixed step phrasing changes. |
+| `infrastructure/repository/registry/{os,git,rest}_filesystem.go` (+ `fx.go`, `doc.go`) | the three `extension.Registry` adapters as one package; `fx.go` provides them named `registry.filesystem|git|http` |
+| `infrastructure/repository/registry/api/{directory,errors,options,doc}.go` | shared `Directory` (dir-backed `source.FileSystem`), `ErrUsage`/`ErrRuntime`, `Resolve`/`HasAuth`/`HasTLS` |
+| `infrastructure/repository/storage/{store,registries_store,schema,lock,filesystem,fx}.go` (+ `mock_based_registries_store.go`) | the engine + typed `RegistriesStore`; `go:embed schemas/*.json` validate-on-read |
+| `usecase/{usecase_add_registry,api,fx}.go` | `AddRegistryUseCase` (+ methods) / `AddRegistryRequest`; `Error` model |
+| `cmd/{add,add_registry,helper,helper_flags,helper_fx,root}.go` | `Add()` group, `AddRegistry()` builder + `addRegistry()` handler (fx.Invoke), `usageArgs`, `kindFlags`, `exitCode` |
+| `telemetry/fields.go` | `sauron.registry.*` ECS custom keys |
+| `cmd/main.go` (repo root) | the single error site: one `error: <msg>` line + `cmd.ExitCode(err)` |
 
 ### Build & governance
-
-| File | Change |
+| File | State |
 |---|---|
-| `spec/contracts/registry-http-api.oas3.yaml` | **DONE (authored)** — the HTTP Registry API the `http` adapter implements; recommend a `spectral lint` where tooling exists. |
-| `go.mod` / `go.sum` | **EDIT** — add `github.com/go-git/go-git/v5` and `github.com/google/jsonschema-go` (`gopkg.in/yaml.v3` is already direct). The `test/e2e` module keeps godog/testcontainers in its own `go.mod`. |
-| `Taskfile.yml` | **EDIT** — add a `generate` target (copy `spec/contracts/schemas/*.json` → `storage/schemas/`); make `test` and `build` depend on it. |
-| `.gitignore` | **EDIT** — ignore `internal/infrastructure/repository/storage/schemas/` (generated). |
+| `go.mod` | `go-git/v5`, `go-resty/resty/v2`, `google/jsonschema-go` (direct) |
+| `Taskfile.yml` | `generate` target stages `spec/contracts/schemas/*.json` → `storage/schemas/`; `test`/`build` depend on it |
+| `.gitignore` | ignores `internal/infrastructure/repository/storage/schemas/` (generated) |
 
-## 6. Checkpoints
+## 7. Checkpoints
 
-| # | Milestone | Verify |
-|---|---|---|
-| C0 | deps added + `task generate` produces `storage/schemas/` (incl. `Registry.schema.json` with `ref`) | `go build ./...` |
-| C1 | `pkg/sauron/types` — `RegistrySpec.Ref` added; round-trips set/unset | `go test ./pkg/sauron/types/...` |
-| C2 | `pkg/sauron/source` (`FileSystem`/`File`/`Stat`/`Options`) + `MockBasedFileSystem`; `extension.Registry.Open` returns it; `MockBasedRegistry` | `go build ./pkg/...` |
-| C3 | adapters: fs (rejects ref; `List` over a dir), git (`Validate` accepts ref; clone+checkout at ref; `List` over the checkout; bad ref → error), http (rejects ref; `List` via `GET /skills`/`/agents` against a stub API server) — `Describe`/`Get` return the stub sentinel | `go test ./internal/infrastructure/repository/registry/...` |
-| C4 | storage: `FindOne` nil-if-absent, validate-on-read rejects a bad doc + accepts a `spec.ref` doc, `Append` atomic round-trip + lock, `RegistriesStore` stamps `TypeMeta` and carries `spec.ref` | `go test ./internal/infrastructure/repository/storage/...` |
-| C5 | use case — table-driven over the ordered paths (path-safe, env-ref, **`--ref` on non-git → usage**, conflict, unreachable, empty `List`, persist-with-ref) + `Type` classification | `go test ./internal/usecase/...` |
-| C6 | `serve()` without cobra (`--ref` bound) + manual run | `go test ./internal/cmd/...`; `go run ./cmd add registry --kind filesystem acme <dir>` |
-| C7 | e2e: positional fix + git SSH fixture (non-default branch/tag) + ref scenario + http API fixture; all `add registry` scenarios green | `task build && task gate-integration` |
-| C8 | full gate | `task all` (test, gate-lint, build, gate-coverage ≥80%, gate-security, gate-integration) |
+Ordered, verifiable milestones — each met when its single command passes (these
+back the tasks in [TASKS.md](TASKS.md)):
 
-## 7. Execution flow & parallelization
+| Milestone | Verify |
+|---|---|
+| Deps added + schemas staged | `task generate && go build ./...` |
+| `RegistrySpec.Ref` round-trips | `go test ./pkg/sauron/types/...` |
+| `source` + `extension` ports + mocks | `go build ./pkg/... && go test ./pkg/sauron/source/... ./pkg/sauron/extension/...` |
+| Registry adapters (os/git/rest + `api`) | `go test ./internal/infrastructure/repository/registry/...` |
+| Marketplace client | `go test ./pkg/sauron/marketplace/...` |
+| Storage engine + `RegistriesStore` | `go test ./internal/infrastructure/repository/storage/...` |
+| Use-case pipeline + `Error` classes | `go test ./internal/usecase/...` |
+| cmd surface + exit-code mapping | `go test ./internal/cmd/...` |
+| Lint / format / coverage / security | `task gate-lint && task gate-coverage && task gate-security` |
+| e2e scenarios | `task build && task gate-integration` |
+| Full gate | `task all` |
 
-```mermaid
-graph TD
-  U0["U0 deps + Taskfile generate + .gitignore"] --> U1["U1 pkg/sauron/types (RegistrySpec.Ref)"]
-  U1 --> U2["U2 pkg/sauron/source (FileSystem) + pkg/sauron/extension (Registry.Open → source.FileSystem, Options.Ref)"]
-  U2 --> U3["U3 registry adapters fs/git/http (List only)<br/>worktree: feat/0001-registry-adapters"]
-  U2 --> U4["U4 storage engine + RegistriesStore<br/>worktree: feat/0001-storage"]
-  U3 --> M{"merge back<br/>(no commit / no push)"}
-  U4 --> M
-  M --> U5["U5 usecase (Error + AddRegistryUseCase, threads Ref, List scan)"]
-  U5 --> U6["U6 cmd (add / add_registry / --ref / wiring)"]
-  U6 --> U7["U7 e2e (positional fix + git SSH fixture + http API fixture + ref scenario + un-skip @git)"]
-  U7 --> U8["U8 gates (task all)"]
-```
+## 8. Tasks
 
-- **U3 ‖ U4 are parallel and worktree-isolated.** Each executing agent works on
-  its own branch in a fresh worktree (`feat/0001-registry-adapters`,
-  `feat/0001-storage`); on completion its branch is **merged back into the working
-  tree without committing and without pushing**. They share only `pkg/` (frozen
-  after U2), so no file collisions.
-- **U0 → U1 → U2, U5 → U6 → U7 → U8** are sequential in the working tree. U2
-  introduces both ports together (`source.FileSystem` and `extension.Registry`'s
-  new `Open` signature) since the adapters in U3 implement both.
-- The HTTP adapter is gated only on the **OAS3 contract** (authored), not an ADR.
-  fs and git adapters proceed immediately; the git adapter's ref work is part of U3.
-- Agents: `sauron-developer` for U1–U6, `sauron-integration-test-developer` for
-  U7, `sauron-ci-operator` only if CI parity needs the new `generate`/git gate,
-  then `sauron-architect` + `sauron-gatekeeper` before merge.
+The work is split into independently **verifiable** tasks in
+[TASKS.md](TASKS.md) — each names the files it owns and the single command that
+confirms it. Dependency order:
 
-## 8. Testing
+`T1 deps → T2 types → T3 ports → T5 marketplace → T4 adapters`; `T6 storage` runs
+alongside; then `→ T7 use case → T8 cmd → T9 e2e → T10 full gate`.
 
-### Unit tests (in scope)
+Executed sequentially in the working tree with no commits — the chain depends on
+uncommitted work, so git-worktree isolation (which branches from the last commit)
+was not used.
 
-- **Arrange / Act / Assert**, table-driven by default; `testify` `assert`/`require`.
-- Collaborators substituted with `MockBased<Iface>` mocks defined **beside the
-  interface they implement** (`pkg/sauron/source/mock_based_file_system.go`,
-  `pkg/sauron/extension/mock_based_registry.go`,
-  `storage/mock_based_registries_store.go`). `RegistriesStore`/`Store` are
-  exercised over an `afero.NewMemMapFs()` (home fs).
-- **Adapter `List` coverage:** fs over a temp/`MemMapFs` dir; git by cloning a
-  local fixture repo **at a given ref** and listing the checkout; http against an
-  in-process `httptest` server that implements the Registry HTTP API's
-  `GET /skills`/`GET /agents` (asserting `{items}` parsing, Basic auth, and
-  `limit=1`). `Describe`/`Get` assert the not-implemented sentinel.
-- **`--ref` coverage:** the git adapter test asserts `Open` lists content **at the
-  requested ref** and errors on an unknown ref; the fs/http adapter tests assert
-  `Validate` **rejects** `--ref` (usage); the use-case test asserts `req.Ref`
-  reaches the git `Open` and is persisted as `spec.ref`, and that `--ref` against a
-  non-git transport classifies as `usage`.
-- **No real filesystem, no env mutation**: all home-fs interaction is through
-  `MemMapFs`; tests never write the real disk; the env-ref resolver is tested by
-  injecting a lookup func / `t.Setenv` on the **test process only**.
-- Coverage target 90%, project floor 80% (`task gate-coverage`).
+## 9. Testing
 
-### Integration / end-to-end tests (`test/e2e`)
+### Unit
+- **Arrange / Act / Assert**, table-driven; `testify` `assert`/`require`;
+  `MockBased<Iface>` beside each interface (`source`, `extension`, `marketplace`,
+  `storage`).
+- No real filesystem (storage/adapters over `afero.MemMapFs`; the http client and
+  adapter over `httptest`), no env mutation (the env-ref resolver is exercised
+  with `t.Setenv`, process-scoped), no real network. `--ref` is covered by cloning
+  a local fixture repo at a seeded ref.
+- Coverage target 90%, floor 80% (`task gate-coverage`, currently 88.9%).
 
-The harness runs godog under `go test` (strict mode, host vs docker-compose
-runtime per `@no-sandbox`, graybox via `SAURON_BIN`, state read-back via
-`pkg/sauron/types.Registry`). This plan implements the production command so the
-scenarios pass, corrects the positional-args divergence, builds the git SSH and
-http-API fixtures, and adds the `--ref` scenario. See
+### Integration / end-to-end (`test/e2e`, own module)
+godog under `go test` (strict mode, host vs docker-compose runtime, graybox via
+`SAURON_BIN`, state read-back via `pkg/sauron/types.Registry`,
+`depguard`-restricted to `pkg/`). See
 [`sauron-implementing-integration-tests`](../../.claude/skills/sauron-implementing-integration-tests/SKILL.md).
-
-**FR → scenario coverage** (files under `test/e2e/testdata/`):
 
 | Requirement | Scenario | File |
 |---|---|---|
-| FR-001, FR-005 (register + report) | adds a filesystem registry from a local folder | `add_registry_filesystem.feature` |
-| FR-001 (authored content) | adds a filesystem registry from an authored content directory | `add_registry_filesystem.feature` |
-| FR-004, FR-010 (hosts no artifact → runtime error) | fails when the registry hosts no artifacts | `add_registry_filesystem.feature` |
-| FR-001 (http transport, default) | adds an http registry served by the Registry HTTP API | `add_registry_http.feature` |
-| FR-003, FR-011 (env-ref secret, persisted not resolved) | adds an http registry behind basic auth, storing the secret as a reference | `add_registry_http.feature` |
-| FR-001 (git over ssh) | adds a git registry over ssh | `add_registry_git.feature` |
-| FR-013 + git FR-007 (ref pin, persisted) | adds a git registry pinned to a ref, storing `spec.ref` and reading content from it | `add_registry_git.feature` |
-| Root banner (arch contract) | reports its build identity | `version.feature` |
+| FR-001/FR-005 (register + report) | filesystem from a local folder; from authored content | `add_registry_filesystem.feature` |
+| FR-004/FR-010 (hosts no artifact → runtime error) | fails when empty | `add_registry_filesystem.feature` |
+| FR-001 (http) | http registry served by the Registry HTTP API | `add_registry_http.feature` |
+| FR-003/FR-011 (env-ref secret, persisted not resolved) | http behind basic auth, secret stored as a reference | `add_registry_http.feature` |
+| FR-001 (git over ssh) + FR-013 (ref pin) | git over ssh; git pinned to `v1.0.0` asserting `spec.ref` | `add_registry_git.feature` |
+| Root banner | reports build identity | `version.feature` |
 
-**Harness work:**
+Fixtures (under `test/e2e/internal/runtime/docker/`): `git.go` — an sshd git
+server (testcontainers; seeds a repo with a non-default tag `v1.0.0` for the ref
+scenario); `source.go` — the http source serving the Registry HTTP API (`/skills`,
+`/agents` as `{items}` JSON, Basic auth). Git scenarios are gated to the Linux
+runner via `gitScenarioTags()`.
 
-1. **Positional-args fix.** `command_controller.go:addRegistryArgs` builds
-   `add registry --kind <t> [--ref ..][--username ..][--password ..] <name> <uri>`,
-   threading an optional `ref`. One function; all step routes go through it.
-2. **Git SSH fixture.** testcontainers-backed git-over-ssh server that
-   `#{.git.default.url}` resolves to, seeding a non-default branch/tag for the ref
-   scenario, and complete `registry_git_controller.go`. Then remove the `~@git`
-   filter (or pin it to the Linux CI runner). Per ADR-0002, git remotes are
-   ssh-only.
-3. **HTTP API fixture.** A test source that serves the
-   [Registry HTTP API](../contracts/registry-http-api.oas3.yaml) — at minimum the
-   list endpoints used by the presence scan, plus Basic auth for the auth scenario.
-4. **State read-back & secrets.** `state_controller.go` decodes
-   `$SAURON_HOME/registries.yaml` into `types.Registry` to assert transport,
-   metadata, and the `${env:VAR}` reference, and checks the raw bytes do **not**
-   contain the resolved secret (FR-003/FR-006/FR-011). The ref scenario asserts
-   `spec.ref` equals the pinned ref. `SAURON_HOME` is the `gate-integration` temp
-   dir, so the real `~/.sauron` is never touched.
+**Run:** `task build && task gate-integration`.
 
-**Run:** `task gate-integration`.
+## 10. Key decisions
 
-## 9. Key decisions
-
-1. **No generic manifest envelope.** Documents are concrete typed structs
-   embedding `TypeMeta` (`types.Registry`) (DRY).
-2. **`extension.Registry`** is `Validate(...Opt)` +
-   `Open(ctx,...Opt) (source.FileSystem, error)`: opening proves reachability, and
-   a transport adapter carries no stable identity.
-3. **`source.FileSystem` is the cross-transport content seam** — fs = a local
-   directory, git = a **shallow clone (depth 1) checked out at `Ref`**, http = a
-   [Registry HTTP API](../contracts/registry-http-api.oas3.yaml) client. The
-   presence scan is `List(".skills"/".agents", limit:1)`, written once and reused
-   across all three and by later features. `Describe` (metadata/`version`) and
-   `Get` (gzip download) are **stubbed** until `list catalogue` / `install`.
-4. **The `http` transport is the Registry HTTP API** (it *replaces* static
-   directory listing). Servers implement the OAS3 contract; Sauron is the client.
-   `version` comes from the `Artifact-Version` header; `digest` (not modeled by the
-   API) is computed from downloaded content. This removes the previous HTTP-listing
-   ADR entirely.
-5. **Closed transport set** — the use case injects the three named `Registry`
-   values and switches on `transport`; not runtime-pluggable (YAGNI).
-6. **`extension.Options` is a typed superset**; each `Registry.Validate` rejects
-   flags that do not apply to its transport → usage (exit 2). `--ref` applies to
-   git only; fs and http `Validate` reject it.
-7. **Git `--ref` semantics** — a single flag accepting a branch, tag, or commit.
-   When omitted, the git adapter resolves the remote's **default branch**. The ref
-   is **not** regex-validated by the use case; an unresolvable ref surfaces from
-   go-git as a **runtime** error (exit 1, [git.md](capabilities/git.md) FR-008).
-   For git, an artifact's `version` is the commit SHA that last touched it. Only
-   `<name>` carries a path-safety regex.
-8. **`spec.ref` is persisted** verbatim (configuration, not a secret), so
-   `list catalogue` / `install` resolve content against the same pin. It is
-   **registry-level only**; per-artifact version pinning is out of scope (YAGNI).
-9. **Secrets** — a literal (non-`${env:VAR}`) auth value → usage (exit 2); refs
-   are persisted verbatim; resolved only into `Options` for connecting; an unset
-   env var at connect time → runtime (exit 1). Never written to disk. `--ref` is
-   not a secret and is stored as-is.
-10. **Store engine + typed facade** — `Store` (kind-agnostic, `yaml.Node`) carries
-    the multi-doc / validate-on-read / lock / atomic machinery over the home
-    `afero.Fs`; `RegistriesStore` is the typed, mockable facade. Only
-    `RegistriesStore` is wired now; the engine is shared substrate for later stores.
-11. **Validation on load, not on app-authored writes** — `Store.FindOne` validates
-    against the embedded JSON schema; `Append` does not. Recorded in the
-    [state data contract](../contracts/state.md) (no ADR).
-12. **Path-safe** = the `Registry.schema.json` regex
-    `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, enforced by the use case **before**
-    contacting the source (FR-008 → exit 2); storage does not re-check on write.
-13. **Error model** — `usecase.Error{Type,Reason}`; storage/adapters return
-    plain/sentinel errors, the use case classifies, cmd maps `usage → 2, else → 1`
-    and writes one `error: <reason>` line to stderr.
-14. **Positional `<name> <uri>`** — the command contract is authoritative; the
-    e2e harness is corrected to match it, not the CLI.
-
-## 10. Open items / ADRs
-
-- **Confirm the git-ssh ADR.** ADR-0002 ("remotes are ssh-only") is referenced by
-  the integration-test skill; verify it exists/covers the git fixture before
-  building the SSH testcontainers source, and reference it rather than re-deciding.
-- **Shallow clone vs. version derivation (note for 0005/0006).** `add` shallow-clones
-  at depth 1 — enough to `List` for the presence scan, and it computes no `version`.
-  But [git.md](capabilities/git.md) FR-005 derives an artifact's `version` from *the
-  most recent commit that touched its directory*, which a depth-1 clone lacks the
-  history for. When `Describe`/version lands (list catalogue / install), the git
-  adapter must either deepen the clone (full, or a `--filter=blob:none` partial clone
-  that keeps history but not blobs) or `version` must be redefined as the resolved
-  ref's tip commit SHA. Separately: shallow clone is clean for **branch/tag** refs;
-  pinning shallowly to a raw **commit SHA** depends on the server allowing fetch-by-SHA
-  (`uploadpack.allowAnySHA1InWant`), else a deeper fetch is the fallback.
-- **No ADR for `--ref` or the HTTP API.** Ref pinning is a contract/schema-level
-  addition realized by a single `Options` field + a go-git checkout; the HTTP
-  Registry API is captured by the [OAS3 contract](../contracts/registry-http-api.oas3.yaml).
-  Neither needs an architectural decision record.
-- **Lint the OAS3** where tooling exists (`spectral lint
-  spec/contracts/registry-http-api.oas3.yaml`); it was validated structurally only.
-- **Architecture-contract drift (note, not a task).** The contract's prose names
-  the storage package `internal/infrastructure/storage` and the ports
-  `pkg/registry`/`pkg/provider` in two places, while its own layout tree and the
-  actual code use `internal/infrastructure/repository/storage` and
-  `pkg/sauron/extension`. This plan follows the layout/code. Flag for a future
-  contract cleanup (no ADR).
+1. **One registry package + `api`.** The three adapters live in a single
+   `registry` package (one file per transport); shared primitives — the `Directory`
+   `source.FileSystem`, the `ErrUsage`/`ErrRuntime` classes, the option helpers —
+   live in `registry/api`, imported by the adapters and (for classification) the
+   use case.
+2. **`extension.Registry` returns `source.FileSystem`.** `Open` proves
+   reachability; the use case depends on the two ports (DIP), not on go-git /
+   resty / the OS filesystem.
+3. **`source.FileSystem` is the List-based content seam (total-free).**
+   `List → ([]File, error)` (no total count — Zalando #254); the presence scan is
+   `List(".skills"/".agents", limit:1)`, reused across all three transports.
+4. **`http` transport = the Registry HTTP API**, consumed through the fluent
+   `pkg/sauron/marketplace` client (plain resty). Pagination follows Zalando — `q`
+   filter, `limit`/`offset`, sort — and **carries no total count** (#254). The
+   adapter is a thin map from the client to `source.FileSystem`.
+5. **Git `--ref`** — a branch, tag, or commit; absent → the remote's default
+   branch. The git adapter does a **shallow clone (depth 1)** checked out at the
+   ref (sufficient because only `List` is read); an unresolvable ref is a runtime
+   error. `spec.ref` is persisted (configuration, not a secret); per-artifact
+   version pinning is out of scope.
+6. **Secrets** — credentials must be `${env:VAR}` references (a literal → usage);
+   refs are persisted verbatim, resolved only into `Options` for connecting, and an
+   unset variable at connect time is a runtime error. Never written to disk.
+7. **Store engine + typed facade** — `Store` (kind-agnostic, `yaml.Node`,
+   multi-doc, validate-on-read against the embedded JSON schema, lockfile + atomic
+   temp+rename) over the home `afero.Fs`; `RegistriesStore` is the typed, mockable
+   facade. Validation on load, not on app-authored writes.
+8. **Error model** — `usecase.Error{Type,Reason}`; adapters/storage return
+   `api`/sentinel errors, the use case classifies, `cmd/main.go` is the **single
+   error site** (one `error: <reason>` line + `usage → 2, else → 1`).
+9. **cmd shape** — verb-named: `Add()` group, `AddRegistry()` builder,
+   `addRegistry()` handler. The handler builds the request and runs it via
+   `fx.Invoke(uc.Execute)` — fx drives the call; the use case is never extracted
+   and hand-invoked. Flags bind inline in the builder; `usageArgs(cobra.ExactArgs(2))`
+   classifies a wrong arg count as a usage error.
+10. **ECS logging** — custom log fields are namespaced under `sauron.*`
+    (`sauron.registry.name`, `sauron.registry.transport`) via `telemetry`
+    constants, never bare keys.
+11. **Positional `<name> <uri>`** — the command contract is authoritative; the
+    e2e harness was corrected to match it.

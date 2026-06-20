@@ -46,7 +46,9 @@ Every spec declares one of two types:
   ├── contracts/<verb>-<noun>.md   one per command the feature owns
   ├── data/state.md                required when the feature touches persisted state
   ├── capabilities/<name>.md       optional, one file per capability
-  └── architecture/ADR-NNNN-*.md   optional decision records
+  ├── architecture/ADR-NNNN-*.md   optional decision records
+  ├── plan.md                      optional implementation plan (how the work is built)
+  └── TASKS.md                     optional verifiable task breakdown, paired with plan.md
   ```
 
   A feature owning a command family (e.g. `list skills` / `list agents` /
@@ -77,6 +79,8 @@ written:
 | `data/state.md` | the feature reads or writes persisted state | which state document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/state.md](contracts/state.md) and linked from here | [Glossary](#glossary) terms; link the [state data contract](contracts/state.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
+| `plan.md` | a feature needs an implementation plan | how the work is built: goal & scope, pre-requirements, design, **checkpoints** (each with a verify command), key decisions, and a link to `TASKS.md` | each checkpoint states the command/criterion that verifies it; the plan links `TASKS.md` |
+| `TASKS.md` | a `plan.md` is present | the executable task breakdown — one task per unit of work, each owning its files, a single verification command, and its dependencies, with an overall order | **every task is independently verifiable**: it states the command/criterion that confirms it. A task without a pass/fail check is not a task |
 
 ## Required sections
 
