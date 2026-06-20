@@ -63,9 +63,9 @@ func TestGenerateDockerComposeFileErrors(t *testing.T) {
 	tests := map[string]struct {
 		specs []ContainerSpec
 	}{
-		"no specs":            {specs: nil},
-		"missing image":       {specs: []ContainerSpec{{Service: "x"}}},
-		"missing service":     {specs: []ContainerSpec{{Image: "x"}}},
+		"no specs":             {specs: nil},
+		"missing image":        {specs: []ContainerSpec{{Service: "x"}}},
+		"missing service":      {specs: []ContainerSpec{{Image: "x"}}},
 		"mount without source": {specs: []ContainerSpec{{Service: "x", Image: "img", Mount: []FileSpec{{Path: "/p", Content: []byte("hi")}}}}},
 	}
 	for name, tc := range tests {
@@ -87,8 +87,8 @@ func TestMaterializeContent(t *testing.T) {
 		Service: "main",
 		Image:   "alpine:3",
 		Mount: []FileSpec{
-			{Path: "/etc/config.yml", Content: []byte("a: 1")},      // materialized
-			{Path: "/opt/bin/sauron", SourceFile: "/host/sauron"},   // left as-is
+			{Path: "/etc/config.yml", Content: []byte("a: 1")},    // materialized
+			{Path: "/opt/bin/sauron", SourceFile: "/host/sauron"}, // left as-is
 		},
 	}}
 

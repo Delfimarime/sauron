@@ -1,13 +1,13 @@
 // Package types holds the public Go form of sauron's on-disk configuration
-// documents. Each type is a faithful, behaviour-free DTO mirroring a schema
-// under spec/contracts/schemas; field tags track the schema property names
-// exactly so the documents round-trip through YAML unchanged.
+// documents. Each type is a faithful, behaviour-free DTO mirroring a persisted
+// document schema; field tags track the schema property names exactly so the
+// documents round-trip through YAML unchanged.
 package types
 
 // APIVersion is the only apiVersion sauron's v1 documents carry.
 const APIVersion = "sauron.raitonbl.com/v1"
 
-// Document kinds, one per schema under spec/contracts/schemas.
+// Document kinds, one per persisted document schema.
 const (
 	KindRegistry = "Registry"
 	KindSkill    = "Skill"

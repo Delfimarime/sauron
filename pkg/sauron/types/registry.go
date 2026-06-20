@@ -1,7 +1,7 @@
 package types
 
 // Transport identifies how a registry's source is reached. Mirrors the
-// spec.transport enum in spec/contracts/schemas/Registry.schema.json.
+// spec.transport enum of the persisted Registry document.
 type Transport string
 
 // The supported registry transports.
@@ -12,7 +12,6 @@ const (
 )
 
 // Registry is a registered source of artifacts, persisted in registries.yaml.
-// Mirrors spec/contracts/schemas/Registry.schema.json.
 type Registry struct {
 	TypeMeta `json:",inline" yaml:",inline"`
 	Metadata Metadata     `json:"metadata" yaml:"metadata"`
@@ -23,6 +22,7 @@ type Registry struct {
 type RegistrySpec struct {
 	Transport Transport `json:"transport" yaml:"transport"`
 	URI       string    `json:"uri" yaml:"uri"`
+	Ref       string    `json:"ref,omitempty" yaml:"ref,omitempty"`
 	Auth      *Auth     `json:"auth,omitempty" yaml:"auth,omitempty"`
 	TLS       *TLS      `json:"tls,omitempty" yaml:"tls,omitempty"`
 	SSHKey    string    `json:"sshKey,omitempty" yaml:"sshKey,omitempty"`

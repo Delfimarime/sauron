@@ -34,7 +34,7 @@ func (c *stateController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the registry (\S+) has label (\S+) with value (\S+)$`, c.registryLabel)
 	sc.Step(`^the registry (\S+) is described by:$`, c.registryDescribedBy)
 	sc.Step(`^the registry (\S+) stores password as the reference (\S+)$`, c.registryPasswordRef)
-	sc.Step(`^the stored state does not contain (.+)$`, c.stateDoesNotContain)
+	sc.Step(`^the stored state does not contain (.+)$`, c.configDoesNotContain)
 }
 
 func (c *stateController) exactlyOneRegistry(ctx context.Context) error {
@@ -106,7 +106,10 @@ func (c *stateController) registryPasswordRef(ctx context.Context, name, ref str
 	return assertExpected("password reference of "+name, ref, reg.Spec.Auth.Password)
 }
 
-func (c *stateController) stateDoesNotContain(ctx context.Context, secret string) error {
+// configDoesNotContain proves a resolved secret is never persisted: it reads the
+// raw bytes of registries.yaml under $SAURON_HOME and asserts the substring is
+// absent (the stored credentials must be ${env:VAR} references, not values).
+func (c *stateController) configDoesNotContain(ctx context.Context, secret string) error {
 	data, err := c.rt.ReadFile(ctx, registriesFile)
 	if err != nil {
 		return err
@@ -179,6 +182,8 @@ func registryField(reg types.Registry, field string) (string, error) {
 		return string(reg.Spec.Transport), nil
 	case "spec.uri":
 		return reg.Spec.URI, nil
+	case "spec.ref":
+		return reg.Spec.Ref, nil
 	default:
 		return "", fmt.Errorf("unknown registry field %q", field)
 	}

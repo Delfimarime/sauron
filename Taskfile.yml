@@ -25,8 +25,19 @@ vars:
   TARGETS: 'linux/amd64 darwin/arm64 darwin/amd64'
 
 tasks:
+  generate:
+    desc: Stage generated assets — copy the schema contracts into the embeddable storage directory.
+    vars:
+      SCHEMA_SRC: '{{.ROOT}}/spec/contracts/schemas'
+      SCHEMA_DST: '{{.ROOT}}/internal/infrastructure/repository/storage/schemas'
+    cmds:
+      - mkdir -p "{{.SCHEMA_DST}}"
+      - cp "{{.SCHEMA_SRC}}"/*.json "{{.SCHEMA_DST}}/"
+
   test:
     desc: Run unit tests with the race detector; write the coverage report under dist/.
+    deps:
+      - generate
     cmds:
       - mkdir -p "{{.DIST}}"
       - go test -race -covermode=atomic -coverprofile="{{.COVERAGE}}" ./...
@@ -41,6 +52,8 @@ tasks:
 
   build:
     desc: Cross-compile CGO_ENABLED=0 to linux/amd64, darwin/arm64, darwin/amd64 into dist/ with version ldflags.
+    deps:
+      - generate
     vars:
       LDFLAGS: '-s -w -X main.AppName={{.APP_NAME}} -X main.AppVersion={{.APP_VERSION}} -X main.AppHash={{.APP_HASH}}'
     cmds:

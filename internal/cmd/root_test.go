@@ -9,9 +9,8 @@ import (
 )
 
 // TestNew exercises the root command builder: the version banner content and the
-// home-resolution success and failure paths. It follows the Serve()/serve()
-// testability spirit — New is constructed with arbitrary identity strings and
-// its output is asserted without a real process.
+// home-resolution success and failure paths. New is constructed with arbitrary
+// identity strings and its output is asserted without a real process.
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name       string

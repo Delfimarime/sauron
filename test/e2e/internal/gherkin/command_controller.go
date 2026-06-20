@@ -27,6 +27,7 @@ func (c *commandController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the user runs (.+)$`, c.userRuns)
 	sc.Step(`^the user adds the registry:$`, c.addRegistryFromTable)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+)$`, c.addRegistry)
+	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) pinned to (\S+)$`, c.addRegistryPinned)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) with username (\S+) and password (\S+)$`, c.addRegistryWithAuth)
 
 	sc.Step(`^the command succeeds$`, c.succeeds)
@@ -43,13 +44,19 @@ func (c *commandController) userRuns(ctx context.Context, line string) error {
 // addRegistry runs `sauron add registry` for one transport, resolving the source
 // reference (#{…}) to a concrete uri.
 func (c *commandController) addRegistry(ctx context.Context, transport, name, uriRef string) error {
-	return c.add(ctx, transport, name, uriRef, "", "")
+	return c.add(ctx, transport, name, uriRef, "", "", "")
+}
+
+// addRegistryPinned is addRegistry with the source pinned to a git ref, forwarded
+// as --ref (the binary records it as spec.ref).
+func (c *commandController) addRegistryPinned(ctx context.Context, transport, name, uriRef, ref string) error {
+	return c.add(ctx, transport, name, uriRef, ref, "", "")
 }
 
 // addRegistryWithAuth is addRegistry with basic-auth credentials forwarded to the
 // command (the binary stores them as ${env:VAR} references).
 func (c *commandController) addRegistryWithAuth(ctx context.Context, transport, name, uriRef, username, password string) error {
-	return c.add(ctx, transport, name, uriRef, username, password)
+	return c.add(ctx, transport, name, uriRef, "", username, password)
 }
 
 // addRegistryFromTable is the canonical table-driven form; the uri cell is resolved
@@ -59,17 +66,18 @@ func (c *commandController) addRegistryFromTable(ctx context.Context, table *god
 	if err != nil {
 		return err
 	}
-	return c.add(ctx, fields["transport"], fields["name"], fields["uri"], fields["username"], fields["password"])
+	return c.add(ctx, fields["transport"], fields["name"], fields["uri"], fields["ref"], fields["username"], fields["password"])
 }
 
 // add is the shared body of every "adds the registry" step: resolve the uri
-// reference, then run `sauron add registry` with the optional basic-auth flags.
-func (c *commandController) add(ctx context.Context, transport, name, uriRef, username, password string) error {
+// reference, then run `sauron add registry` with the optional ref and basic-auth
+// flags.
+func (c *commandController) add(ctx context.Context, transport, name, uriRef, ref, username, password string) error {
 	uri, err := valueOf[string](ctx, c.rt, uriRef)
 	if err != nil {
 		return err
 	}
-	return c.run(ctx, addRegistryArgs(name, transport, uri, username, password))
+	return c.run(ctx, addRegistryArgs(name, transport, uri, ref, username, password))
 }
 
 func (c *commandController) succeeds(context.Context) error {
@@ -131,16 +139,21 @@ func (c *commandController) requireRun() error {
 }
 
 // addRegistryArgs assembles the `sauron add registry` invocation shared by every
-// When step, appending the optional basic-auth flags only when set.
-func addRegistryArgs(name, transport, uri, username, password string) []string {
-	args := []string{"sauron", "add", "registry", "--kind", transport, "--name", name, "--uri", uri}
+// When step. The command takes the transport as --kind and the name and uri as
+// positional arguments; the ref and basic-auth flags are appended only when set,
+// before the positionals.
+func addRegistryArgs(name, transport, uri, ref, username, password string) []string {
+	args := []string{"sauron", "add", "registry", "--kind", transport}
+	if ref != "" {
+		args = append(args, "--ref", ref)
+	}
 	if username != "" {
 		args = append(args, "--username", username)
 	}
 	if password != "" {
 		args = append(args, "--password", password)
 	}
-	return args
+	return append(args, name, uri)
 }
 
 // tableFields flattens a two-column |field|value| table into a map, skipping the

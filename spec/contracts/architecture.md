@@ -35,11 +35,12 @@ internal/
   infrastructure/
     repository/            umbrella module; its fx.go aggregates the adapters + storage below
       fx.go                NewFxOptions() fx.Option; composes storage + registry + agent
-      registry/            extension.Registry adapters
+      registry/            extension.Registry adapters (one package; one file per transport)
         fx.go              exposes NewFxOptions() fx.Option
-        fs/                filesystem registry adapter
-        git/               git registry adapter
-        http/              HTTP registry adapter
+        api/               shared adapter primitives: error classes, option helpers, the directory-backed source.FileSystem
+        os_filesystem.go   filesystem (local-directory) adapter
+        git_filesystem.go  git adapter (shallow clone)
+        rest_filesystem.go HTTP adapter (REST client)
       agent/               extension.Provider adapters (the destination agent environments)
         fx.go              exposes NewFxOptions() fx.Option
         claude/            Claude provider adapter
@@ -56,6 +57,8 @@ pkg/
   telemetry/             shared ECS field-key vocabulary, referenced by public packages and internal/telemetry
   sauron/
     extension/           public ports (SPI): Registry, Provider — implemented under internal/infrastructure/repository
+    source/              public port: FileSystem/File/Stat — the content view a Registry.Open() returns
+    marketplace/         public client SDK for the Registry HTTP API (resty-backed); used by the http registry adapter
     types/               public domain & manifest types (Skill, Agent, Persona, Registry, Provider, Schedule, provenance)
 test/
   e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
@@ -74,9 +77,11 @@ public toolkits: `pkg/telemetry` (the ECS field-key vocabulary, see
 [Telemetry & logging](#telemetry--logging)) and `pkg/http` (a composable HTTP
 client). The port adapters live under `internal/infrastructure/repository/` — the
 driven-adapter layer reaching external systems, grouped under a single
-`repository` module whose `fx.go` aggregates them: `registry/{fs,git,http}`
-implements `extension.Registry`, and `agent/{claude,zencoder}` implements
-`extension.Provider` (a provider destination is modeled as an agent environment).
+`repository` module whose `fx.go` aggregates them: `registry/` — one package with
+a file per transport (filesystem, git, http) over a shared `registry/api` of
+common primitives — implements `extension.Registry`, and `agent/{claude,zencoder}`
+implements `extension.Provider` (a provider destination is modeled as an agent
+environment).
 Adapters are never imported across boundaries — callers depend on the
 `pkg/sauron/extension` ports, not a concrete adapter. The same `repository` module
 also houses the **internal capability** [`storage`](#state-storage), which
@@ -114,8 +119,8 @@ not adapters and stay at the `internal/` root.
   [No rogue goroutines](#coding-standards)). Components inject the pool rather
   than calling `go`.
 - Each command owns its `fx.Option`s — constructing them directly or via
-  `<package>.NewFxOptions()` — and passes them to `NewApp` from its `Serve()`.
-  `cmd/main.go` bootstraps the binary.
+  `<package>.NewFxOptions()` — and passes them to `NewApp` from its command
+  builder. `cmd/main.go` bootstraps the binary.
 
 ## Root command
 
@@ -167,13 +172,21 @@ reads flags off the `*cobra.Command`.
   flags defined by the CLI conventions.
 - Each command declares its own `<command>Flags` struct that embeds the common
   group structs for the flags it shares and adds any command-specific fields.
-- A command's public `Serve()` registers the flags into its `<command>Flags`
-  value via the bind functions; the private `serve()` receives that populated
-  struct — alongside the `context.Context` and the command's positional
-  arguments — so the logic is tested without cobra.
+- A command's public **builder, named for the command verb** (`Add()` for `add`;
+  a subcommand follows suit, e.g. `AddRegistry()`), registers its shared flags via the
+  `bind<Group>Flags` functions and binds its command-specific flags inline; the
+  private **handler**, named
+  `<verb><Noun>()` (e.g. `addRegistry()`), receives that populated struct —
+  alongside the `context.Context` and the command's positional arguments — so the
+  logic is tested without cobra. `Serve()`/`serve()` names apply only to a
+  server's `serve` command, never to an action command.
 - Flag values are not bound to viper; there is no flag→viper binding. Flags pass
-  directly to `serve()`, independent of the persisted configuration in
+  directly to the handler, independent of the persisted configuration in
   `internal/config`.
+- **One error-reporting site.** A handler returns a classified error and never
+  prints it; `cmd/main.go` is the single place that maps the error to an exit code
+  and writes exactly one `error: <message>` line to stderr — there is no
+  per-handler print paired with an `IsReported` flag.
 
 ## Use Case orchestration
 
@@ -230,10 +243,11 @@ through which use cases and actions are provided with their `pkg/` ports, the
 `<Name>UseCase` / `<Name>Action`; their files are `usecase_<name>.go` /
 `action_<name>.go`.
 
-A command's private `serve()` maps its `<command>Flags` struct and positional
-arguments into a concrete `Request`, resolves the use case from the container
-with `fx.Populate`, and calls `Execute` — exercising the orchestration without
-the cobra API, consistent with the [`Serve()`/`serve()` split](#testing).
+A command's private **handler** (`<verb><Noun>()`, e.g. `addRegistry()`) maps its
+`<command>Flags` struct and positional arguments into a concrete `Request`,
+resolves the use case from the container with `fx.Populate`, and calls `Execute` —
+exercising the orchestration without the cobra API, consistent with the
+[builder/handler split](#testing).
 
 ## State storage
 
@@ -310,12 +324,25 @@ addition:
 - **Package comments live in `doc.go`.** Every package carries exactly one
   package comment, placed in a dedicated `doc.go` that holds only that comment
   and the `package` clause — never on an arbitrary source file.
+- **A file leads with its primary type.** The type a file is named for comes
+  first; its constructor and methods follow. The primary type is never buried
+  below the helpers. A helper used by a single type is a method of that type; only
+  a genuinely shared, type-agnostic helper lives in a `helper.go`.
+- **No test-only seams.** Production code does not grow an injectable indirection
+  (a function-type field, a package-level var) solely so a test can replace it.
+  Use the standard library directly and exercise it through the real graph or
+  `t.Setenv`; reserve interfaces and injection for genuine production
+  collaborators.
 
 ## Telemetry & logging
 
 Logging is structured: `go.uber.org/zap` encoded for Elastic Common Schema via
 `go.elastic.co/ecszap`, conforming to the
-[ECS field reference](https://www.elastic.co/docs/reference/ecs). Shared ECS field
+[ECS field reference](https://www.elastic.co/docs/reference/ecs). Every log is
+ECS-compatible: standard fields use their canonical ECS keys (`event.action`,
+`service.name`, …), and any field not in standard ECS is namespaced under the
+single custom top-level key `sauron` (e.g. `sauron.registry.name`,
+`sauron.registry.transport`) — never a bare key like `name`. Shared ECS field
 keys are defined once as constants in **`pkg/telemetry`** — the public home — so
 public packages (e.g. `pkg/http`) and `internal/telemetry` reference the same
 vocabulary without a public→internal dependency, and are never written as
@@ -338,10 +365,13 @@ redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 - **Coverage** ideal is 90%; the [verification gate](../../CONSTITUTION.md)
   enforces a project-level floor of 80%, a lower figure permitted only when
   justified.
-- **Command testability.** Each command is split into a public `Serve()` that
-  builds the `*cobra.Command` (the cobra wiring) and a private `serve()` — the
-  same name, unexported — that holds the command's logic, decoupled from the
-  cobra API, so the logic is unit tested without constructing a command.
+- **Command testability.** Each command is split into a public **builder named for
+  the command verb** (e.g. `Add()`, and the `registry` subcommand's
+  `AddRegistry()`) that builds the `*cobra.Command` (the cobra wiring), and a
+  private **handler** (`<verb><Noun>()`, e.g. `addRegistry()`) that holds the
+  command's logic, decoupled from the cobra API, so the logic is unit tested
+  without constructing a command. `Serve()`/`serve()` is reserved for a server's
+  `serve` command — it is not the convention for action commands.
 
 ## Integration tests
 
@@ -376,7 +406,8 @@ recorded as verified at vetting time.
 | `github.com/spf13/cobra` | CLI command framework | Apache-2.0 |
 | `github.com/spf13/viper` | Configuration management | MIT |
 | `github.com/spf13/afero` | Filesystem abstraction; injected into `internal/infrastructure/repository/storage` | Apache-2.0 |
-| `net/http` (stdlib) | HTTP client | BSD-3-Clause |
+| `net/http` (stdlib) | HTTP client (`pkg/http` toolkit) | BSD-3-Clause |
+| `github.com/go-resty/resty/v2` | REST client for the `http` registry adapter | MIT |
 | `os/exec` (stdlib) | Invoking external provider CLIs and the OS scheduler (`crontab`) | BSD-3-Clause |
 | `github.com/go-git/go-git/v5` | Git operations | Apache-2.0 |
 | `gopkg.in/yaml.v3` | YAML read/write | MIT and Apache-2.0 |

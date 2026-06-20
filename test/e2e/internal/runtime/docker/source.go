@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -69,11 +70,14 @@ func webserverService(alias string) string { return "registry-http-" + alias }
 
 // buildSpecs folds the accumulated sources into base (main + any option specs):
 // folder sources add content mounts to "main"; webserver sources add an nginx
-// sidecar. It is pure (specs in, specs out) so it is unit-tested without Docker.
+// sidecar; git sources add an sshd sidecar serving a seeded bare repo and mount the
+// matching client key material into "main". It is pure (specs in, specs out) so it
+// is unit-tested without Docker.
 func buildSpecs(
 	base []ContainerSpec,
 	folders map[string]*folderSource,
 	webservers map[string]*webserverSource,
+	gits map[string]*gitSource,
 ) ([]ContainerSpec, error) {
 	out := make([]ContainerSpec, len(base))
 	copy(out, base)
@@ -87,6 +91,13 @@ func buildSpecs(
 	}
 	for _, alias := range sortedKeys(webservers) {
 		out = append(out, webserverSpec(webservers[alias]))
+	}
+	for _, alias := range sortedKeys(gits) {
+		updated, err := mountIntoMain(out, gitClientMounts(gits[alias]))
+		if err != nil {
+			return nil, err
+		}
+		out = append(updated, gitServerSpec(gits[alias]))
 	}
 	return out, nil
 }
@@ -133,25 +144,75 @@ func folderMounts(src *folderSource) []FileSpec {
 	return mounts
 }
 
-// webserverSpec builds the nginx sidecar serving a webserver source's content, with
-// basic auth wired in when the source declares credentials.
+// webserverSpec builds the nginx sidecar that serves a webserver source as the
+// registry REST API: GET /skills and GET /agents return the JSON listing the
+// exposed content, with basic auth wired in when the source declares credentials.
 func webserverSpec(src *webserverSource) ContainerSpec {
-	mounts := make([]FileSpec, 0, len(src.resources)+2)
 	var auth *runtime.Resource
+	var content []runtime.Resource
 	for i, r := range src.resources {
 		if r.IsAuth() {
 			auth = &src.resources[i]
 			continue
 		}
-		mounts = append(mounts, FileSpec{Content: r.Content, Path: nginxHTMLRoot + "/" + r.Path})
+		content = append(content, r)
+	}
+
+	mounts := []FileSpec{
+		{Content: registryListingJSON(content, ".skills/"), Path: nginxHTMLRoot + "/skills"},
+		{Content: registryListingJSON(content, ".agents/"), Path: nginxHTMLRoot + "/agents"},
+		{Content: []byte(nginxAPIConf(auth != nil)), Path: nginxConfPath},
 	}
 	if auth != nil {
 		mounts = append(mounts,
 			FileSpec{Content: []byte(htpasswdLine(auth.Username, auth.Password) + "\n"), Path: htpasswdPath},
-			FileSpec{Content: []byte(nginxAuthConf()), Path: nginxConfPath},
 		)
 	}
 	return ContainerSpec{Service: webserverService(src.alias), Image: nginxImage, Mount: mounts}
+}
+
+// registryItem is one row of the registry REST listing; the production presence
+// scan reads name/version/size off it.
+type registryItem struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Size    int    `json:"size"`
+}
+
+// registryListing is the REST envelope the production client decodes from
+// GET /skills and GET /agents.
+type registryListing struct {
+	Items []registryItem `json:"items"`
+}
+
+// registryListingJSON renders the REST listing for one artifact kind by collecting
+// the distinct artifact names exposed under prefix (".skills/" or ".agents/"). It is
+// pure (resources + prefix in, JSON out) so it is unit-tested without Docker.
+func registryListingJSON(content []runtime.Resource, prefix string) []byte {
+	seen := map[string]int{}
+	var names []string
+	for _, r := range content {
+		rest, ok := strings.CutPrefix(r.Path, prefix)
+		if !ok {
+			continue
+		}
+		name, _, _ := strings.Cut(rest, "/")
+		if name == "" {
+			continue
+		}
+		if _, dup := seen[name]; !dup {
+			names = append(names, name)
+		}
+		seen[name] += len(r.Content)
+	}
+	sort.Strings(names)
+
+	listing := registryListing{Items: make([]registryItem, 0, len(names))}
+	for _, name := range names {
+		listing.Items = append(listing.Items, registryItem{Name: name, Version: "1.0.0", Size: seen[name]})
+	}
+	out, _ := json.Marshal(listing) // a fixed-shape struct never fails to marshal
+	return out
 }
 
 // htpasswdLine renders an htpasswd entry using nginx's supported {SHA} scheme
@@ -161,18 +222,28 @@ func htpasswdLine(username, password string) string {
 	return username + ":{SHA}" + base64.StdEncoding.EncodeToString(sum[:])
 }
 
-// nginxAuthConf is a minimal server block that serves the content root behind basic
-// auth, valid enough for nginx to come up cleanly.
-func nginxAuthConf() string {
-	return strings.Join([]string{
+// nginxAPIConf is the server block that exposes /skills and /agents as JSON. It
+// returns each generated file with an application/json content type and, when auth
+// is set, gates every path behind basic auth. The query string (the client's
+// limit=1 presence scan) does not affect which file is served.
+func nginxAPIConf(withAuth bool) string {
+	lines := []string{
 		"server {",
 		"    listen 80;",
 		"    root " + nginxHTMLRoot + ";",
+		"    default_type application/json;",
 		"    location / {",
-		"        auth_basic \"registry\";",
-		"        auth_basic_user_file " + htpasswdPath + ";",
+	}
+	if withAuth {
+		lines = append(lines,
+			"        auth_basic \"registry\";",
+			"        auth_basic_user_file "+htpasswdPath+";",
+		)
+	}
+	lines = append(lines,
 		"    }",
 		"}",
 		"",
-	}, "\n")
+	)
+	return strings.Join(lines, "\n")
 }

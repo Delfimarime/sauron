@@ -1,10 +1,43 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 )
+
+// the transports a source may be reached over.
+const (
+	kindGit        = "git"
+	kindHTTP       = "http"
+	kindFilesystem = "filesystem"
+)
+
+// kindValues are the transports a source may be reached over.
+var kindValues = []string{kindGit, kindHTTP, kindFilesystem}
+
+// kindFlags groups the transport selector shared by source-defining commands.
+type kindFlags struct {
+	Kind string
+}
+
+func bindKindFlags(cmd *cobra.Command, f *kindFlags) {
+	cmd.Flags().StringVar(&f.Kind, "kind", kindHTTP,
+		fmt.Sprintf("source transport (%s)", strings.Join(kindValues, "|")))
+}
+
+// validateKind reports a usage error when kind is not a known transport.
+func (f *kindFlags) validate() error {
+	for _, v := range kindValues {
+		if f.Kind == v {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w: kind must be one of %s", errInvalidFlag, strings.Join(kindValues, "|"))
+}
 
 // listingFlags groups the filter, sort, and column flags shared by list and
 // describe commands.

@@ -3,7 +3,6 @@ package docker
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,6 +30,7 @@ type dockerRuntime struct {
 	specs      []ContainerSpec
 	folders    map[string]*folderSource
 	webservers map[string]*webserverSource
+	gits       map[string]*gitSource
 	stack      compose.ComposeStack
 }
 
@@ -72,6 +72,7 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		specs:      specs,
 		folders:    map[string]*folderSource{},
 		webservers: map[string]*webserverSource{},
+		gits:       map[string]*gitSource{},
 	}, nil
 }
 
@@ -82,7 +83,7 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 		return fmt.Errorf("create compose directory: %w", err)
 	}
 
-	declared, err := buildSpecs(c.specs, c.folders, c.webservers)
+	declared, err := buildSpecs(c.specs, c.folders, c.webservers, c.gits)
 	if err != nil {
 		return err
 	}
@@ -232,8 +233,8 @@ func (c *dockerRuntime) Folder(alias string) runtime.Source {
 	return src
 }
 
-// Webserver declares an nginx sidecar serving content over http on the compose
-// network, created once per alias so repeated Expose calls accumulate.
+// Webserver declares an nginx sidecar serving the registry REST API over http on the
+// compose network, created once per alias so repeated Expose calls accumulate.
 func (c *dockerRuntime) Webserver(alias string) runtime.Source {
 	src, ok := c.webservers[alias]
 	if !ok {
@@ -243,8 +244,18 @@ func (c *dockerRuntime) Webserver(alias string) runtime.Source {
 	return src
 }
 
-// Git is deferred (git remotes are ssh-only and the ssh fixture is not built yet);
-// the source errors on any attribute access.
-func (c *dockerRuntime) Git(string) runtime.Source {
-	return runtime.NewErroringSource(errors.New("docker: a git source is not available (deferred)"))
+// Git declares an ssh git-remote source served by an sshd sidecar that seeds a bare
+// repo from the exposed content. The source is created once per alias (with its own
+// generated key material) so repeated Expose calls accumulate.
+func (c *dockerRuntime) Git(alias string) runtime.Source {
+	src, ok := c.gits[alias]
+	if !ok {
+		keys, err := newSSHKeyPair()
+		if err != nil {
+			return runtime.NewErroringSource(fmt.Errorf("docker: generate ssh keys for git source %q: %w", alias, err))
+		}
+		src = &gitSource{alias: alias, keys: keys}
+		c.gits[alias] = src
+	}
+	return src
 }

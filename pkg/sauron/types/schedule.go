@@ -7,7 +7,7 @@ const (
 )
 
 // Schedule is an OS-crontab schedule for a reconcile operation, recorded in
-// settings.yaml. Mirrors spec/contracts/schemas/Schedule.schema.json.
+// settings.yaml.
 type Schedule struct {
 	TypeMeta `json:",inline" yaml:",inline"`
 	Metadata Metadata     `json:"metadata" yaml:"metadata"`

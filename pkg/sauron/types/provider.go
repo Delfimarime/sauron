@@ -7,8 +7,7 @@ const (
 )
 
 // Provider is the single global provider destination, recorded in
-// settings.yaml. It has no spec — its identity is its name. Mirrors
-// spec/contracts/schemas/Provider.schema.json.
+// settings.yaml. It has no spec — its identity is its name.
 type Provider struct {
 	TypeMeta `json:",inline" yaml:",inline"`
 	Metadata Metadata `json:"metadata" yaml:"metadata"`

@@ -128,12 +128,14 @@ func TestBindFlags(t *testing.T) {
 	var paging pagingFlags
 	var dry dryRunFlags
 	var timeout timeoutFlags
+	var kind kindFlags
 
 	// Act.
 	bindListingFlags(cmd, &listing)
 	bindPagingFlags(cmd, &paging)
 	bindDryRunFlags(cmd, &dry)
 	bindTimeoutFlags(cmd, &timeout)
+	bindKindFlags(cmd, &kind)
 
 	// Assert: defaults bound onto the structs.
 	assert.Equal(t, "", listing.Search)
@@ -144,9 +146,10 @@ func TestBindFlags(t *testing.T) {
 	assert.Equal(t, 0, paging.Limit)
 	assert.False(t, dry.DryRun)
 	assert.Equal(t, 30*time.Second, timeout.Timeout)
+	assert.Equal(t, kindHTTP, kind.Kind)
 
 	// Assert: flags are registered on the command.
-	for _, name := range []string{"search", "sort", "order", "fields", "offset", "limit", "dry-run", "timeout"} {
+	for _, name := range []string{"search", "sort", "order", "fields", "offset", "limit", "dry-run", "timeout", "kind"} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
 	}
 }

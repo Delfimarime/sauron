@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 
@@ -47,12 +48,10 @@ func TestFeatures(t *testing.T) {
 			t.TempDir(), binaryURI, gherkin.Init,
 		),
 		Options: &godog.Options{
-			Format: "pretty",
-			Paths:  []string{determineTestdataDirectory(t)},
-			Output: colors.Colored(os.Stdout),
-			// @git scenarios are filtered until the ssh fixture lands, so the
-			// deferred git stub never fires in the gate.
-			Tags:     "~@git",
+			Format:   "pretty",
+			Paths:    []string{determineTestdataDirectory(t)},
+			Output:   colors.Colored(os.Stdout),
+			Tags:     gitScenarioTags(),
 			TestingT: t,
 			Strict:   true,
 		},
@@ -61,6 +60,17 @@ func TestFeatures(t *testing.T) {
 	if suite.Run() != 0 {
 		t.Fatal("non-zero status returned, failed to run feature tests")
 	}
+}
+
+// gitScenarioTags selects which scenarios run. The git fixture is an ssh sidecar
+// serving Linux containers, so the @git scenarios run only on Linux (the gate
+// runner); elsewhere — a developer's macOS box — they are filtered so a local
+// `go test` does not fail provisioning a git-over-ssh server.
+func gitScenarioTags() string {
+	if goruntime.GOOS == "linux" {
+		return ""
+	}
+	return "~@git"
 }
 
 // CreateInitFunc returns a godog ScenarioInitializer that, per scenario, selects

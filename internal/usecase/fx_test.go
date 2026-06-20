@@ -5,13 +5,41 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
+
+	"github.com/delfimarime/sauron/internal/infrastructure/repository/storage"
+	"github.com/delfimarime/sauron/pkg/sauron/extension"
 )
 
-// TestNewFxOptions verifies the (bootstrap-empty) usecase options compose into a
-// valid container without error.
+// TestNewFxOptions verifies the usecase options compose into a valid container
+// once their adapter and collaborator dependencies are supplied.
 func TestNewFxOptions(t *testing.T) {
-	// Arrange + Act.
-	app := fx.New(NewFxOptions())
+	// Arrange.
+	deps := fx.Options(
+		fx.Provide(
+			fx.Annotate(
+				func() extension.Registry { return &extension.MockBasedRegistry{} },
+				fx.ResultTags(`name:"registry.filesystem"`),
+			),
+			fx.Annotate(
+				func() extension.Registry { return &extension.MockBasedRegistry{} },
+				fx.ResultTags(`name:"registry.git"`),
+			),
+			fx.Annotate(
+				func() extension.Registry { return &extension.MockBasedRegistry{} },
+				fx.ResultTags(`name:"registry.http"`),
+			),
+			func() storage.RegistriesStore { return &storage.MockBasedRegistriesStore{} },
+			zap.NewNop,
+		),
+	)
+
+	// Act.
+	app := fx.New(
+		deps,
+		NewFxOptions(),
+		fx.Invoke(func(*AddRegistryUseCase) {}),
+	)
 
 	// Assert.
 	assert.NoError(t, app.Err())

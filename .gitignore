@@ -554,3 +554,6 @@ docs/
 .claude/settings.local.json
 prompt/
 dist/
+
+# Generated: schema contracts staged into the embeddable storage directory by `task generate`.
+internal/infrastructure/repository/storage/schemas/

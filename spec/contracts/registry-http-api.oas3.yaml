@@ -68,7 +68,7 @@ paths:
         optionally filtered by a case-insensitive substring match on the artifact name.
       tags: [skills]
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Q'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
         - $ref: '#/components/parameters/Sort'
@@ -143,7 +143,7 @@ paths:
         optionally filtered by a case-insensitive substring match on the artifact name.
       tags: [agents]
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Q'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
         - $ref: '#/components/parameters/Sort'
@@ -218,7 +218,7 @@ paths:
         optionally filtered by a case-insensitive substring match on the artifact name.
       tags: [personas]
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Q'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
         - $ref: '#/components/parameters/Sort'
@@ -288,13 +288,13 @@ components:
         minLength: 1
       example: code-reviewer
 
-    Search:
-      name: search
+    Q:
+      name: q
       in: query
       required: false
       description: |
-        Case-insensitive substring filter applied to the artifact name. When omitted,
-        no name filtering is performed.
+        Free-text query parameter (Zalando #137): a case-insensitive substring filter
+        applied to the artifact name. When omitted, no name filtering is performed.
       schema:
         type: string
       example: review
@@ -380,22 +380,42 @@ components:
 
     ArtifactList:
       type: object
-      description: A page of artifact summaries together with the total match count.
-      required: [items, total]
+      description: |
+        A page of artifact summaries, with hypertext pagination links (Zalando
+        #161/#165/#248).
+      required: [items]
       properties:
         items:
           type: array
           description: The artifact summaries on this page.
           items:
             $ref: '#/components/schemas/ArtifactSummary'
-        total:
-          type: integer
-          format: int64
-          minimum: 0
+        self:
+          type: string
+          format: uri
           description: |
-            Total number of artifacts matching the request criteria (the `search`
-            filter), across all pages and independent of `limit`/`offset`.
-          example: 137
+            Absolute URI of this page (Zalando #161/#217).
+          example: https://registry.example.com/skills?q=review&limit=50&offset=50
+        first:
+          type: string
+          format: uri
+          description: |
+            Absolute URI of the first page (Zalando #161/#217).
+          example: https://registry.example.com/skills?q=review&limit=50&offset=0
+        prev:
+          type: string
+          format: uri
+          description: |
+            Absolute URI of the previous page (Zalando #161/#217). Omitted on the
+            first page.
+          example: https://registry.example.com/skills?q=review&limit=50&offset=0
+        next:
+          type: string
+          format: uri
+          description: |
+            Absolute URI of the next page (Zalando #161/#217). Omitted on the last
+            page.
+          example: https://registry.example.com/skills?q=review&limit=50&offset=100
 
     ArtifactDetail:
       type: object

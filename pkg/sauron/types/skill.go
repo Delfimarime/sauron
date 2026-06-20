@@ -1,7 +1,6 @@
 package types
 
-// Skill is an installed skill, recorded in track.yaml. Mirrors
-// spec/contracts/schemas/Skill.schema.json.
+// Skill is an installed skill, recorded in track.yaml.
 type Skill struct {
 	TypeMeta `json:",inline" yaml:",inline"`
 	Metadata Metadata     `json:"metadata" yaml:"metadata"`
@@ -9,8 +8,7 @@ type Skill struct {
 }
 
 // ArtifactSpec is the spec block shared by Skill and Agent, whose schemas are
-// identical. Mirrors the spec object in spec/contracts/schemas/Skill.schema.json
-// and spec/contracts/schemas/Agent.schema.json.
+// identical.
 type ArtifactSpec struct {
 	Registry    string     `json:"registry" yaml:"registry"`
 	Version     string     `json:"version,omitempty" yaml:"version,omitempty"`
@@ -21,8 +19,7 @@ type ArtifactSpec struct {
 	UpdatedAt   string     `json:"updatedAt" yaml:"updatedAt"`
 }
 
-// Provenance records why an artifact is installed. Mirrors spec.provenance in
-// spec/contracts/schemas/Skill.schema.json and Agent.schema.json.
+// Provenance records why an artifact is installed.
 type Provenance struct {
 	Direct   bool     `json:"direct" yaml:"direct"`
 	Personas []string `json:"personas,omitempty" yaml:"personas,omitempty"`

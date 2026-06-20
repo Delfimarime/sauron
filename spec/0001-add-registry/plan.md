@@ -167,7 +167,7 @@ type RegistrySpec struct {
 // is implemented in this feature; Describe/Get are stubs returning a
 // not-implemented sentinel until list catalogue / install.
 type FileSystem interface {
-    List(ctx context.Context, uri string, opts ...Option) ([]File, int, error) // items, total — IMPLEMENTED
+    List(ctx context.Context, uri string, opts ...Option) ([]File, error) // IMPLEMENTED
     Describe(ctx context.Context, uri string) (Stat, error)                     // STUB
     Get(ctx context.Context, uri string) (File, error)                          // STUB
 }
@@ -277,7 +277,7 @@ Legend: **DONE** = exists as needed, no change. **EDIT** = modify in place.
 |---|---|
 | `fs/factory.go` (+`fs/factory_test.go`) | **NEW** — `extension.Registry`; `Validate` rejects auth/tls/ssh **and `--ref`**; `Open` returns a `source.FileSystem` over `uri` (local dir) + existence/readability check; `List` enumerates `.skills/`/`.agents/`, `Describe`/`Get` stubbed. |
 | `git/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts ssh/auth/tls **and `ref`**; `Open` = go-git **shallow clone (`Depth: 1`)** → ctx-bound temp dir, **checked out at `opts.Ref` (empty → remote default branch)**, returned as a `source.FileSystem`; auth resolved into `Options`; cleanup on ctx done; unresolvable ref → error. (Shallow is sufficient because `add` only `List`s — no history is read.) `List` over the checkout; `Describe`/`Get` stubbed. |
-| `http/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts auth/tls, **rejects `--ref`**; `Open` returns a `source.FileSystem` that is a **client of the [Registry HTTP API](../../../../spec/contracts/registry-http-api.oas3.yaml)** (Basic auth + TLS from `Options`). `List` = `GET /skills` / `GET /agents` (`limit=1` for the presence scan), parsing `{items,total}`; `Describe`/`Get` stubbed. |
+| `http/factory.go` (+test) | **NEW** — `extension.Registry`; `Validate` accepts auth/tls, **rejects `--ref`**; `Open` returns a `source.FileSystem` that is a **client of the [Registry HTTP API](../../../../spec/contracts/registry-http-api.oas3.yaml)** (Basic auth + TLS from `Options`). `List` = `GET /skills` / `GET /agents` (`limit=1` for the presence scan), parsing `{items}`; `Describe`/`Get` stubbed. |
 | `fx.go` | **EDIT** — replace empty `fx.Options()`; provide the three as **named** `extension.Registry` (`name:"registry.filesystem|git|http"`). |
 | `{fs,git,http}/doc.go` | **EDIT** — trim package docs to the adapter's responsibility. |
 
@@ -391,7 +391,7 @@ graph TD
 - **Adapter `List` coverage:** fs over a temp/`MemMapFs` dir; git by cloning a
   local fixture repo **at a given ref** and listing the checkout; http against an
   in-process `httptest` server that implements the Registry HTTP API's
-  `GET /skills`/`GET /agents` (asserting `{items,total}` parsing, Basic auth, and
+  `GET /skills`/`GET /agents` (asserting `{items}` parsing, Basic auth, and
   `limit=1`). `Describe`/`Get` assert the not-implemented sentinel.
 - **`--ref` coverage:** the git adapter test asserts `Open` lists content **at the
   requested ref** and errors on an unknown ref; the fs/http adapter tests assert
