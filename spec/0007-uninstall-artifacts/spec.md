@@ -46,6 +46,6 @@ persona. A dry run previews the removal.
 ## Key Entities
 
 - **Artifact** — the removed skill, agent, or persona; tracked per the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).
 - **Provenance** — `direct` plus `personas`, which governs whether a persona's
   member is removed or retained.

@@ -42,4 +42,4 @@ offline behavior.
 - **Catalogue** — the live view of a registry's offerings; not persisted.
 - **Registry** — the source browsed; its connection is read from
   `registries.yaml` (see the
-  [configuration data contract](../contracts/configuration.md)).
+  [state data contract](../contracts/state.md)).

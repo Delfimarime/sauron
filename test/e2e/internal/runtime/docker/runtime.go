@@ -11,6 +11,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/modules/compose"
+	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
 // mainService is the compose service that hosts the binary under test;
@@ -22,11 +25,14 @@ const (
 )
 
 type dockerRuntime struct {
-	bin       string
-	directory string
-	logger    log.Logger
-	specs     []ContainerSpec
-	stack     compose.ComposeStack
+	bin        string
+	directory  string
+	logger     log.Logger
+	specs      []ContainerSpec
+	folders    map[string]*folderSource
+	webservers map[string]*webserverSource
+	gits       map[string]*gitSource
+	stack      compose.ComposeStack
 }
 
 // New builds a compose-backed runtime. It always prepends the "main" service: an
@@ -46,6 +52,10 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		Entrypoint: "tail -f /dev/null",
 		Env: map[string]string{
 			"SAURON_HOME": sauronHome,
+			// Pin HOME so the git ssh transport resolves its default known_hosts to
+			// the pinned host-key entry mounted at /root/.ssh/known_hosts (docker exec
+			// does not set HOME), keeping strict host-key verification working.
+			"HOME": "/root",
 		},
 		Mount: append(options.mount, FileSpec{
 			SourceFile: bin,
@@ -60,7 +70,15 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		specs = append(specs, each)
 	}
 
-	return &dockerRuntime{bin: bin, directory: directory, logger: options.logger, specs: specs}, nil
+	return &dockerRuntime{
+		bin:        bin,
+		directory:  directory,
+		logger:     options.logger,
+		specs:      specs,
+		folders:    map[string]*folderSource{},
+		webservers: map[string]*webserverSource{},
+		gits:       map[string]*gitSource{},
+	}, nil
 }
 
 func (c *dockerRuntime) IsReadOnly() bool { return false }
@@ -70,7 +88,12 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 		return fmt.Errorf("create compose directory: %w", err)
 	}
 
-	specs, err := materializeContent(os.WriteFile, c.directory, c.specs)
+	declared, err := buildSpecs(c.specs, c.folders, c.webservers, c.gits)
+	if err != nil {
+		return err
+	}
+
+	specs, err := materializeContent(os.WriteFile, c.directory, declared)
 	if err != nil {
 		return err
 	}
@@ -88,6 +111,12 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	stack, err := c.newStack(path)
 	if err != nil {
 		return err
+	}
+	// The git sidecar's entrypoint seeds the repo before `exec sshd`, so port 22
+	// is not open the instant the container starts; wait until sshd announces it
+	// is listening, otherwise an early clone races it and is refused.
+	for _, alias := range sortedKeys(c.gits) {
+		stack = stack.WaitForService(gitService(alias), wait.ForLog("Server listening on"))
 	}
 	c.stack = stack
 
@@ -174,4 +203,70 @@ func (c *dockerRuntime) Execute(ctx context.Context, args ...string) (int, strin
 		return exitCode, stderr.String(), nil
 	}
 	return exitCode, stdout.String(), nil
+}
+
+// ReadFile cats a file out of the "main" container. A relative path is resolved
+// against $SAURON_HOME, a "~/" path against /root, and an absolute path is read
+// as-is.
+func (c *dockerRuntime) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	if c.stack == nil {
+		return nil, fmt.Errorf("docker: runtime not started; nothing to read at %q", path)
+	}
+	code, out, err := c.Execute(ctx, "cat", containerPath(path))
+	if err != nil {
+		return nil, fmt.Errorf("read %q: %w", path, err)
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("read %q: cat exited %d: %s", path, code, out)
+	}
+	return []byte(out), nil
+}
+
+// containerPath resolves a home-relative path to its absolute in-container location.
+func containerPath(path string) string {
+	if rest, ok := strings.CutPrefix(path, "~/"); ok {
+		return "/root/" + rest
+	}
+	if strings.HasPrefix(path, "/") {
+		return path
+	}
+	return strings.TrimRight(sauronHome, "/") + "/" + path
+}
+
+// Folder declares a content directory served from inside "main". The source is
+// created once per alias so repeated Expose calls accumulate.
+func (c *dockerRuntime) Folder(alias string) runtime.Source {
+	src, ok := c.folders[alias]
+	if !ok {
+		src = &folderSource{alias: alias}
+		c.folders[alias] = src
+	}
+	return src
+}
+
+// Webserver declares an nginx sidecar serving the registry REST API over http on the
+// compose network, created once per alias so repeated Expose calls accumulate.
+func (c *dockerRuntime) Webserver(alias string) runtime.Source {
+	src, ok := c.webservers[alias]
+	if !ok {
+		src = &webserverSource{alias: alias}
+		c.webservers[alias] = src
+	}
+	return src
+}
+
+// Git declares an ssh git-remote source served by an sshd sidecar that seeds a bare
+// repo from the exposed content. The source is created once per alias (with its own
+// generated key material) so repeated Expose calls accumulate.
+func (c *dockerRuntime) Git(alias string) runtime.Source {
+	src, ok := c.gits[alias]
+	if !ok {
+		keys, err := newSSHKeyPair()
+		if err != nil {
+			return runtime.NewErroringSource(fmt.Errorf("docker: generate ssh keys for git source %q: %w", alias, err))
+		}
+		src = &gitSource{alias: alias, keys: keys}
+		c.gits[alias] = src
+	}
+	return src
 }

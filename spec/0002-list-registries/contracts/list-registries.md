@@ -11,7 +11,7 @@ Review the configured sources.
 | Flag | Meaning |
 |---|---|
 | `--search <term>` | Case-insensitive substring filter on the registry name |
-| `--fields <list>` | Columns to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `timeout` |
+| `--fields <list>` | Columns to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `ref`, `timeout` |
 | `--sort <field>` | Sort field: `name` (default) or `transport` |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
 

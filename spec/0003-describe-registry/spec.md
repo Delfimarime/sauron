@@ -31,4 +31,4 @@ shows a single registry's fields, with column selection.
 ## Key Entities
 
 - **Registry** — the described source; see the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).

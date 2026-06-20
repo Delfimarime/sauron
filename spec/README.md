@@ -119,7 +119,7 @@ each a multi-document stream of Kubernetes-style manifests
 ```
 
 The schema of every document is owned by the
-[configuration data contract](contracts/configuration.md). The **catalogue** is
+[state data contract](contracts/state.md). The **catalogue** is
 not persisted: what a registry *offers* is computed live from a fetch against the
 registry, so there is no offline catalogue.
 
@@ -165,11 +165,3 @@ new on its own.
 - **`sync`** is a full reconcile: everything `upgrade` does, plus repairing local
   drift, removing artifacts that vanished upstream, and removing persona members
   dropped upstream.
-
-## Further reading
-
-- [Spec authoring rules](AUTHORING.md) — spec types, numbering, required sections,
-  EARS templates, glossary, and cross-link form.
-- [CLI contract](contracts/cli.md) — the conventions every command obeys: command
-  grammar, shared flags, exit status, and output discipline.
-- [Constitution](../CONSTITUTION.md) — project and implementation principles.

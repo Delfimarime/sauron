@@ -11,9 +11,9 @@ workflows (`.github/workflows/*.yml`) and/or GitLab CI (`.gitlab-ci.yml`). You d
 ## Follow these
 
 - The `sauron-operating-ci` skill — the conventions in brief.
-- [Continuous integration & delivery](../../spec/contracts/architecture.md#continuous-integration--delivery)
-  and [Versioning](../../spec/contracts/architecture.md#versioning) in the
-  architecture contract — normative.
+- [Continuous integration & delivery](../../spec/contracts/delivery.md#continuous-integration--delivery)
+  and [Versioning](../../spec/contracts/delivery.md#versioning) in the
+  delivery contract — normative.
 
 ## How you work
 

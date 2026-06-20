@@ -1,10 +1,29 @@
-// Package registry wires the registry adapters implementing the extension.Registry
-// port (pkg/sauron/extension).
 package registry
 
-import "go.uber.org/fx"
+import (
+	"go.uber.org/fx"
 
-// NewFxOptions wires the registry adapters.
+	"github.com/delfimarime/sauron/pkg/sauron/extension"
+)
+
+// NewFxOptions wires the registry transport adapters as named extension.Registry
+// values, one per transport.
 func NewFxOptions() fx.Option {
-	return fx.Options()
+	return fx.Options(
+		fx.Provide(
+			fx.Annotate(
+				func() extension.Registry { return newOSFactory() },
+				fx.ResultTags(`name:"registry.filesystem"`),
+			),
+			fx.Annotate(
+				newGitFactory,
+				fx.As(new(extension.Registry)),
+				fx.ResultTags(`name:"registry.git"`),
+			),
+			fx.Annotate(
+				func() extension.Registry { return newRESTFactory() },
+				fx.ResultTags(`name:"registry.http"`),
+			),
+		),
+	)
 }

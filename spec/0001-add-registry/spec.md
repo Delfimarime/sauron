@@ -25,8 +25,9 @@ this feature is realized by.
   with its URI and transport, persisting it as a `Registry` document in
   `registries.yaml`.
 - FR-002: Sauron shall default the transport to `http` when `--kind` is not given.
-- FR-003: Sauron shall store credential material as environment references
-  (`${env:VAR}`) only, never resolving or persisting secret values.
+- FR-003: Sauron shall store a secret credential (password or token) as an
+  environment reference (`${env:VAR}`) only, never resolving or persisting the
+  secret value; a non-secret username may be a literal or a reference.
 
 ### Event-driven
 
@@ -38,7 +39,7 @@ this feature is realized by.
 ### State-driven
 
 - FR-006: While a registry is being validated, Sauron shall leave the existing
-  configuration unchanged until validation succeeds.
+  state unchanged until validation succeeds.
 
 ### Unwanted behavior
 
@@ -58,10 +59,13 @@ this feature is realized by.
   document.
 - FR-012: Where `--timeout` is provided, Sauron shall bound the validation network
   operation by it (default `30s`).
+- FR-013: Where `--ref` is provided for a git registry, Sauron shall apply it when
+  validating and persist it on the `Registry` document as `spec.ref`; when `--ref`
+  is absent, the registry resolves from the repository's default branch.
 
 ## Key Entities
 
 - **Registry** — the registered source, persisted as a `Registry` document; see
-  the [configuration data contract](../contracts/configuration.md).
+  the [state data contract](../contracts/state.md).
 - **Transport** — `git`, `http`, or `filesystem`, selected by `--kind` and stored
   as `spec.transport`.

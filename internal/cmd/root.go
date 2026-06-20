@@ -27,5 +27,12 @@ func New(appName, appVersion, appHash string) (*cobra.Command, error) {
 		},
 	}
 	root.SetVersionTemplate(banner)
+	root.AddCommand(Add())
 	return root, nil
+}
+
+// ExitCode maps the error returned by the root command's Execute to the process
+// exit code the binary should terminate with.
+func ExitCode(err error) int {
+	return exitCode(err)
 }

@@ -44,7 +44,7 @@ what it delivered. A dry run previews the cascade.
 ## Key Entities
 
 - **Registry** — the removed source; see the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).
 - **Provenance** — the `spec.registry` on each tracked artifact, which selects the
   cascade set.
 

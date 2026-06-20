@@ -58,6 +58,12 @@ explicit intent; it is never generated automatically. Authoring mechanics (the
 `ADR-NNNN-<slug>.md` naming and layout) live in the
 [ADR structure](spec/AUTHORING.md#adr-structure) of AUTHORING.md.
 
+An ADR records a **decision, not a dependency**. Choosing a library or tool is
+not an architectural decision — it is implementation detail, vetted under
+Chapter III, Article 5 and enumerated in the architecture contract's
+approved-dependency table, never in an ADR. ADRs capture the durable shape:
+boundaries, contracts, conventions, and the trade-offs behind them.
+
 ### Article 5 — ADR structure and lifecycle
 
 Each ADR carries a **Status**, **Date**, and **Feature** header (a project-level
@@ -77,6 +83,15 @@ the answer constrains the design, recorded as an ADR (Article 4) — so that
 implementation proceeds only from a spec with nothing left unresolved. When a
 question surfaces mid-implementation, work pauses until it is answered rather
 than resolved by guesswork in code.
+
+### Article 7 — Locality and single source
+
+Each feature owns its own spec; a similar capability in another feature is
+specified where it lives, not merged to avoid repetition. Semantics shared across
+features — the glossary, the CLI / state / architecture / delivery contracts, the
+canonical requirement boilerplate, and ADRs — are authored **once** in their
+owning file and **linked**, never copied into a feature. There is one place to
+change each rule, and therefore no drift between copies.
 
 ## Chapter II — Contracts
 
@@ -159,8 +174,8 @@ the per-invocation context and the writer that command output goes to arrive
 through a `Request` passed to its `Execute`. The use case therefore stays
 ignorant of where its output is printed and where state is persisted — output
 flows through an `io.Writer` on the `Request`, and persisted state through the
-`internal/infrastructure/storage` package (which owns the `afero.Fs`), never
-through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
+`internal/infrastructure/repository/storage` package (which owns the `afero.Fs`),
+never through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
 interface shapes, the `internal/usecase` layout, and the naming convention are
 fixed by the [architecture contract](spec/contracts/architecture.md).
 
@@ -223,3 +238,12 @@ pull/merge request — never Gitflow. Commits and PR/MR titles follow
 feature-proposal (`PROPOSAL:` issues carrying EARS and intended ADRs) and
 bug-report (Context / Problem / Expected Outcome) processes, and the issue and
 PR/MR templates are defined in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Article 4 — Single-source documentation
+
+Every fact is documented in exactly one place and linked from elsewhere. The
+product and domain model are authored once in [the spec README](spec/README.md);
+the repository [README](README.md) and other documents link to it rather than
+restating it. A normative rule lives in its owning contract; narrative docs point
+to that contract and never paraphrase it. Documentation therefore cannot drift
+out of agreement with what it describes.

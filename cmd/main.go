@@ -22,6 +22,7 @@ func main() {
 		os.Exit(1)
 	}
 	if err := root.Execute(); err != nil {
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		os.Exit(cmd.ExitCode(err))
 	}
 }

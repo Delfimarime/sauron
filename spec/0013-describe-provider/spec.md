@@ -34,4 +34,4 @@ active provider's detail.
 ## Key Entities
 
 - **Provider** — the active destination; see the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).

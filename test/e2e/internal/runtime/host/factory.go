@@ -13,6 +13,6 @@ func (*Factory) GetHomeDirectory() (string, error) {
 	return filepath.Abs("~/.sauron")
 }
 
-func (*Factory) New(binaryURI, _ string) (runtime.Runtime, error) {
-	return New(binaryURI), nil
+func (*Factory) New(binaryURI, directoryURI string) (runtime.Runtime, error) {
+	return New(binaryURI, directoryURI), nil
 }

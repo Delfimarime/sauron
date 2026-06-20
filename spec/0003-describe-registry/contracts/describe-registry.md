@@ -16,7 +16,7 @@ Show one registry's full detail.
 
 | Flag | Meaning |
 |---|---|
-| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `auth`, `tls`, `sshKey`, `timeout` |
+| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `ref`, `auth`, `tls`, `sshKey`, `timeout` |
 
 ## Output
 

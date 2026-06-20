@@ -1,16 +1,250 @@
 package storage
 
 import (
+	"context"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+	"gopkg.in/yaml.v3"
 
 	"github.com/delfimarime/sauron/internal/config"
+	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
+
+// registriesFile is the backing file for the Registry kind.
+const registriesFile = "registries.yaml"
+
+// acmeName is a fixture registry name shared by the storage tests.
+const acmeName = "acme"
+
+// validRegistryYAML is a schema-valid Registry document.
+const validRegistryYAML = `apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: acme
+spec:
+  transport: git
+  uri: https://example.com/acme.git
+  ref: main
+`
+
+// newTestStore builds a Store over an in-memory filesystem.
+func newTestStore(t *testing.T) (*Store, afero.Fs) {
+	t.Helper()
+	fs := afero.NewMemMapFs()
+	store, err := NewStore(fs)
+	require.NoError(t, err)
+	return store, fs
+}
+
+// nodeFromYAML parses a single YAML document into a node.
+func nodeFromYAML(t *testing.T, raw string) *yaml.Node {
+	t.Helper()
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(raw), &node))
+	return &node
+}
+
+// TestStoreFindOneAbsent returns nil when the file or the document is missing.
+func TestStoreFindOneAbsent(t *testing.T) {
+	tests := []struct {
+		// name states the case intent.
+		name string
+		// seed is written to the registries file before the lookup (empty: no file).
+		seed string
+		// lookup is the document name searched for.
+		lookup string
+	}{
+		{name: "missing file", seed: "", lookup: acmeName},
+		{name: "missing document", seed: validRegistryYAML, lookup: "other"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange.
+			store, fs := newTestStore(t)
+			if tt.seed != "" {
+				require.NoError(t, afero.WriteFile(fs, registriesFile, []byte(tt.seed), filePerm))
+			}
+
+			// Act.
+			node, err := store.FindOne(context.Background(), types.KindRegistry, tt.lookup)
+
+			// Assert.
+			require.NoError(t, err)
+			assert.Nil(t, node)
+		})
+	}
+}
+
+// TestStoreFindOneValidatesOnRead rejects a malformed document on read.
+func TestStoreFindOneValidatesOnRead(t *testing.T) {
+	// Arrange: an unknown spec field violates additionalProperties: false.
+	malformed := `apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: acme
+spec:
+  transport: git
+  uri: https://example.com/acme.git
+  bogus: nope
+`
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, registriesFile, []byte(malformed), filePerm))
+
+	// Act.
+	node, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+
+	// Assert.
+	require.Error(t, err)
+	assert.Nil(t, node)
+}
+
+// TestStoreFindOneReturnsMatch returns the matching, valid document.
+func TestStoreFindOneReturnsMatch(t *testing.T) {
+	// Arrange.
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, registriesFile, []byte(validRegistryYAML), filePerm))
+
+	// Act.
+	node, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+
+	// Assert.
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, acmeName, nameOf(node))
+}
+
+// TestStoreUnknownKind reports an error for a kind with no backing file.
+func TestStoreUnknownKind(t *testing.T) {
+	// Arrange.
+	store, _ := newTestStore(t)
+
+	// Act.
+	_, err := store.FindOne(context.Background(), "Nonexistent", "x")
+
+	// Assert.
+	require.ErrorIs(t, err, errUnknownKind)
+}
+
+// TestStoreAppendRoundTrip appends a document and reads it back.
+func TestStoreAppendRoundTrip(t *testing.T) {
+	// Arrange.
+	store, fs := newTestStore(t)
+	first := nodeFromYAML(t, validRegistryYAML)
+	second := nodeFromYAML(t, `apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: beta
+spec:
+  transport: http
+  uri: https://example.com/beta
+`)
+
+	// Act.
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, first))
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, second))
+
+	// Assert: both documents are retrievable, and no temp artifact remains.
+	got, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	got, err = store.FindOne(context.Background(), types.KindRegistry, "beta")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	exists, err := afero.Exists(fs, registriesFile+".tmp")
+	require.NoError(t, err)
+	assert.False(t, exists)
+}
+
+// TestStoreAppendSerializes runs concurrent appends and asserts every document
+// survives — the lock prevents lost updates.
+func TestStoreAppendSerializes(t *testing.T) {
+	// Arrange.
+	store, _ := newTestStore(t)
+	const writers = 8
+
+	// Act: append distinct documents concurrently.
+	var wg sync.WaitGroup
+	wg.Add(writers)
+	for i := 0; i < writers; i++ {
+		go func(i int) {
+			defer wg.Done()
+			doc := nodeFromYAML(t, registryYAML(i))
+			assert.NoError(t, store.Append(context.Background(), types.KindRegistry, doc))
+		}(i)
+	}
+	wg.Wait()
+
+	// Assert: each writer's document is present.
+	for i := 0; i < writers; i++ {
+		got, err := store.FindOne(context.Background(), types.KindRegistry, registryName(i))
+		require.NoError(t, err)
+		require.NotNil(t, got, "document %d lost", i)
+	}
+}
+
+// TestStoreFindOneMalformedStream surfaces a YAML parse error from the file.
+func TestStoreFindOneMalformedStream(t *testing.T) {
+	// Arrange: invalid YAML in the registries file.
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, registriesFile, []byte("\tnot: [valid"), filePerm))
+
+	// Act.
+	_, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+
+	// Assert.
+	require.Error(t, err)
+}
+
+// TestStoreAppendReadOnlyFails reports an error when the commit cannot be written.
+func TestStoreAppendReadOnlyFails(t *testing.T) {
+	// Arrange: a read-only filesystem rejects the temp write.
+	store, err := NewStore(afero.NewReadOnlyFs(afero.NewMemMapFs()))
+	require.NoError(t, err)
+
+	// Act.
+	err = store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML))
+
+	// Assert.
+	require.Error(t, err)
+}
+
+// TestStoreLockContended reports an error when the lock is already held on disk.
+func TestStoreLockContended(t *testing.T) {
+	// Arrange: a pre-existing lock file blocks acquisition.
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, lockFile, nil, lockPerm))
+
+	// Act.
+	err := store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML))
+
+	// Assert.
+	require.Error(t, err)
+}
+
+// registryName names the i-th concurrent test registry.
+func registryName(i int) string {
+	return "reg" + string(rune('a'+i))
+}
+
+// registryYAML renders the i-th concurrent test registry document.
+func registryYAML(i int) string {
+	return "apiVersion: sauron.raitonbl.com/v1\n" +
+		"kind: Registry\n" +
+		"metadata:\n" +
+		"  name: " + registryName(i) + "\n" +
+		"spec:\n" +
+		"  transport: git\n" +
+		"  uri: https://example.com/" + registryName(i) + ".git\n"
+}
 
 // TestNewStore asserts the store retains the injected filesystem.
 func TestNewStore(t *testing.T) {
@@ -18,26 +252,30 @@ func TestNewStore(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
 	// Act.
-	store := NewStore(fs)
+	store, err := NewStore(fs)
 
 	// Assert.
+	require.NoError(t, err)
 	require.NotNil(t, store)
 	assert.Same(t, fs, store.fs)
 }
 
-// TestNewFxOptions resolves a Store through the container to exercise the wiring.
+// TestNewFxOptions resolves a Store and RegistriesStore through the container to
+// exercise the wiring.
 func TestNewFxOptions(t *testing.T) {
 	// Arrange + Act.
 	var store *Store
+	var registries RegistriesStore
 	app := fx.New(
 		fx.Supply(config.Configuration{HomeDirectory: t.TempDir()}),
 		NewFxOptions(),
-		fx.Populate(&store),
+		fx.Populate(&store, &registries),
 	)
 
 	// Assert.
 	require.NoError(t, app.Err())
 	require.NotNil(t, store.fs)
+	require.NotNil(t, registries)
 }
 
 // TestNewFilesystem asserts paths resolve under the configured home, without touching the real filesystem.

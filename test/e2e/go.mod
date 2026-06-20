@@ -3,13 +3,13 @@ module github.com/delfimarime/sauron/test/e2e
 go 1.26
 
 // The root production module is resolved from the working tree, so the harness
-// needs no version tag. The directive is dormant until the root module exists
-// alongside this one (it is produced by a sibling bootstrap unit); once merged,
+// needs no version tag: the placeholder require below binds to this replace, and
 // pkg/-typed step definitions resolve against ../..
 replace github.com/delfimarime/sauron => ../..
 
 require (
 	github.com/cucumber/godog v0.15.1
+	github.com/delfimarime/sauron v0.0.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
@@ -146,12 +146,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.4 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect

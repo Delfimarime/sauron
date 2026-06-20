@@ -32,4 +32,4 @@ with column selection.
 ## Key Entities
 
 - **Artifact** — the described skill, agent, or persona; tracked per the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).

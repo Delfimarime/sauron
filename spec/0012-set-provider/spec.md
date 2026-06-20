@@ -41,4 +41,4 @@ be set before any install or reconcile.
 ## Key Entities
 
 - **Provider** — the single global destination, recorded as the `Provider`
-  document; see the [configuration data contract](../contracts/configuration.md).
+  document; see the [state data contract](../contracts/state.md).

@@ -40,4 +40,4 @@ sorting.
 ## Key Entities
 
 - **Registry** — the listed source; see the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).

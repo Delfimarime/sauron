@@ -60,6 +60,6 @@ content `digest`, optional `version`, exact path, and provenance. Installing a
 ## Key Entities
 
 - **Artifact** — the installed skill, agent, or persona; tracked per the
-  [configuration data contract](../contracts/configuration.md).
+  [state data contract](../contracts/state.md).
 - **Provenance** — `direct` plus the `personas` that bring an artifact in.
 - **Membership** — the skills and agents a persona references.
