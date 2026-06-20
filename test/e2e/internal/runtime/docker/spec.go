@@ -49,7 +49,11 @@ func materializeContent(
 		for j, m := range s.Mount {
 			if len(m.Content) > 0 && m.SourceFile == "" {
 				name := filepath.Join(directory, fmt.Sprintf("%s-%d-%s", s.Service, j, filepath.Base(m.Path)))
-				if err := writeFile(name, m.Content, 0o600); err != nil {
+				// World-readable: these files are bind-mounted and read by
+				// unprivileged container processes (e.g. nginx's worker, uid 101).
+				// On Linux the host mode is preserved, so 0o600 would 403/500 nginx;
+				// macOS Docker's FUSE masks it, hiding the bug locally.
+				if err := writeFile(name, m.Content, 0o644); err != nil {
 					return nil, fmt.Errorf("materialize content for %q: %w", s.Service, err)
 				}
 				m.SourceFile = name
