@@ -2,7 +2,7 @@
 
 ```
 sauron add registry [--kind git|http|filesystem] [--ref <ref>] [--timeout <duration>]
-                     [--username <ref>] [--password <ref>] [--skip-tls-verify]
+                     [--username <value>] [--password <ref>] [--skip-tls-verify]
                      [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
                      [--ssh-key <path>]
                      <name> <uri>
@@ -23,8 +23,8 @@ Register an artifact source of any transport.
 |---|---|
 | `--kind <kind>` | Transport: `git`, `http` (default), or `filesystem`; persisted as `spec.transport` |
 | `--timeout <duration>` | Bound on the validation network operation (default `30s`) |
-| `--username <ref>` | Auth username, as an environment reference (`${env:VAR}`) |
-| `--password <ref>` | Auth password/token, as an environment reference (`${env:VAR}`) |
+| `--username <value>` | Auth username; a literal value or an environment reference (`${env:VAR}`) |
+| `--password <ref>` | Auth password/token, as an environment reference (`${env:VAR}`); a literal secret is a usage error |
 | `--skip-tls-verify` | Skip TLS certificate verification (http/git) |
 | `--ca-cert <path>` | CA certificate path (http/git) |
 | `--client-cert <path>` | Client certificate path (http/git) |

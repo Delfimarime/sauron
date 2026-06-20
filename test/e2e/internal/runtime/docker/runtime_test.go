@@ -67,7 +67,7 @@ func TestDockerGitSourceYieldsSSHURL(t *testing.T) {
 	require.NoError(t, err)
 	url, err := rt.Git("default").URL(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "ssh://git@registry-git-default:22/acme.git", url)
+	assert.Equal(t, "ssh://git@registry-git-default:22/home/git/acme.git", url)
 }
 
 func TestContainerPath(t *testing.T) {

@@ -29,6 +29,8 @@ func (c *commandController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+)$`, c.addRegistry)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) pinned to (\S+)$`, c.addRegistryPinned)
 	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) with username (\S+) and password (\S+)$`, c.addRegistryWithAuth)
+	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) using ssh key (\S+)$`, c.addRegistryWithSSHKey)
+	sc.Step(`^the user adds the (filesystem|http|git) registry (\S+) from (\S+) pinned to (\S+) using ssh key (\S+)$`, c.addRegistryPinnedWithSSHKey)
 
 	sc.Step(`^the command succeeds$`, c.succeeds)
 	sc.Step(`^the command exits with status (\d+)$`, c.exitsWith)
@@ -44,19 +46,32 @@ func (c *commandController) userRuns(ctx context.Context, line string) error {
 // addRegistry runs `sauron add registry` for one transport, resolving the source
 // reference (#{…}) to a concrete uri.
 func (c *commandController) addRegistry(ctx context.Context, transport, name, uriRef string) error {
-	return c.add(ctx, transport, name, uriRef, "", "", "")
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef})
 }
 
 // addRegistryPinned is addRegistry with the source pinned to a git ref, forwarded
 // as --ref (the binary records it as spec.ref).
 func (c *commandController) addRegistryPinned(ctx context.Context, transport, name, uriRef, ref string) error {
-	return c.add(ctx, transport, name, uriRef, ref, "", "")
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, ref: ref})
 }
 
 // addRegistryWithAuth is addRegistry with basic-auth credentials forwarded to the
-// command (the binary stores them as ${env:VAR} references).
+// command (the binary stores the password as a ${env:VAR} reference).
 func (c *commandController) addRegistryWithAuth(ctx context.Context, transport, name, uriRef, username, password string) error {
-	return c.add(ctx, transport, name, uriRef, "", username, password)
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, username: username, password: password})
+}
+
+// addRegistryWithSSHKey is addRegistry with an ssh key forwarded as --ssh-key, so
+// the git transport authenticates with the key rather than the ssh agent. The key
+// argument is resolved through valueOf (a #{.git.<alias>.sshKey} reference yields
+// the in-runtime key path).
+func (c *commandController) addRegistryWithSSHKey(ctx context.Context, transport, name, uriRef, sshKeyRef string) error {
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, sshKeyRef: sshKeyRef})
+}
+
+// addRegistryPinnedWithSSHKey is the pinned git form authenticated with an ssh key.
+func (c *commandController) addRegistryPinnedWithSSHKey(ctx context.Context, transport, name, uriRef, ref, sshKeyRef string) error {
+	return c.add(ctx, addOptions{transport: transport, name: name, uriRef: uriRef, ref: ref, sshKeyRef: sshKeyRef})
 }
 
 // addRegistryFromTable is the canonical table-driven form; the uri cell is resolved
@@ -66,18 +81,45 @@ func (c *commandController) addRegistryFromTable(ctx context.Context, table *god
 	if err != nil {
 		return err
 	}
-	return c.add(ctx, fields["transport"], fields["name"], fields["uri"], fields["ref"], fields["username"], fields["password"])
+	return c.add(ctx, addOptions{
+		transport: fields["transport"],
+		name:      fields["name"],
+		uriRef:    fields["uri"],
+		ref:       fields["ref"],
+		username:  fields["username"],
+		password:  fields["password"],
+		sshKeyRef: fields["sshKey"],
+	})
 }
 
-// add is the shared body of every "adds the registry" step: resolve the uri
-// reference, then run `sauron add registry` with the optional ref and basic-auth
-// flags.
-func (c *commandController) add(ctx context.Context, transport, name, uriRef, ref, username, password string) error {
-	uri, err := valueOf[string](ctx, c.rt, uriRef)
+// addOptions carries the fields every "adds the registry" step contributes; the
+// optional ones default to empty and are forwarded only when set.
+type addOptions struct {
+	transport string
+	name      string
+	uriRef    string
+	ref       string
+	username  string
+	password  string
+	sshKeyRef string
+}
+
+// add is the shared body of every "adds the registry" step: resolve the uri (and
+// the ssh-key path, when given) references, then run `sauron add registry` with the
+// optional ref, basic-auth, and ssh-key flags.
+func (c *commandController) add(ctx context.Context, o addOptions) error {
+	uri, err := valueOf[string](ctx, c.rt, o.uriRef)
 	if err != nil {
 		return err
 	}
-	return c.run(ctx, addRegistryArgs(name, transport, uri, ref, username, password))
+	sshKey := o.sshKeyRef
+	if sshKey != "" {
+		sshKey, err = valueOf[string](ctx, c.rt, o.sshKeyRef)
+		if err != nil {
+			return err
+		}
+	}
+	return c.run(ctx, addRegistryArgs(o.name, o.transport, uri, o.ref, o.username, o.password, sshKey))
 }
 
 func (c *commandController) succeeds(context.Context) error {
@@ -140,9 +182,9 @@ func (c *commandController) requireRun() error {
 
 // addRegistryArgs assembles the `sauron add registry` invocation shared by every
 // When step. The command takes the transport as --kind and the name and uri as
-// positional arguments; the ref and basic-auth flags are appended only when set,
-// before the positionals.
-func addRegistryArgs(name, transport, uri, ref, username, password string) []string {
+// positional arguments; the ref, basic-auth, and ssh-key flags are appended only
+// when set, before the positionals.
+func addRegistryArgs(name, transport, uri, ref, username, password, sshKey string) []string {
 	args := []string{"sauron", "add", "registry", "--kind", transport}
 	if ref != "" {
 		args = append(args, "--ref", ref)
@@ -152,6 +194,9 @@ func addRegistryArgs(name, transport, uri, ref, username, password string) []str
 	}
 	if password != "" {
 		args = append(args, "--password", password)
+	}
+	if sshKey != "" {
+		args = append(args, "--ssh-key", sshKey)
 	}
 	return append(args, name, uri)
 }

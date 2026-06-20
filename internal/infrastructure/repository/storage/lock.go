@@ -11,6 +11,9 @@ import (
 // in flight.
 const lockFile = ".lock"
 
+// homePerm is the mode of the home directory created on first write.
+const homePerm = 0o700
+
 // guard serializes writers over the home filesystem. An in-process mutex orders
 // goroutines; an on-disk lock file signals the critical section to other
 // processes sharing the same home.
@@ -38,8 +41,12 @@ func (g *guard) withLock(fn func() error) error {
 	return fn()
 }
 
-// acquire creates the on-disk lock file.
+// acquire creates the on-disk lock file, first ensuring the home directory
+// exists (a fresh machine has no ~/.sauron until the first write).
 func (g *guard) acquire() error {
+	if err := g.fs.MkdirAll(".", homePerm); err != nil {
+		return fmt.Errorf("acquire write lock: %w", err)
+	}
 	f, err := g.fs.OpenFile(lockFile, openExclusive, lockPerm)
 	if err != nil {
 		return fmt.Errorf("acquire write lock: %w", err)

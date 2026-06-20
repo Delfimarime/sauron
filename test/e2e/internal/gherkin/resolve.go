@@ -84,10 +84,14 @@ func resolveReference(ctx context.Context, rt runtime.Runtime, s string) (string
 		}
 		return rt.Webserver(ref.alias).URL(ctx)
 	case "git":
-		if ref.attr != "url" {
-			return "", fmt.Errorf("git reference %q: only .url is supported", s)
+		switch ref.attr {
+		case "url":
+			return rt.Git(ref.alias).URL(ctx)
+		case "sshKey":
+			return rt.Git(ref.alias).SSHKey(ctx)
+		default:
+			return "", fmt.Errorf("git reference %q: only .url and .sshKey are supported", s)
 		}
-		return rt.Git(ref.alias).URL(ctx)
 	default:
 		return "", fmt.Errorf("unknown capability %q in reference %q", ref.capability, s)
 	}

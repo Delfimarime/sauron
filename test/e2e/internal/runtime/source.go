@@ -16,3 +16,5 @@ func (ErroringSource) Expose(...Resource) {}
 func (s ErroringSource) Path(context.Context) (string, error) { return "", s.Err }
 
 func (s ErroringSource) URL(context.Context) (string, error) { return "", s.Err }
+
+func (s ErroringSource) SSHKey(context.Context) (string, error) { return "", s.Err }

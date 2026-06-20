@@ -12,6 +12,15 @@ import (
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
+// basicAuthEnvVar/basicAuthSecret mirror the docker fixture's binding for the
+// basic-auth scenario: the binary resolves the ${env:basicAuthEnvVar} credential
+// reference to basicAuthSecret at connect time. The host backend cannot serve a
+// webserver source, so this only keeps the two runtimes' environments at parity.
+const (
+	basicAuthEnvVar = "ACME_TOKEN"
+	basicAuthSecret = "s3cr3t"
+)
+
 // hostRuntime executes the binary directly on the host OS. It owns one per-scenario
 // directory pinned as $SAURON_HOME: the binary writes its state there, and
 // CopyTo/ReadFile/Folder all operate under it, so the suite never touches the real
@@ -117,6 +126,10 @@ func (h *hostRuntime) Execute(ctx context.Context, command ...string) (int, stri
 	cmd.Stderr = &stderr
 	if h.dir != "" {
 		cmd.Env = append(os.Environ(), "SAURON_HOME="+h.dir)
+		// Parity with the sandbox runtime: the basic-auth fixture binds a
+		// ${env:VAR} credential reference to a concrete secret on the binary's
+		// environment so the binary resolves it at connect time.
+		cmd.Env = append(cmd.Env, basicAuthEnvVar+"="+basicAuthSecret)
 	}
 
 	if err := cmd.Run(); err != nil {
@@ -162,4 +175,8 @@ func (s *folderSource) Path(_ context.Context) (string, error) {
 
 func (s *folderSource) URL(context.Context) (string, error) {
 	return "", fmt.Errorf("host: a folder source has no URL; use its path")
+}
+
+func (s *folderSource) SSHKey(context.Context) (string, error) {
+	return "", fmt.Errorf("host: a folder source has no ssh key; use its path")
 }

@@ -7,7 +7,7 @@ Feature: Add a git registry
   Scenario: adds a git registry over ssh
     Given a git server hosting a registry
     And the git server hosts the directory testdata/registries/acme
-    When the user adds the git registry acme from #{.git.default.url}
+    When the user adds the git registry acme from #{.git.default.url} using ssh key #{.git.default.sshKey}
     Then the command succeeds
     And there is exactly one registry
     And a registry named acme exists
@@ -16,7 +16,7 @@ Feature: Add a git registry
   Scenario: adds a git registry pinned to a ref
     Given a git server hosting a registry
     And the git server hosts the directory testdata/registries/acme
-    When the user adds the git registry acme from #{.git.default.url} pinned to v1.0.0
+    When the user adds the git registry acme from #{.git.default.url} pinned to v1.0.0 using ssh key #{.git.default.sshKey}
     Then the command succeeds
     And the registry acme is described by:
       | field    | value    |

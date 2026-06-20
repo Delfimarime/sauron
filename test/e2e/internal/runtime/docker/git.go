@@ -49,11 +49,19 @@ type gitSource struct {
 // URL is the ssh remote the binary clones. Resolving it forces Start (the proxy
 // guarantees that), at which point the sshd sidecar is up on the compose network.
 func (s *gitSource) URL(context.Context) (string, error) {
-	return fmt.Sprintf("ssh://%s@%s:%d/%s", gitUser, gitService(s.alias), gitSSHPort, gitRepoName), nil
+	return fmt.Sprintf("ssh://%s@%s:%d%s", gitUser, gitService(s.alias), gitSSHPort, gitRepoPath), nil
 }
 
 func (s *gitSource) Path(context.Context) (string, error) {
 	return "", fmt.Errorf("docker: git source %q has no path; use its url", s.alias)
+}
+
+// SSHKey is the in-container path of the mounted client private key the binary
+// presents to authenticate against the sshd sidecar (gitClientMounts mounts it
+// there). The clone verifies the sidecar's host key against the known_hosts entry
+// mounted at the default location, so no host-key checking is disabled.
+func (s *gitSource) SSHKey(context.Context) (string, error) {
+	return gitClientKey, nil
 }
 
 // gitService is the compose service name (and in-network DNS host) of a git
@@ -127,6 +135,9 @@ func gitSeedScript() string {
 		// Ensure the git account exists with our home and a real login shell,
 		// independent of the base image's own layout.
 		"id -u " + gitUser + " >/dev/null 2>&1 || adduser -D -h " + gitHome + " -s /bin/sh " + gitUser,
+		// The base image's git account may declare a home (e.g. /data/git) that
+		// does not exist; create whatever home it has so the ssh login can chdir.
+		"mkdir -p \"$(awk -F: '$1==\"" + gitUser + "\"{print $6}' /etc/passwd)\"",
 		"mkdir -p " + gitHome + "/.ssh /var/empty",
 		"chmod 600 " + gitHostKey,
 		"chmod 700 " + gitHome + "/.ssh",

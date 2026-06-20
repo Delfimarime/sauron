@@ -66,19 +66,27 @@ func addRegistry(ctx context.Context, flags *addRegistryFlags, args []string, st
 		return err
 	}
 
-	request := newAddRegistryRequest(ctx, flags, args, stdout)
+	// A cancellable run context: adapters schedule deferred work (e.g. the git
+	// clone cleanup) on the worker pool keyed to it. Cancelling before the pool
+	// drains lets that work finish, so Stop does not deadlock waiting on a task
+	// that is itself waiting on the context.
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	request := newAddRegistryRequest(runCtx, flags, args, stdout)
 
 	var execErr error
-	app := NewApp(ctx, fx.Invoke(func(uc *usecase.AddRegistryUseCase) {
+	app := NewApp(runCtx, fx.Invoke(func(uc *usecase.AddRegistryUseCase) {
 		execErr = uc.Execute(request)
 	}))
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}
-	if err := app.Start(ctx); err != nil {
+	if err := app.Start(runCtx); err != nil {
 		return fmt.Errorf("start application: %w", err)
 	}
-	defer func() { _ = app.Stop(context.WithoutCancel(ctx)) }()
+	cancel()
+	_ = app.Stop(context.WithoutCancel(ctx))
 
 	return execErr
 }

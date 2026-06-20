@@ -51,6 +51,10 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		Entrypoint: "tail -f /dev/null",
 		Env: map[string]string{
 			"SAURON_HOME": sauronHome,
+			// Pin HOME so the git ssh transport resolves its default known_hosts to
+			// the pinned host-key entry mounted at /root/.ssh/known_hosts (docker exec
+			// does not set HOME), keeping strict host-key verification working.
+			"HOME": "/root",
 		},
 		Mount: append(options.mount, FileSpec{
 			SourceFile: bin,

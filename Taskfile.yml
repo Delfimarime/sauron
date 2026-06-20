@@ -116,21 +116,23 @@ tasks:
       # CI overrides via the environment (SAURON_APP_TAG).
       APP_TAG: '{{.SAURON_APP_TAG | default "SNAPSHOT"}}'
     cmds:
-      # Build a host binary stamped with the tagged version, then run the suite
-      # with the SAME identity exported so the harness's rendered banner matches
-      # the binary's output exactly. SAURON_HOME is a temp dir, so the suite never
-      # touches the real ~/.sauron. CI restricts this gate to a Linux runner (the
-      # constraint lives in the workflow, not the task).
+      # Build two binaries with the SAME tagged identity (so the harness banner
+      # matches): a host binary for the @no-sandbox (host-runtime) scenarios, and a
+      # cross-built Linux binary bind-mounted into the docker-runtime containers, so
+      # the sandboxed scenarios run regardless of the host OS. SAURON_HOME is a temp
+      # dir, so the suite never touches the real ~/.sauron.
       - |
         os="$(go env GOOS)"; arch="$(go env GOARCH)"
+        ldflags="-s -w -X main.AppName={{.APP_NAME}} -X main.AppVersion={{.APP_VERSION}}-{{.APP_TAG}} -X main.AppHash={{.APP_HASH}}"
         bin="{{.DIST}}/{{.APP_NAME}}-e2e-${os}-${arch}"
+        dockerbin="{{.DIST}}/{{.APP_NAME}}-e2e-linux-${arch}"
         home="$(mktemp -d)"
         mkdir -p "{{.DIST}}"
-        CGO_ENABLED=0 go build -trimpath \
-          -ldflags "-s -w -X main.AppName={{.APP_NAME}} -X main.AppVersion={{.APP_VERSION}}-{{.APP_TAG}} -X main.AppHash={{.APP_HASH}}" \
-          -o "${bin}" "{{.ROOT}}/cmd"
+        CGO_ENABLED=0 go build -trimpath -ldflags "${ldflags}" -o "${bin}" "{{.ROOT}}/cmd"
+        CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build -trimpath -ldflags "${ldflags}" -o "${dockerbin}" "{{.ROOT}}/cmd"
         cd "{{.ROOT}}/test/e2e" && \
           SAURON_BIN="${bin}" \
+          SAURON_DOCKER_BIN="${dockerbin}" \
           SAURON_APP_NAME="{{.APP_NAME}}" \
           SAURON_APP_VERSION="{{.APP_VERSION}}" \
           SAURON_APP_TAG="{{.APP_TAG}}" \

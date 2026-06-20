@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 	"testing"
 
@@ -23,6 +22,7 @@ import (
 const (
 	DisabledSandboxFeatureTag = "@no-sandbox"
 	envSauronBin              = "SAURON_BIN"
+	envSauronDockerBin        = "SAURON_DOCKER_BIN"
 )
 
 // TestFeatures is the godog entrypoint. The suite runs under `go test` (no main)
@@ -30,28 +30,23 @@ const (
 // points SAURON_BIN at it, and runs `go test ./...`. Strict mode makes undefined
 // or pending steps fail, so the suite can never pass without exercising its steps.
 func TestFeatures(t *testing.T) {
-	binaryURI := os.Getenv(envSauronBin)
-	if binaryURI == "" {
-		t.Fatalf("%s is not set; the gate-integration task must point it at the built binary", envSauronBin)
-	}
-	stat, err := os.Stat(binaryURI)
-	if err != nil {
-		t.Fatalf("stat %s %q: %s", envSauronBin, binaryURI, err.Error())
-	}
-	if stat.IsDir() {
-		t.Fatalf("%s %q must be a file, not a directory", envSauronBin, binaryURI)
+	hostBin := requireBinary(t, envSauronBin, os.Getenv(envSauronBin))
+	dockerBin := os.Getenv(envSauronDockerBin)
+	if dockerBin == "" {
+		dockerBin = hostBin // on a Linux host the host binary already runs in the containers
+	} else {
+		requireBinary(t, envSauronDockerBin, dockerBin)
 	}
 
 	suite := godog.TestSuite{
 		Name: "sauron",
 		ScenarioInitializer: CreateInitFunc(
-			t.TempDir(), binaryURI, gherkin.Init,
+			t.TempDir(), hostBin, dockerBin, gherkin.Init,
 		),
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{determineTestdataDirectory(t)},
 			Output:   colors.Colored(os.Stdout),
-			Tags:     gitScenarioTags(),
 			TestingT: t,
 			Strict:   true,
 		},
@@ -62,15 +57,20 @@ func TestFeatures(t *testing.T) {
 	}
 }
 
-// gitScenarioTags selects which scenarios run. The git fixture is an ssh sidecar
-// serving Linux containers, so the @git scenarios run only on Linux (the gate
-// runner); elsewhere — a developer's macOS box — they are filtered so a local
-// `go test` does not fail provisioning a git-over-ssh server.
-func gitScenarioTags() string {
-	if goruntime.GOOS == "linux" {
-		return ""
+// requireBinary fails the test unless path names an existing file, returning it.
+func requireBinary(t *testing.T, name, path string) string {
+	t.Helper()
+	if path == "" {
+		t.Fatalf("%s is not set; the gate-integration task must point it at the built binary", name)
 	}
-	return "~@git"
+	stat, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s %q: %s", name, path, err.Error())
+	}
+	if stat.IsDir() {
+		t.Fatalf("%s %q must be a file, not a directory", name, path)
+	}
+	return path
 }
 
 // CreateInitFunc returns a godog ScenarioInitializer that, per scenario, selects
@@ -79,7 +79,7 @@ func gitScenarioTags() string {
 // step definitions against that handle. The runtime starts on the first command
 // and is stopped after the scenario.
 func CreateInitFunc(
-	homeDirectory, binaryURI string,
+	homeDirectory, hostBin, dockerBin string,
 	opts ...func(*godog.ScenarioContext, runtime.Runtime),
 ) func(*godog.ScenarioContext) {
 	hostFactory := &host.Factory{}
@@ -90,14 +90,16 @@ func CreateInitFunc(
 
 		sc.Before(func(ctx context.Context, scenario *godog.Scenario) (context.Context, error) {
 			var factory runtime.Factory = dockerFactory
+			bin := dockerBin
 			for _, tag := range scenario.Tags {
 				if tag.Name == DisabledSandboxFeatureTag {
 					factory = hostFactory
+					bin = hostBin
 					break
 				}
 			}
 			directory := filepath.Join(homeDirectory, strings.ToLower(scenario.Id))
-			r, err := factory.New(binaryURI, directory)
+			r, err := factory.New(bin, directory)
 			if err != nil {
 				return ctx, fmt.Errorf("create runtime for scenario %q: %w", scenario.Id, err)
 			}

@@ -123,3 +123,10 @@ func (s *lazySource) URL(ctx context.Context) (string, error) {
 	}
 	return s.fetch().URL(ctx)
 }
+
+func (s *lazySource) SSHKey(ctx context.Context) (string, error) {
+	if err := s.rt.Start(ctx); err != nil {
+		return "", err
+	}
+	return s.fetch().SSHKey(ctx)
+}

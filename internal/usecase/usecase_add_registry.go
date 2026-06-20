@@ -72,7 +72,7 @@ func (uc *AddRegistryUseCase) Execute(request *AddRegistryRequest) error {
 	if err := uc.validateName(request.Name); err != nil {
 		return err
 	}
-	if err := uc.validateCredentialFormat(request.Username, request.Password); err != nil {
+	if err := uc.validateCredentialFormat(request.Password); err != nil {
 		return err
 	}
 
@@ -109,13 +109,12 @@ func (uc *AddRegistryUseCase) validateName(name string) error {
 	return NewUsageError(fmt.Sprintf("name %q is not path-safe", name))
 }
 
-// validateCredentialFormat rejects credentials that are not environment
-// references.
-func (uc *AddRegistryUseCase) validateCredentialFormat(username, password string) error {
-	for _, cred := range []string{username, password} {
-		if cred != "" && !envRefPattern.MatchString(cred) {
-			return NewUsageError("credentials must be ${env:VAR} references")
-		}
+// validateCredentialFormat requires the password (the secret) to be an
+// environment reference, so a secret value is never typed on the command line or
+// persisted. The username is not secret and may be a literal or a reference.
+func (uc *AddRegistryUseCase) validateCredentialFormat(password string) error {
+	if password != "" && !envRefPattern.MatchString(password) {
+		return NewUsageError("the password must be a ${env:VAR} reference")
 	}
 
 	return nil
@@ -162,20 +161,20 @@ func (uc *AddRegistryUseCase) connectOptions(request *AddRegistryRequest, opts [
 	return append(opts, extension.WithBasicAuth(username, password)), nil
 }
 
-// resolveRef resolves a ${env:VAR} credential reference to its value. An empty
-// reference resolves to an empty value; an unset variable is unreachable.
-func (uc *AddRegistryUseCase) resolveRef(ref string) (string, error) {
-	if ref == "" {
-		return "", nil
+// resolveRef resolves a ${env:VAR} reference to its value; a literal (or empty)
+// value is returned unchanged. A referenced but unset variable is unreachable.
+func (uc *AddRegistryUseCase) resolveRef(value string) (string, error) {
+	match := envRefPattern.FindStringSubmatch(value)
+	if match == nil {
+		return value, nil
 	}
 
-	name := envRefPattern.FindStringSubmatch(ref)[1]
-	value, ok := os.LookupEnv(name)
+	resolved, ok := os.LookupEnv(match[1])
 	if !ok {
-		return "", NewUnreachableError(fmt.Sprintf("environment variable %q is not set", name))
+		return "", NewUnreachableError(fmt.Sprintf("environment variable %q is not set", match[1]))
 	}
 
-	return value, nil
+	return resolved, nil
 }
 
 // probe opens the source and confirms it hosts at least one artifact.

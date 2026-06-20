@@ -109,14 +109,15 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.filesystem.AssertNotCalled(t, "Validate", mock.Anything)
 	})
 
-	t.Run("literal credential yields usage", func(t *testing.T) {
+	t.Run("literal password yields usage", func(t *testing.T) {
 		f := newFixture()
 		err := f.uc.Execute(&AddRegistryRequest{
 			Context: context.Background(), out: &bytes.Buffer{},
 			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
-			Username: "literal-user",
+			Password: "literal-secret",
 		})
 		requireErrType(t, err, TypeUsage)
+		f.http.AssertNotCalled(t, "Validate", mock.Anything)
 	})
 
 	t.Run("unknown transport yields usage", func(t *testing.T) {

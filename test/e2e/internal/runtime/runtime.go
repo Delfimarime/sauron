@@ -60,6 +60,10 @@ type Source interface {
 	// URL returns the network address the source is reachable at (Webserver/Git
 	// sources).
 	URL(ctx context.Context) (string, error)
+	// SSHKey returns the in-runtime path of the private key the binary must present
+	// to authenticate against the source (Git sources over ssh). A source that needs
+	// no key returns an error.
+	SSHKey(ctx context.Context) (string, error)
 }
 
 // Resource customizes a Source. A file resource (Path/Content set) adds content to

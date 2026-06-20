@@ -25,8 +25,9 @@ this feature is realized by.
   with its URI and transport, persisting it as a `Registry` document in
   `registries.yaml`.
 - FR-002: Sauron shall default the transport to `http` when `--kind` is not given.
-- FR-003: Sauron shall store credential material as environment references
-  (`${env:VAR}`) only, never resolving or persisting secret values.
+- FR-003: Sauron shall store a secret credential (password or token) as an
+  environment reference (`${env:VAR}`) only, never resolving or persisting the
+  secret value; a non-secret username may be a literal or a reference.
 
 ### Event-driven
 

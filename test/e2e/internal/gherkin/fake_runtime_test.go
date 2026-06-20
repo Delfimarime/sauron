@@ -70,13 +70,15 @@ func getOrAdd(m *map[string]*fakeSource, alias string) *fakeSource {
 	return src
 }
 
-// fakeSource records what was exposed and returns canned Path/URL values.
+// fakeSource records what was exposed and returns canned Path/URL/SSHKey values.
 type fakeSource struct {
-	path    string
-	url     string
-	pathErr error
-	urlErr  error
-	exposed []runtime.Resource
+	path      string
+	url       string
+	sshKey    string
+	pathErr   error
+	urlErr    error
+	sshKeyErr error
+	exposed   []runtime.Resource
 }
 
 func (s *fakeSource) Expose(resources ...runtime.Resource) {
@@ -86,3 +88,5 @@ func (s *fakeSource) Expose(resources ...runtime.Resource) {
 func (s *fakeSource) Path(context.Context) (string, error) { return s.path, s.pathErr }
 
 func (s *fakeSource) URL(context.Context) (string, error) { return s.url, s.urlErr }
+
+func (s *fakeSource) SSHKey(context.Context) (string, error) { return s.sshKey, s.sshKeyErr }
