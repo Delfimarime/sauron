@@ -44,6 +44,8 @@ tasks:
 
   gate-lint:
     desc: Lint the root module with golangci-lint (Uber style + gocognit <=15). test/e2e has its own config.
+    deps:
+      - generate
     cmds:
       # Root module. The test/e2e module carries its own .golangci.yml and is
       # linted within that module (exercised by the e2e tooling / CI), so it is
@@ -111,6 +113,8 @@ tasks:
 
   gate-integration:
     desc: Run the test/e2e BDD suite against a tagged host binary (needs a Docker daemon).
+    deps:
+      - generate
     vars:
       # The version decoration the e2e binary carries. Local default SNAPSHOT;
       # CI overrides via the environment (SAURON_APP_TAG).
