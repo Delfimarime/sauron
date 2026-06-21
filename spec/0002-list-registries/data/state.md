@@ -7,7 +7,7 @@ is owned by the [state data contract](../../contracts/state.md).
 
 - File: `registries.yaml` (a stream of `Registry` documents).
 - Fields surfaced as columns: `metadata.name`, `spec.transport`, `spec.uri`,
-  `spec.timeout`.
+  `spec.ref`, `spec.timeout`.
 
 ## Field realization
 
@@ -15,3 +15,5 @@ is owned by the [state data contract](../../contracts/state.md).
 |---|---|
 | `metadata.name` | FR-001, FR-002, FR-003 |
 | `spec.transport` | FR-002, FR-004 |
+| `spec.uri` | FR-002 |
+| `spec.ref`, `spec.timeout` | FR-002 |

@@ -36,6 +36,8 @@ func (c *commandController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the command succeeds$`, c.succeeds)
 	sc.Step(`^the command exits with status (\d+)$`, c.exitsWith)
 	sc.Step(`^the output contains (.+)$`, c.outputContains)
+	sc.Step(`^the output is empty$`, c.outputEmpty)
+	sc.Step(`^the registries are listed in order: (.+)$`, c.registriesListedInOrder)
 	sc.Step(`^the command fails because the registry hosts no artifacts$`, c.failsNoArtifacts)
 }
 
@@ -167,6 +169,36 @@ func (c *commandController) outputContains(_ context.Context, text string) error
 	}
 	if !strings.Contains(c.last.output, text) {
 		return fmt.Errorf("output does not contain %q; got: %s", text, c.last.output)
+	}
+	return nil
+}
+
+// outputEmpty asserts the last command produced no non-whitespace output (FR-005).
+func (c *commandController) outputEmpty(context.Context) error {
+	if err := c.requireRun(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(c.last.output) != "" {
+		return fmt.Errorf("expected empty output but got: %s", c.last.output)
+	}
+	return nil
+}
+
+// registriesListedInOrder asserts the name column of the rendered list, read top to
+// bottom, equals the expected comma-or-space separated sequence.
+func (c *commandController) registriesListedInOrder(_ context.Context, list string) error {
+	if err := c.requireRun(); err != nil {
+		return err
+	}
+	want := expectedOrder(list)
+	got := nameColumn(c.last.output)
+	if len(want) != len(got) {
+		return fmt.Errorf("registry order: expected %v but got %v", want, got)
+	}
+	for i := range want {
+		if err := assertExpected(fmt.Sprintf("registry at row %d", i), want[i], got[i]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

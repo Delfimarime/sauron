@@ -88,6 +88,29 @@ func (s *Store) FindOne(_ context.Context, kind, name string) (*yaml.Node, error
 	return nil, nil
 }
 
+// FindAll returns every document of the given kind, each validated against its
+// schema. Validation is all-or-nothing: a single schema-invalid document fails
+// the whole read. A missing file yields an empty slice, not an error.
+func (s *Store) FindAll(_ context.Context, kind string) ([]*yaml.Node, error) {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return nil, err
+	}
+
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, doc := range docs {
+		if err := s.validator.validate(kind, doc); err != nil {
+			return nil, err
+		}
+	}
+
+	return docs, nil
+}
+
 // Append atomically adds doc to the kind's file under the write lock. The
 // document is not re-validated on write.
 func (s *Store) Append(_ context.Context, kind string, doc *yaml.Node) error {
