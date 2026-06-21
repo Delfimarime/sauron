@@ -72,6 +72,11 @@ spec:
 - **No secrets at rest.** Credential fields hold environment references
   (`${env:VAR}`) only; resolved secret values are never written to any file. The
   track file holds no credentials at all.
+- **Owner-only permissions.** The home directory (`$SAURON_HOME`, or `~/.sauron/`)
+  is created with mode `0700` and each state file (`registries.yaml`, `track.yaml`,
+  `settings.yaml`) is written with mode `0600` — owner read/write only. Although no
+  secret is stored at rest, the files reveal which registries and artifacts a
+  developer uses, so they are not world- or group-readable.
 - **Audit timestamps are writer-stamped.** Whenever Sauron writes a document it
   stamps `metadata.creationTimestamp` (on first create) and
   `metadata.lastUpdatedTimestamp` (on every write) from an injected clock as

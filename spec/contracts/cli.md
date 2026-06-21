@@ -8,7 +8,7 @@ commands; every command's `contracts/<verb>-<noun>.md` conforms to the rules her
 A feature contract may refine *which conditions* map to which exit code; it may
 not redefine the meanings.
 
-Authoring mechanics (spec structure, numbering, EARS, glossary, the canonical
+Authoring mechanics (spec structure, numbering, EARS, the canonical
 requirement boilerplate) live in [AUTHORING.md](../AUTHORING.md), which points
 here for the command conventions.
 

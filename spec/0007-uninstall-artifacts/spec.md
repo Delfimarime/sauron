@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 **Depends on:** [install](../0006-install-artifacts/spec.md)
 
 ## Overview

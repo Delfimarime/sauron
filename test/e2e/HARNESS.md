@@ -1,82 +1,22 @@
-# Constitution — Integration Tests (`test/e2e`)
+# Integration Test Harness (`test/e2e`)
 
-Governing principles for sauron's black-box integration suite. This document is
-the test-suite counterpart to the project [Constitution](../CONSTITUTION.md):
-the root Constitution governs the product; this one governs the harness that
-drives it end-to-end. It is subordinate to the root Constitution and the
-[architecture contract](../spec/contracts/architecture.md) *Integration tests*
-section, and it is the single governing document for `test/e2e/**` — its intent,
-its architecture, and the principles the harness must never violate.
+This is the harness reference — HOW the black-box integration suite is built. Its
+governing principles (black-box exercise / graybox assertions, separate module,
+hermetic, red-until-it-lands, and the gate) live in the root
+[Constitution](../../CONSTITUTION.md) Chapter III Articles 6–7 and Chapter IV
+Article 2, and the module layout is fixed by the
+[architecture contract](../../spec/contracts/architecture.md). This document
+specifies the harness's own architecture and conventions.
 
-> Scope: everything under `test/e2e/**`. Where a rule here and the root
-> Constitution appear to conflict, the root wins.
-
-## Chapter I — Intent
-
-### Article 1 — Black-box exercise, graybox assertions, and the seed exception
-
-The suite drives the **built binary** exactly as an external operator would —
-spawning the process, passing CLI args, reading its exit code, stdout/stderr,
-and the state files it persists. It never calls a use case, an action, or
-anything under `internal/` in-process. "Graybox" means the *assertions* are
-allowed to decode the binary's output into the public `pkg/sauron/types` DTOs,
-but the *exercise* is strictly external.
-
-**Graybox arrange (bounded exception).** A scenario may *arrange* by seeding a
-public state file directly — writing a schema-valid `pkg/sauron/types` document
-stream into `$SAURON_HOME` through the runtime (`CopyTo`) — instead of producing
-that state by running another command. This is permitted **only** when all hold:
-
-1. the command under test **only reads** the state it is given (e.g. `list`,
-   `describe`), so seeding cannot hide a defect in the path being tested;
-2. the seeded document is the **public, schema-valid form a user could author**
-   by hand — never a private or internal shape;
-3. producing the same state black-box would require **unrelated commands or
-   transports**, turning a read test into an `add` test.
-
-Black-box arrange through the owning command stays the default. A feature that
-uses this exception **keeps at least one black-box arrange scenario**
-(produce-then-read) so the write→read path is never left unexercised.
-
-### Article 2 — One binary, its commands, one set of assertions
-
-The suite drives one binary across the commands it ships. Each command is
-exercised uniformly: the same `When` family runs it and the same `Then` family
-inspects its stdout, exit code, and the state files it reads or writes — no
-matter how the inputs were sourced. Only the `Given` fixtures differ per command
-and transport. Where a command spans transports (`filesystem`, `http`, `git`),
-its action and assertions stay **transport-agnostic**: the same `When` acts and
-the same `Then` inspects, however the source was reached.
-
-### Article 3 — Red is the bar until the product lands
-
-The harness is built **spec-first, TDD**. It is correct when every step
-resolves, every source provisions, and every file is read — and the *only*
-failure is the not-yet-built command. A scenario that fails at harness wiring
-(an undefined step, a panic, an unprovisioned source) is a harness defect; a
-scenario that fails because `add registry` exits non-zero is the suite working
-as designed. The suite turns green when the production track completes, with no
-harness change.
-
-```
-  intent                       not intent
-  ───────────────────────────  ───────────────────────────
-  exec the real binary         call internal/ in-process
-  assert via pkg/ types        mirror types locally
-  fail only at the command     fail at step/source wiring
-  hermetic (Testcontainers)    depend on the public internet
-```
-
-## Chapter II — Architecture
-
-### Article 1 — A separate module
+## Module layout
 
 `test/e2e` is its own Go module (`.../sauron/test/e2e`) that resolves the root
-through `replace … => ../..`. Its heavy dependencies — godog, Testcontainers,
-testify — live **only** here and never leak into the root module or its
-approved-dependency table. The suite runs under `go test` (no `main`); the
-integration entrypoint is tagged `//go:build !unit` and the in-process unit
-tests `//go:build unit`, so the two never run together.
+through `replace … => ../..`. The `depguard` rule in `.golangci.yml` bans
+`.../internal` and `.../cmd` — that mechanism enforces the root's `pkg/`-only
+principle (Constitution III.6), which Go's `internal/` rule cannot across the
+shared module prefix. The suite runs under `go test` (no `main`): the integration
+entrypoint is tagged `//go:build !unit` and the in-process unit tests
+`//go:build unit`, so the two never run together.
 
 ```
   test/e2e/
@@ -93,7 +33,7 @@ tests `//go:build unit`, so the two never run together.
     .golangci.yml           depguard: ban .../internal and .../cmd
 ```
 
-### Article 2 — The runtime is one wide interface and the shared state
+## The runtime and shared state
 
 There is **no `world.go`**. The runtime *is* the only object every controller
 shares, so it owns the per-scenario state: the provisioned sources and their
@@ -114,7 +54,7 @@ tag-selected backend; both backends implement the **same wide interface**.
    └─ URL(ctx)             network address   (webserver / git)
 ```
 
-### Article 3 — Capability gaps are errors, not type-asserts
+## Capability gaps are errors
 
 A capability a backend cannot satisfy returns an **error** from the relevant
 `Source` accessor. There is no `Pod` sub-interface and no `rt.(Pod)` assertion —
@@ -137,7 +77,7 @@ longer be read-only. Under docker, a `folderSource` and a `webserverSource` are
 distinct types (each implements only its meaningful accessor and errors the
 other) — the same capability-gap-as-error principle applied within a backend.
 
-### Article 4 — Controllers are thin; they hold only the runtime
+## Controllers
 
 Every step definition lives on a `Controller` registered through `gherkin.Init`.
 Controllers translate Gherkin into runtime calls and assertions; they hold **no
@@ -169,16 +109,7 @@ becomes a shared "world".
 The filesystem, http, and git fixtures share one `sourceFixture` (declare +
 content steps); they differ only in the source they select and their wording.
 
-## Chapter III — Principles
-
-### Article 1 — `pkg/` only, enforced by depguard
-
-The harness imports the public `pkg/` surface (`pkg/sauron/types`) and **never**
-`internal/` or `cmd/`. Go's `internal/` rule does not stop this (shared module
-prefix), so the `depguard` rule in `.golangci.yml` is the real guard and must
-stay.
-
-### Article 2 — Two templating syntaxes that never overlap
+## Templating: {{…}} and #{…}
 
 `{{…}}` is **build identity**, rendered at feature-load time against the `App`
 context (e.g. `{{.App.FullVersion}}`). `#{…}` is a **dynamic runtime reference**,
@@ -203,7 +134,7 @@ Resolution lives **only** in the gherkin `valueOf[T]` helper — the runtime own
 the data, the helper owns the parsing and typing. No controller stashes
 addresses in a map (that map would be `world.go` reborn).
 
-### Article 3 — Declare, then the first need materializes everything
+## Declare, then materialize
 
 `Given` steps only **accumulate**: they declare a source by alias and customize
 it with the **resources** it exposes (never a port). Nothing runs until the
@@ -229,7 +160,7 @@ all `Given`s before the first `When`, so this is natural.
   THEN  ReadFile registries.yaml → decode pkg/sauron/types → assert
 ```
 
-### Article 4 — One content set, three exposures
+## One content set, three exposures
 
 `Given … hosts a skill/the directory/the file` builds **one provider content
 set** (`.skills/`, `.agents/`, `.personas/`). A source capability is one exposure
@@ -252,17 +183,7 @@ dependence on the Docker daemon seeing a host path.
    host ✅ docker ✅  host ❌ docker ✅   host ❌ docker ❌
 ```
 
-### Article 5 — Hermetic, Linux-only, no real filesystem
-
-Each scenario's dependencies are provisioned from ephemeral Testcontainers — no
-public-internet dependence in a blocking gate. `$SAURON_HOME` is pinned to a
-known path (the per-scenario temp dir on the host, an in-container path under
-docker) so the suite never touches the real `~/.sauron`. Tests write only to the
-godog/`t.TempDir()` temp area and mutate no environment. The suite runs on Linux
-(Testcontainers needs a Docker daemon); macOS binaries are built and published
-but not exercised here.
-
-### Article 6 — Arrange / Act / Assert, and reuse
+## Arrange / Act / Assert and reuse
 
 Step definitions and helpers keep testify assertions and AAA structure, and
 factor repeated setup into shared helpers (the `sourceFixture`, the content
@@ -270,24 +191,47 @@ loaders, `valueOf`) rather than copy-paste across steps. Pure helpers
 (`collectResources`, `decodeRegistries`, `buildSpecs`, the resolver) are
 unit-tested in isolation without a process, Docker, or the real filesystem.
 
-## Chapter IV — Governance
+## Arrange by seeding (bounded exception)
 
-### Article 1 — The git transport is deferred and filtered
+A scenario may *arrange* by seeding a public state file directly — writing a
+schema-valid `pkg/sauron/types` document stream into `$SAURON_HOME` through the
+runtime (`CopyTo`) — instead of producing that state by running another command.
+This is permitted **only** when all hold:
 
-The git remote is constrained to ssh, and its ssh fixture is deferred future
-work. Until it lands, `Git(...).URL()` errors, every git scenario carries
-`@git`, and the gate filters them with `~@git` so the stub never fires in CI.
+1. the command under test **only reads** the state it is given (e.g. `list`,
+   `describe`), so seeding cannot hide a defect in the path being tested;
+2. the seeded document is the **public, schema-valid form a user could author**
+   by hand — never a private or internal shape;
+3. producing the same state black-box would require **unrelated commands or
+   transports**, turning a read test into an `add` test.
 
-### Article 2 — Tags select the runtime
+Black-box arrange through the owning command stays the default. A feature that
+uses this exception **keeps at least one black-box arrange scenario**
+(produce-then-read) so the write→read path is never left unexercised. The
+governing principle is the root Constitution III.6.
+
+## Uniform exercise across commands and transports
+
+The suite drives one binary across the commands it ships. Each command is
+exercised uniformly: the same `When` family runs it and the same `Then` family
+inspects its stdout, exit code, and the state files it reads or writes — no
+matter how the inputs were sourced. Only the `Given` fixtures differ per command
+and transport. Where a command spans transports (`filesystem`, `http`, `git`),
+its action and assertions stay **transport-agnostic**: the same `When` acts and
+the same `Then` inspects, however the source was reached.
+
+## Tags select the runtime
 
 `@no-sandbox` selects the host runtime (`Execute` + `Folder` only — requesting a
 `Webserver` or `Git` errors, so http/git scenarios must not carry it); the
-default selects the docker runtime. `@git` is filtered from the gate.
+default selects the docker runtime. `@git` scenarios are filtered from the gate
+with `~@git` so the deferred ssh stub never fires in CI. The deferral principle
+is the root Constitution IV.2 / III.7.
 
-### Article 3 — The verification gate
+## The integration gate
 
 The suite is the `gate-integration` Taskfile target: it builds a version-stamped
 host binary, points `$SAURON_BIN` at it, pins `$SAURON_HOME` to a temp dir, and
 runs `go test ./...` under godog **strict** mode (undefined, pending, or
-ambiguous steps fail). Per the root Constitution (Chapter IV, Article 2), this
-black-box suite passing on Linux is part of what makes a feature shippable.
+ambiguous steps fail). Gating shipping on this suite passing on Linux is fixed by
+the root [Constitution](../../CONSTITUTION.md) Chapter IV Article 2.

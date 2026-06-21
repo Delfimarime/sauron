@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Partial — registry removal ships; the artifact cascade is deferred to [0007](../0007-uninstall-artifacts/spec.md) (see Notes)
+
 **Depends on:** [uninstall](../0007-uninstall-artifacts/spec.md)
 
 ## Overview
@@ -19,13 +21,13 @@ what it delivered. A dry run previews the cascade.
   `registries.yaml`.
 - FR-002: Sauron shall uninstall every tracked artifact whose `spec.registry` is
   the named registry — skills, agents, and personas alike — removing them from the
-  provider and from `track.yaml`.
+  provider and from `track.yaml` (body deferred to [0007](../0007-uninstall-artifacts/spec.md)).
 
 ### Event-driven
 
 - FR-003: When the cascade is applied, Sauron shall print the plan of removed
   artifacts grouped under `skills:`, `agents:`, and `personas:`, followed by a
-  summary count.
+  summary count (body deferred to [0007](../0007-uninstall-artifacts/spec.md)).
 
 ### Optional
 

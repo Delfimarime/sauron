@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 **Depends on:** [install](../0006-install-artifacts/spec.md)
 
 ## Overview
@@ -31,13 +33,6 @@ run; a dry run previews the plan.
   `skills:`, `agents:`, and `personas:`, prefixed `+` (added) or `~` (updated),
   followed by a summary count.
 
-### Optional
-
-- FR-005: Where a kind list (`skills`, `agents`, `personas`) is given, Sauron
-  shall upgrade only those kinds; with none, it upgrades all.
-- FR-006: Where `--dry-run` is provided, Sauron shall print the plan without
-  changing the environment or the track file.
-
 ### State-driven
 
 - FR-007: While no provider is set, Sauron shall fail with a runtime error.
@@ -48,6 +43,13 @@ run; a dry run previews the plan.
   affected artifacts and continue upgrading the reachable ones.
 - FR-009: If required arguments or flags are missing or invalid, then Sauron shall
   exit with code 2 without executing the command.
+
+### Optional
+
+- FR-005: Where a kind list (`skills`, `agents`, `personas`) is given, Sauron
+  shall upgrade only those kinds; with none, it upgrades all.
+- FR-006: Where `--dry-run` is provided, Sauron shall print the plan without
+  changing the environment or the track file.
 
 ## Key Entities
 

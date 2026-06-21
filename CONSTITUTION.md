@@ -20,7 +20,7 @@ code is written.
 the single normative source for spec structure, the
 [feature/capability taxonomy](spec/AUTHORING.md#spec-types),
 [EARS phrasing](spec/AUTHORING.md#ears-templates-normative), the
-[glossary](spec/AUTHORING.md#glossary),
+[glossary](spec/GLOSSARY.md),
 [ADR format](spec/AUTHORING.md#adr-structure), and
 [cross-reference style](spec/AUTHORING.md#cross-references). The articles below
 state the principles; AUTHORING.md states how to satisfy them, and a spec that
@@ -138,14 +138,8 @@ Sauron is a Go 1.26 project following
 with module path `github.com/delfimarime/sauron`. The directory structure,
 package responsibilities, and build variables (`AppName`, `AppVersion`,
 `AppHash`) are fixed by the
-[architecture contract](spec/contracts/architecture.md).
-
-External integration tests live as a **separate Go module** under `/test`
-(`test/e2e`), governed by the project's test conventions and **exempt from
-Articles 3–4** (no ports-and-adapters, no Use Case/Action): it is a black-box
-harness that drives the built binary and imports only the public `pkg/` surface,
-never `internal/`. Its layout is fixed by the
-[architecture contract](spec/contracts/architecture.md).
+[architecture contract](spec/contracts/architecture.md). The external integration
+test module under `/test` is governed by Articles 6–7 below.
 
 ### Article 3 — Ports and adapters
 
@@ -191,6 +185,36 @@ dependencies and their licenses are enumerated in the
 list is used without amending it. No dependency may require CGO; the binary stays
 statically linked and cross-compilable (Article 1).
 
+### Article 6 — Integration verification
+
+The product is verified end-to-end by a black-box suite that drives the **built
+binary** as an external operator would — process, arguments, exit code,
+stdout/stderr, and the state files it persists — and asserts only through the
+public `pkg/` surface, never `internal/` in-process. Go's `internal/` rule cannot
+enforce this across the shared module prefix, so a `depguard` rule does. A
+scenario may *arrange* by seeding a public, schema-valid state document only for a
+command that merely reads it; a feature using that shortcut keeps at least one
+black-box produce-then-read scenario so the write path stays exercised.
+
+The suite lives as a **separate Go module** under `/test` (`test/e2e`) that
+resolves the root through a `replace`; its heavy test dependencies stay there and
+out of the approved-dependency table. It is **exempt from Articles 3–4** (no
+ports-and-adapters, no Use Case/Action): it consumes the binary rather than being
+part of it. The module layout is fixed by the
+[architecture contract](spec/contracts/architecture.md); the harness's own
+architecture and conventions are governed locally by
+[test/e2e/HARNESS.md](test/e2e/HARNESS.md).
+
+### Article 7 — Integration test discipline
+
+The suite is hermetic and authored spec-first. Each scenario's dependencies are
+provisioned from ephemeral containers — no public-internet dependence in a
+blocking gate — and `$SAURON_HOME` is pinned to a temporary directory so the real
+`~/.sauron` is never touched and no process environment is mutated; it runs on
+Linux. The harness is written test-first: it is correct when every step resolves
+and the *only* failure is the not-yet-built command, and it turns green when the
+production work lands with no harness change.
+
 ## Chapter IV — Governance & Traceability
 
 The cross-cutting rules that keep spec, plan, and code in agreement, and that
@@ -218,7 +242,9 @@ A feature is not complete until it passes the project's verification gate:
     are not allowed unless a project-level ADR under `spec/architecture/` records
     the reason.
 - **Integration tests pass.** The black-box BDD suite under `test/e2e` — driving
-  the built binary end-to-end — passes on Linux before a feature ships.
+  the built binary end-to-end (Chapter III, Articles 6–7) — passes on Linux before
+  a feature ships. The deferred git transport's scenarios are tagged `@git` and
+  filtered from the gate until that transport lands.
 
 Each such exception is an ADR that names the advisory and a **Revisit when**
 condition, authored only with explicit user intent (Chapter I, Article 4) — never

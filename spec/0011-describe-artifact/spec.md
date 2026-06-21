@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 ## Overview
 
 A developer needs the full detail of one installed artifact. `describe skill`,

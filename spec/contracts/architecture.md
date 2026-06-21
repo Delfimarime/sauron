@@ -399,8 +399,8 @@ redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 
 The black-box BDD suite lives in its **own module**, `test/e2e`
 (`github.com/delfimarime/sauron/test/e2e`), under the project-layout `/test`
-directory, and is governed by [`test/e2e/CONSTITUTION.md`](../../test/e2e/CONSTITUTION.md)
-(intent, runtime/Source architecture, controllers, fixtures, tags, the gate). The
+directory; its harness reference is [`test/e2e/HARNESS.md`](../../test/e2e/HARNESS.md)
+(runtime/Source architecture, controllers, fixtures, tags, the gate). The
 two facts that bind on *this* contract:
 
 - **Module boundary & dependency isolation.** `test/e2e/go.mod` resolves the root

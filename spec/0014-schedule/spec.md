@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 **Realized by:** [crontab](capabilities/crontab.md)
 
 **Depends on:** [sync](../0008-sync/spec.md)

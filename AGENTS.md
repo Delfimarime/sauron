@@ -74,7 +74,14 @@ tier a change falls in, treat it as Ask first.**
   EARS, ADRs, ports & adapters, Use Case orchestration, the verification gate,
   dependency/license/security discipline, Trunk-based development).
 - **Spec authoring** — [spec/AUTHORING.md](spec/AUTHORING.md) (spec types, EARS,
-  numbering, glossary, ADR structure, CLI conventions).
+  numbering, ADR structure, CLI conventions).
+- **Glossary** — [spec/GLOSSARY.md](spec/GLOSSARY.md) (the canonical domain
+  vocabulary; use these terms, no synonyms).
+- **Workflow walkthrough** — [spec/WORKFLOW.md](spec/WORKFLOW.md) (one slice from
+  requirement through spec, contract, code, and the verification gate).
+- **Security overview** — [spec/SECURITY.md](spec/SECURITY.md) (the security
+  posture — secret handling, TLS, write integrity, file permissions — for
+  security analysts).
 - **Architecture contract** — [spec/contracts/architecture.md](spec/contracts/architecture.md)
   (layout, fx wiring, Use Case/Action interfaces, storage, root command,
   approved dependencies).
@@ -85,8 +92,8 @@ tier a change falls in, treat it as Ask first.**
 - **State data contract** — [spec/contracts/state.md](spec/contracts/state.md)
   (the persisted `~/.sauron/` documents; structure owned by the
   [schemas](spec/contracts/schemas/)).
-- **Integration tests** — [test/e2e/CONSTITUTION.md](test/e2e/CONSTITUTION.md)
-  (the black-box `test/e2e` harness: intent, runtime/Source architecture,
+- **Integration tests** — [test/e2e/HARNESS.md](test/e2e/HARNESS.md)
+  (the black-box `test/e2e` harness: runtime/Source architecture,
   controllers, the `#{}` resolver, fixtures, tags, and the integration gate).
 - **Contributing & workflow** — [CONTRIBUTING.md](CONTRIBUTING.md) (Trunk flow,
   Conventional Commits, SemVer bump, `PROPOSAL:` and bug issues, templates).
@@ -99,7 +106,7 @@ Match the task to its governing doc, skill, and agent:
 |---|---|---|---|
 | Author / edit a spec | [AUTHORING.md](spec/AUTHORING.md); for a command, the [CLI contract](spec/contracts/cli.md) | `sauron-authoring-specs`, `sauron-authoring-cli-contracts` | — |
 | Write / modify Go | [architecture.md](spec/contracts/architecture.md), [CONSTITUTION Ch. III](CONSTITUTION.md) | `sauron-implementing-architecture` | `sauron-developer` (write) · `sauron-architect` (audit) |
-| Integration tests | [test/e2e/CONSTITUTION.md](test/e2e/CONSTITUTION.md) | `sauron-implementing-integration-tests` | `sauron-integration-test-developer` |
+| Integration tests | [test/e2e/HARNESS.md](test/e2e/HARNESS.md) | `sauron-implementing-integration-tests` | `sauron-integration-test-developer` |
 | CI/CD pipeline files | [delivery.md](spec/contracts/delivery.md) | `sauron-operating-ci` | `sauron-ci-operator` |
 | Record a decision (ADR) | [CONSTITUTION Ch. I, Art. 4–5](CONSTITUTION.md), [ADR structure](spec/AUTHORING.md#adr-structure) | `sauron-authoring-specs` | `sauron-adr-author` (**explicit user permission required**) |
 | Verify before merge | [delivery.md](spec/contracts/delivery.md), [CONSTITUTION Ch. IV, Art. 2](CONSTITUTION.md) | — | `sauron-gatekeeper` (`task all`) |

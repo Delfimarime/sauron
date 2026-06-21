@@ -4,8 +4,7 @@ The executable breakdown of [plan.md](plan.md). Each task is **independently
 verifiable**: it owns a set of files and states the single command or criterion
 whose success confirms it. The suite is authored **TDD-first** — the e2e tests
 (T2) are written before the product (T3–T6) and stay red until the command lands
-(T6), per the [integration constitution](../../test/e2e/CONSTITUTION.md)
-Chapter I, Article 3.
+(T6), per the [Constitution](../../CONSTITUTION.md) Chapter III, Article 7.
 
 > Authoring rule (see [AUTHORING.md](../AUTHORING.md)): every task carries a
 > verification — a task without a pass/fail check is not a task.
@@ -24,8 +23,8 @@ Chapter I, Article 3.
   `name, transport, uri`; the [state](data/state.md) readable set and
   field→requirement table extended with `spec.uri` and `spec.ref`; the
   [architecture contract](../contracts/architecture.md) registering
-  `internal/presentation`; the [integration constitution](../../test/e2e/CONSTITUTION.md)
-  Chapter I amended (Article 1 admits the graybox-arrange exception; Article 2 is
+  `internal/presentation`; the [harness reference](../../test/e2e/HARNESS.md)
+  amended (the seeding exception admitted; the uniform-exercise section
   de-scoped from naming a single command).
 - **Files:** `spec/0002-list-registries/spec.md`,
   `spec/0002-list-registries/data/state.md`, `spec/contracts/architecture.md`,
