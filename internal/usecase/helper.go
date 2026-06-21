@@ -1,12 +1,17 @@
 package usecase
 
-// the selectable columns of a registry listing.
+// the selectable columns of a registry listing and describe detail.
 const (
-	fieldName      = "name"
-	fieldTransport = "transport"
-	fieldURI       = "uri"
-	fieldRef       = "ref"
-	fieldTimeout   = "timeout"
+	fieldName                 = "name"
+	fieldTransport            = "transport"
+	fieldURI                  = "uri"
+	fieldRef                  = "ref"
+	fieldAuth                 = "auth"
+	fieldTLS                  = "tls"
+	fieldSSHKey               = "sshKey"
+	fieldTimeout              = "timeout"
+	fieldCreationTimestamp    = "creationTimestamp"
+	fieldLastUpdatedTimestamp = "lastUpdatedTimestamp"
 )
 
 // the sort directions a listing accepts.

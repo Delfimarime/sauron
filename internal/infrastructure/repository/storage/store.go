@@ -124,6 +124,63 @@ func (s *Store) Append(_ context.Context, kind string, doc *yaml.Node) error {
 	})
 }
 
+// Remove atomically drops the document of the given kind whose metadata.name
+// matches name from the kind's file, under the write lock. Removing an absent
+// document (or from a missing file) is a no-op success.
+func (s *Store) Remove(_ context.Context, kind, name string) error {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return err
+	}
+
+	return s.guard.withLock(func() error {
+		return s.removeLocked(file, name)
+	})
+}
+
+// removeLocked performs the read-filter-write removal while the lock is held. When
+// no document matches, the file is left untouched.
+func (s *Store) removeLocked(file, name string) error {
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return err
+	}
+
+	kept := make([]*yaml.Node, 0, len(docs))
+	for _, doc := range docs {
+		if nameOf(doc) == name {
+			continue
+		}
+		kept = append(kept, doc)
+	}
+	if len(kept) == len(docs) {
+		return nil
+	}
+
+	stream, err := encodeStream(kept)
+	if err != nil {
+		return err
+	}
+
+	return s.writeAtomic(file, stream)
+}
+
+// encodeStream renders documents as a multi-document YAML stream, each prefixed
+// with a stream separator — the same on-disk shape Append produces. An empty slice
+// yields no bytes, so removing the last document leaves an empty file.
+func encodeStream(docs []*yaml.Node) ([]byte, error) {
+	var stream []byte
+	for _, doc := range docs {
+		encoded, err := encodeDocument(doc)
+		if err != nil {
+			return nil, err
+		}
+		stream = append(stream, encoded...)
+	}
+
+	return stream, nil
+}
+
 // appendLocked performs the read-modify-write append while the lock is held.
 func (s *Store) appendLocked(file string, doc *yaml.Node) error {
 	existing, err := s.readRaw(file)

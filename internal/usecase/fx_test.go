@@ -39,6 +39,9 @@ func TestNewFxOptions(t *testing.T) {
 		deps,
 		NewFxOptions(),
 		fx.Invoke(func(*AddRegistryUseCase) {}),
+		fx.Invoke(func(*ListRegistriesUseCase) {}),
+		fx.Invoke(func(*DescribeRegistryUseCase) {}),
+		fx.Invoke(func(*DeleteRegistryUseCase) {}),
 	)
 
 	// Assert.

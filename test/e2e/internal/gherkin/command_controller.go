@@ -234,6 +234,15 @@ func (c *commandController) requireRun() error {
 	return nil
 }
 
+// lastOutput returns the output of the most recent command, for sibling
+// controllers that assert on it. It errors when no command has run.
+func (c *commandController) lastOutput() (string, error) {
+	if err := c.requireRun(); err != nil {
+		return "", err
+	}
+	return c.last.output, nil
+}
+
 // addRegistryArgs assembles the `sauron add registry` invocation shared by every
 // When step. It takes the option struct with its uri and ssh-key references already
 // resolved to concrete values. The command takes the transport as --kind and the

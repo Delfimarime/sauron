@@ -7,4 +7,5 @@ const (
 	FieldRegistryName      = "sauron.registry.name"
 	FieldRegistryTransport = "sauron.registry.transport"
 	FieldRegistryCount     = "sauron.registry.count"
+	FieldArtifactCount     = "sauron.artifact.count"
 )

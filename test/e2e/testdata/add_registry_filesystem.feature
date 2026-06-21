@@ -12,6 +12,7 @@ Feature: Add a filesystem registry
     And there is exactly one registry
     And a registry named acme exists
     And the registry acme has transport filesystem
+    And the registry acme has a creation timestamp
     And the registry acme is described by:
       | field          | value                  |
       | kind           | Registry               |

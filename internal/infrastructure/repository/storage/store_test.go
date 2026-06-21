@@ -230,6 +230,127 @@ func TestStoreLockContended(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestStoreRemoveDropsMatch removes the matching document and leaves the rest,
+// keeping every other document retrievable.
+func TestStoreRemoveDropsMatch(t *testing.T) {
+	// Arrange: two documents in the stream.
+	store, _ := newTestStore(t)
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML)))
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, `apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: beta
+spec:
+  transport: http
+  uri: https://example.com/beta
+`)))
+
+	// Act.
+	require.NoError(t, store.Remove(context.Background(), types.KindRegistry, acmeName))
+
+	// Assert: acme is gone, beta survives and still reads back valid.
+	gone, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+	require.NoError(t, err)
+	assert.Nil(t, gone)
+
+	beta, err := store.FindOne(context.Background(), types.KindRegistry, "beta")
+	require.NoError(t, err)
+	require.NotNil(t, beta)
+}
+
+// TestStoreRemoveLastEmptiesFile removes the only document, leaving an empty stream.
+func TestStoreRemoveLastEmptiesFile(t *testing.T) {
+	// Arrange.
+	store, fs := newTestStore(t)
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML)))
+
+	// Act.
+	require.NoError(t, store.Remove(context.Background(), types.KindRegistry, acmeName))
+
+	// Assert: the document is gone and no temp artifact remains.
+	gone, err := store.FindOne(context.Background(), types.KindRegistry, acmeName)
+	require.NoError(t, err)
+	assert.Nil(t, gone)
+
+	exists, err := afero.Exists(fs, registriesFile+".tmp")
+	require.NoError(t, err)
+	assert.False(t, exists)
+}
+
+// TestStoreRemoveAbsentIsNoOp returns success and leaves the file untouched when no
+// document matches (FR-005 idempotency) — including a missing file.
+func TestStoreRemoveAbsentIsNoOp(t *testing.T) {
+	tests := []struct {
+		// name states the case intent.
+		name string
+		// seed is written before the removal (empty: no file).
+		seed string
+		// remove is the document name removed.
+		remove string
+	}{
+		{name: "missing file", seed: "", remove: acmeName},
+		{name: "no matching document", seed: validRegistryYAML, remove: "other"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange.
+			store, fs := newTestStore(t)
+			if tt.seed != "" {
+				require.NoError(t, afero.WriteFile(fs, registriesFile, []byte(tt.seed), filePerm))
+			}
+			before, _ := afero.ReadFile(fs, registriesFile)
+
+			// Act.
+			err := store.Remove(context.Background(), types.KindRegistry, tt.remove)
+
+			// Assert: success and the file is byte-for-byte unchanged.
+			require.NoError(t, err)
+			after, _ := afero.ReadFile(fs, registriesFile)
+			assert.Equal(t, before, after)
+		})
+	}
+}
+
+// TestStoreRemoveUnknownKind reports an error for a kind with no backing file.
+func TestStoreRemoveUnknownKind(t *testing.T) {
+	// Arrange.
+	store, _ := newTestStore(t)
+
+	// Act.
+	err := store.Remove(context.Background(), "Nonexistent", "x")
+
+	// Assert.
+	require.ErrorIs(t, err, errUnknownKind)
+}
+
+// TestStoreRemoveLockContended reports an error when the lock is already held.
+func TestStoreRemoveLockContended(t *testing.T) {
+	// Arrange: a pre-existing lock file blocks acquisition.
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, registriesFile, []byte(validRegistryYAML), filePerm))
+	require.NoError(t, afero.WriteFile(fs, lockFile, nil, lockPerm))
+
+	// Act.
+	err := store.Remove(context.Background(), types.KindRegistry, acmeName)
+
+	// Assert.
+	require.Error(t, err)
+}
+
+// TestStoreRemoveMalformedStream surfaces a YAML parse error from the file.
+func TestStoreRemoveMalformedStream(t *testing.T) {
+	// Arrange.
+	store, fs := newTestStore(t)
+	require.NoError(t, afero.WriteFile(fs, registriesFile, []byte("\tnot: [valid"), filePerm))
+
+	// Act.
+	err := store.Remove(context.Background(), types.KindRegistry, acmeName)
+
+	// Assert.
+	require.Error(t, err)
+}
+
 // registryName names the i-th concurrent test registry.
 func registryName(i int) string {
 	return "reg" + string(rune('a'+i))

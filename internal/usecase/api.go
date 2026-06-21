@@ -38,6 +38,8 @@ const (
 	TypeValidation Type = "validation"
 	// TypeIO marks a failure of the underlying storage.
 	TypeIO Type = "io"
+	// TypeNotFound marks a named resource that does not exist.
+	TypeNotFound Type = "not_found"
 )
 
 // Error is a classified use-case failure: Type buckets it, Reason explains it.
@@ -74,4 +76,9 @@ func NewValidationError(reason string) *Error {
 // NewIOError reports a failure of the underlying storage.
 func NewIOError(reason string) *Error {
 	return &Error{Type: TypeIO, Reason: reason}
+}
+
+// NewNotFoundError reports a named resource that does not exist.
+func NewNotFoundError(reason string) *Error {
+	return &Error{Type: TypeNotFound, Reason: reason}
 }

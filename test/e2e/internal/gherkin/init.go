@@ -9,11 +9,14 @@ import (
 // only the runtime handle (rt); the runtime is the per-scenario shared state, so no
 // "world" is threaded between them.
 func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
+	commands := &commandController{rt: rt}
 	for _, each := range []Controller{
 		&basicController{rt: rt},
-		&commandController{rt: rt},
+		commands,
 		&stateController{rt: rt},
 		&listController{rt: rt},
+		&describeController{command: commands},
+		&deleteController{commands: commands},
 		newRegistryFsController(rt),
 		newRegistryHTTPController(rt),
 		newRegistryGitController(rt),

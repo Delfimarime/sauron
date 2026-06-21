@@ -15,6 +15,9 @@ shows a single registry's fields, with column selection.
   `registries.yaml`.
 - FR-002: Sauron shall never display secret values — credential fields are shown
   as the stored environment reference.
+- FR-006: Sauron shall surface the registry's audit timestamps
+  (`metadata.creationTimestamp`, `metadata.lastUpdatedTimestamp`) in the detail
+  view when they are populated.
 
 ### Optional
 
@@ -32,3 +35,16 @@ shows a single registry's fields, with column selection.
 
 - **Registry** — the described source; see the
   [state data contract](../contracts/state.md).
+
+## Notes
+
+- **Not-found is its own error class.** FR-004 (no registry of that name exists)
+  maps to a `TypeNotFound` use-case error, which the single exit-code site
+  resolves to exit 1 — distinct from a usage error (exit 2). `TypeNotFound` joins
+  the existing non-usage classes (`conflict`/`unreachable`/`validation`/`io`) that
+  already resolve to exit 1, so no new exit-code mapping arm is introduced; the
+  type is reused by later `describe`/`get`-style features.
+- **The `--fields` valid set agrees across spec, state, and contract:**
+  `{name, transport, uri, ref, auth, tls, sshKey, timeout, creationTimestamp,
+  lastUpdatedTimestamp}`, with `name` always present and first. The two audit
+  timestamps display by default when populated (FR-006). No drift to reconcile.

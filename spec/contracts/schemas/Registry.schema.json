@@ -22,6 +22,16 @@
         "labels": {
           "type": "object",
           "additionalProperties": { "type": "string" }
+        },
+        "creationTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp stamped by sauron when the document was created; never hand-edited."
+        },
+        "lastUpdatedTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp stamped by sauron on the document's most recent write; never hand-edited."
         }
       }
     },

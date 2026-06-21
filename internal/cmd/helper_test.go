@@ -16,6 +16,10 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
+// subcmdRegistry is the shared `registry` sub-command name asserted across the
+// add/describe/delete command tests, named to satisfy goconst across the package.
+const subcmdRegistry = "registry"
+
 // TestNewApp asserts the transversal fx graph wires and validates cleanly — the
 // stubs satisfy the container without panicking — and that the caller's opts are
 // appended. It builds the app (NewApp does not start it) and validates it.

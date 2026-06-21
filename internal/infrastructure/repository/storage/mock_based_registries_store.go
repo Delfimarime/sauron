@@ -41,3 +41,8 @@ func (m *MockBasedRegistriesStore) List(ctx context.Context) ([]types.Registry, 
 
 	return registries, args.Error(1)
 }
+
+// Remove records the call and returns the configured error.
+func (m *MockBasedRegistriesStore) Remove(ctx context.Context, name string) error {
+	return m.Called(ctx, name).Error(0)
+}

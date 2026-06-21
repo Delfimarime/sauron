@@ -16,7 +16,7 @@ Show one registry's full detail.
 
 | Flag | Meaning |
 |---|---|
-| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `ref`, `auth`, `tls`, `sshKey`, `timeout` |
+| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `transport`, `uri`, `ref`, `auth`, `tls`, `sshKey`, `timeout`, `creationTimestamp`, `lastUpdatedTimestamp` |
 
 ## Output
 
@@ -27,13 +27,15 @@ environment reference, never a resolved secret.
 
 ```
 $ sauron describe registry acme
-name:       acme
-transport:  git
-uri:        git@github.com:acme/artifacts.git
+name:                  acme
+transport:             git
+uri:                   git@github.com:acme/artifacts.git
 auth:
-  username: ${env:ACME_USER}
-  password: ${env:ACME_TOKEN}
-timeout:    30s
+  username:            ${env:ACME_USER}
+  password:            ${env:ACME_TOKEN}
+timeout:               30s
+creationTimestamp:     2026-06-21T07:30:00Z
+lastUpdatedTimestamp:  2026-06-21T07:30:00Z
 ```
 
 ## Exit codes

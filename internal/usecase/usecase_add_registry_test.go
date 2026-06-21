@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -297,12 +298,18 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 
 	out := &bytes.Buffer{}
 
-	// Act.
-	err := f.uc.Execute(&AddRegistryRequest{
-		Context: context.Background(), out: out,
-		Name: testName, URI: "git@host:repo.git", Transport: transportGit, Ref: "main",
-		Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}",
-		Timeout: 15 * time.Second,
+	// Act. Run inside a synctest bubble so time.Now() is a fixed, controllable
+	// instant; the use case stamps the audit timestamps from it.
+	var err error
+	var want string
+	synctest.Test(t, func(*testing.T) {
+		want = time.Now().UTC().Format(time.RFC3339)
+		err = f.uc.Execute(&AddRegistryRequest{
+			Context: context.Background(), out: out,
+			Name: testName, URI: "git@host:repo.git", Transport: transportGit, Ref: "main",
+			Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}",
+			Timeout: 15 * time.Second,
+		})
 	})
 
 	// Assert.
@@ -317,6 +324,9 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	// Connecting uses the resolved values, never the references.
 	assert.Equal(t, "real-user", openOpts.Username)
 	assert.Equal(t, "real-pass", openOpts.Password)
+	// Both audit timestamps are stamped with the current instant, equal on create.
+	assert.Equal(t, want, stored.Metadata.CreationTimestamp)
+	assert.Equal(t, want, stored.Metadata.LastUpdatedTimestamp)
 	assert.Equal(t, "registered registry \"acme\" (git)\n", out.String())
 }
 

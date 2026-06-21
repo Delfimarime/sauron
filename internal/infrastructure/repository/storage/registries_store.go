@@ -17,6 +17,8 @@ type RegistriesStore interface {
 	Add(ctx context.Context, r types.Registry) error
 	// List returns every stored registry, validated on read.
 	List(ctx context.Context) ([]types.Registry, error)
+	// Remove drops the registry with the given name; an absent name is a no-op.
+	Remove(ctx context.Context, name string) error
 }
 
 // registriesStore implements RegistriesStore over a Store.
@@ -60,6 +62,11 @@ func (s *registriesStore) Add(ctx context.Context, r types.Registry) error {
 	}
 
 	return s.store.Append(ctx, types.KindRegistry, &node)
+}
+
+// Remove drops the named registry document from the store.
+func (s *registriesStore) Remove(ctx context.Context, name string) error {
+	return s.store.Remove(ctx, types.KindRegistry, name)
 }
 
 // List reads every registry document and decodes each into a Registry.

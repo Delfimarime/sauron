@@ -80,6 +80,41 @@ func TestRegistriesStoreAddPersistsValidDocument(t *testing.T) {
 	require.NotNil(t, node)
 }
 
+// TestRegistriesStoreRemoveDropsRegistry adds a registry then removes it, so a
+// subsequent lookup returns nil.
+func TestRegistriesStoreRemoveDropsRegistry(t *testing.T) {
+	// Arrange.
+	registries, _ := newTestRegistriesStore(t)
+	in := types.Registry{
+		Metadata: types.Metadata{Name: acmeName},
+		Spec: types.RegistrySpec{
+			Transport: types.TransportGit,
+			URI:       "https://example.com/acme.git",
+		},
+	}
+	require.NoError(t, registries.Add(context.Background(), in))
+
+	// Act.
+	require.NoError(t, registries.Remove(context.Background(), acmeName))
+
+	// Assert.
+	got, err := registries.FindByName(context.Background(), acmeName)
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
+// TestRegistriesStoreRemoveAbsentIsNoOp removing an unknown registry succeeds.
+func TestRegistriesStoreRemoveAbsentIsNoOp(t *testing.T) {
+	// Arrange.
+	registries, _ := newTestRegistriesStore(t)
+
+	// Act.
+	err := registries.Remove(context.Background(), "ghost")
+
+	// Assert.
+	require.NoError(t, err)
+}
+
 // TestMockBasedRegistriesStore exercises the testify mock.
 func TestMockBasedRegistriesStore(t *testing.T) {
 	// Arrange.
@@ -88,14 +123,17 @@ func TestMockBasedRegistriesStore(t *testing.T) {
 	ctx := context.Background()
 	m.On("FindByName", ctx, acmeName).Return(want, nil)
 	m.On("Add", ctx, types.Registry{}).Return(nil)
+	m.On("Remove", ctx, acmeName).Return(nil)
 
 	// Act.
 	got, findErr := m.FindByName(ctx, acmeName)
 	addErr := m.Add(ctx, types.Registry{})
+	removeErr := m.Remove(ctx, acmeName)
 
 	// Assert.
 	require.NoError(t, findErr)
 	require.NoError(t, addErr)
+	require.NoError(t, removeErr)
 	assert.Same(t, want, got)
 	m.AssertExpectations(t)
 }

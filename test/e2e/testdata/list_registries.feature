@@ -59,9 +59,20 @@ Feature: List registries
     Then the command succeeds
     And the output is empty
 
-  # FR-006 — a corrupt registries.yaml fails with a runtime error (exit 1).
+  # FR-006 — a corrupt registries.yaml fails with a runtime error (exit 1). The
+  # malformed document is designed here explicitly (spec.transport opens a flow
+  # sequence that is never closed) so the file under test is visible in the scenario.
   Scenario: fails with a runtime error when the state file is corrupt
-    Given the stored registries file is corrupt
+    Given the registries file contains:
+      """
+      apiVersion: sauron.raitonbl.com/v1
+      kind: Registry
+      metadata:
+        name: broken
+      spec:
+        transport: [this is not closed
+        uri:
+      """
     When the user runs sauron list registries
     Then the command exits with status 1
 
