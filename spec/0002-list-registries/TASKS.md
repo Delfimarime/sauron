@@ -28,10 +28,10 @@ whose success confirms it. The suite is authored **TDD-first** — the e2e tests
   de-scoped from naming a single command).
 - **Files:** `spec/0002-list-registries/spec.md`,
   `spec/0002-list-registries/data/state.md`, `spec/contracts/architecture.md`,
-  `test/e2e/CONSTITUTION.md`.
+  `test/e2e/HARNESS.md`.
 - **Verify:** FR-002 names `uri`; `data/state.md` realizes `spec.uri`;
-  `architecture.md` lists `internal/presentation`; the constitution's Article 2
-  names no single command (inspection).
+  `architecture.md` lists `internal/presentation`; the harness reference's
+  uniform-exercise section names no single command (inspection).
 - **Depends on:** —
 
 ### T2 — e2e suite (authored TDD-first; red until T6)
