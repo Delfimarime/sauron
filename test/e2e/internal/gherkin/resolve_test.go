@@ -14,16 +14,9 @@ func TestValueOfPlainValues(t *testing.T) {
 	ctx := context.Background()
 	rt := &fakeRuntime{}
 
-	s, err := valueOf[string](ctx, rt, "literal")
+	s, err := valueOf(ctx, rt, "literal")
 	require.NoError(t, err)
 	assert.Equal(t, "literal", s)
-
-	n, err := valueOf[int](ctx, rt, "42")
-	require.NoError(t, err)
-	assert.Equal(t, 42, n)
-
-	_, err = valueOf[int](ctx, rt, "not-a-number")
-	assert.Error(t, err)
 }
 
 func TestValueOfReferences(t *testing.T) {
@@ -43,7 +36,7 @@ func TestValueOfReferences(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := valueOf[string](ctx, rt, tc.expr)
+			got, err := valueOf(ctx, rt, tc.expr)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -64,7 +57,7 @@ func TestValueOfReferenceErrors(t *testing.T) {
 	}
 	for name, expr := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, err := valueOf[string](ctx, rt, expr)
+			_, err := valueOf(ctx, rt, expr)
 			assert.Error(t, err)
 		})
 	}

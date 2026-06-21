@@ -122,20 +122,20 @@ type addOptions struct {
 // placeholder), then run `sauron add registry` with the optional ref, basic-auth,
 // and ssh-key flags.
 func (c *commandController) add(ctx context.Context, o addOptions) error {
-	uri, err := valueOf[string](ctx, c.rt, o.uriRef)
+	uri, err := valueOf(ctx, c.rt, o.uriRef)
 	if err != nil {
 		return err
 	}
 	sshKey := o.sshKeyRef
 	if sshKey != "" {
-		sshKey, err = valueOf[string](ctx, c.rt, o.sshKeyRef)
+		sshKey, err = valueOf(ctx, c.rt, o.sshKeyRef)
 		if err != nil {
 			return err
 		}
 	}
 	ref := o.ref
 	if ref != "" {
-		ref, err = valueOf[string](ctx, c.rt, o.ref)
+		ref, err = valueOf(ctx, c.rt, o.ref)
 		if err != nil {
 			return err
 		}

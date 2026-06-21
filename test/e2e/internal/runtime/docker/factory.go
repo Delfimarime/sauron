@@ -7,10 +7,6 @@ import (
 type Factory struct {
 }
 
-func (*Factory) GetHomeDirectory() (string, error) {
-	return sauronHome, nil
-}
-
 func (*Factory) New(binaryURI, directoryURI string) (runtime.Runtime, error) {
 	return New(binaryURI, directoryURI)
 }

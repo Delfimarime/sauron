@@ -39,7 +39,7 @@ type Runtime interface {
 	// endpoint. Unsupported on the host backend (the accessor's Source errors).
 	Webserver(alias string) Source
 	// Git declares an ssh git-remote source by alias; Source.URL() yields the
-	// remote. Deferred everywhere for now (the Source errors).
+	// remote. Served by an sshd sidecar under docker; the host backend errors.
 	Git(alias string) Source
 
 	Start(context.Context) error
@@ -89,6 +89,5 @@ type Resource struct {
 func (r Resource) IsAuth() bool { return r.Username != "" || r.Password != "" }
 
 type Factory interface {
-	GetHomeDirectory() (string, error)
 	New(binaryURI, directoryURI string) (Runtime, error)
 }
