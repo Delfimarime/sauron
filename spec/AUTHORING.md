@@ -79,8 +79,18 @@ written:
 | `data/state.md` | the feature reads or writes persisted state | which state document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/state.md](contracts/state.md) and linked from here | [Glossary](#glossary) terms; link the [state data contract](contracts/state.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
-| `plan.md` | a feature needs an implementation plan | how the work is built: goal & scope, pre-requirements, design, **checkpoints** (each with a verify command), key decisions, and a link to `TASKS.md` | each checkpoint states the command/criterion that verifies it; the plan links `TASKS.md` |
+| `plan.md` | a feature needs an implementation plan | how the work is built: goal & scope, pre-requirements, design, **checkpoints** (each with a verify command), key decisions, a link to `TASKS.md`, and — once the feature ships — an optional `## Distill` section (see below) | each checkpoint states the command/criterion that verifies it; the plan links `TASKS.md` |
 | `TASKS.md` | a `plan.md` is present | the executable task breakdown — one task per unit of work, each owning its files, a single verification command, and its dependencies, with an overall order | **every task is independently verifiable**: it states the command/criterion that confirms it. A task without a pass/fail check is not a task |
+
+The `## Distill` section of a `plan.md` is the loop back from delivery to the spec
+([Constitution Ch. IV, Art. 5](../CONSTITUTION.md)). It is added only when there is
+something to record — a feature that ships exactly as planned has nothing to
+distill, so the section is omitted, never left as an empty placeholder. When
+present it is a table, one row per insight:
+
+| Insight | Source | Disposition |
+|---|---|---|
+| what delivery or use revealed, in one line | `deliver` \| `usage` \| `bug` \| `retro` | how it was closed: `→ FR-NNN amendment`, `→ PROPOSAL #NN`, or `won't-fix` |
 
 ## Required sections
 

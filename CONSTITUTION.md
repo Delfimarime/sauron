@@ -247,3 +247,17 @@ the repository [README](README.md) and other documents link to it rather than
 restating it. A normative rule lives in its owning contract; narrative docs point
 to that contract and never paraphrase it. Documentation therefore cannot drift
 out of agreement with what it describes.
+
+### Article 5 — Distill
+
+Delivery and use feed back into the spec; the lifecycle is a loop, not a line. A
+command leaves an observable record of what it did — its terminal outcome is
+emitted through the structured zap + ECS logger (`event.action`, the outcome, and
+on failure the error's type and reason) — so the system's behavior can be
+inspected, not guessed. An insight that delivery or use reveals — a spec that
+mispredicted behavior, an edge case the requirements missed, a usage pattern that
+contradicts the design — is recorded in the owning feature's `plan.md` `## Distill`
+section and closed out either as a spec amendment carrying its `FR-NNN` trace or as
+a `PROPOSAL:` issue (Article 3) that reopens discovery. An insight is never left
+only in someone's head, and an insight that changes a requirement is reflected in
+the spec before the code.
