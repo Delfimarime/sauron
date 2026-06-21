@@ -191,7 +191,6 @@ func TestExitCode(t *testing.T) {
 		{name: "usage error", err: usecase.NewUsageError("x"), want: exitUsage},
 		{name: "conflict error", err: usecase.NewConflictError("x"), want: exitError},
 		{name: "not-found error", err: usecase.NewNotFoundError("x"), want: exitError},
-		{name: "validation error", err: usecase.NewValidationError("x"), want: exitError},
 		{name: "invalid flag", err: errInvalidFlag, want: exitUsage},
 		{name: "generic error", err: errors.New("x"), want: exitError},
 	}

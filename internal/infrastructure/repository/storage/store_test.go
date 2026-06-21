@@ -174,7 +174,7 @@ func TestStoreAppendSerializes(t *testing.T) {
 	// Act: append distinct documents concurrently.
 	var wg sync.WaitGroup
 	wg.Add(writers)
-	for i := 0; i < writers; i++ {
+	for i := range writers {
 		go func(i int) {
 			defer wg.Done()
 			doc := nodeFromYAML(t, registryYAML(i))
@@ -184,7 +184,7 @@ func TestStoreAppendSerializes(t *testing.T) {
 	wg.Wait()
 
 	// Assert: each writer's document is present.
-	for i := 0; i < writers; i++ {
+	for i := range writers {
 		got, err := store.FindOne(context.Background(), types.KindRegistry, registryName(i))
 		require.NoError(t, err)
 		require.NotNil(t, got, "document %d lost", i)

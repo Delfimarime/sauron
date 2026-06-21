@@ -139,7 +139,7 @@ func ensureAuth(reg *types.Registry) *types.Auth {
 func nameColumn(output string) []string {
 	var names []string
 	headerSeen := false
-	for _, raw := range strings.Split(output, "\n") {
+	for raw := range strings.SplitSeq(output, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue

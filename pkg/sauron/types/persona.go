@@ -13,7 +13,7 @@ type PersonaSpec struct {
 	Registry    string         `json:"registry" yaml:"registry"`
 	Version     string         `json:"version,omitempty" yaml:"version,omitempty"`
 	Digest      string         `json:"digest" yaml:"digest"`
-	Members     PersonaMembers `json:"members,omitempty" yaml:"members,omitempty"`
+	Members     PersonaMembers `json:"members" yaml:"members,omitempty"`
 	InstalledAt string         `json:"installedAt" yaml:"installedAt"`
 	UpdatedAt   string         `json:"updatedAt" yaml:"updatedAt"`
 }

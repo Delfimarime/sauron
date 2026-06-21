@@ -165,14 +165,12 @@ func TestBindFlags(t *testing.T) {
 	// Arrange.
 	cmd := &cobra.Command{Use: "x"}
 	var listing listingFlags
-	var paging pagingFlags
 	var dry dryRunFlags
 	var timeout timeoutFlags
 	var kind kindFlags
 
 	// Act.
 	bindListingFlags(cmd, &listing)
-	bindPagingFlags(cmd, &paging)
 	bindDryRunFlags(cmd, &dry)
 	bindTimeoutFlags(cmd, &timeout)
 	bindKindFlags(cmd, &kind)
@@ -182,14 +180,12 @@ func TestBindFlags(t *testing.T) {
 	assert.Equal(t, "", listing.Sort)
 	assert.Equal(t, "asc", listing.Order)
 	assert.Empty(t, listing.Fields)
-	assert.Equal(t, 0, paging.Offset)
-	assert.Equal(t, 0, paging.Limit)
 	assert.False(t, dry.DryRun)
 	assert.Equal(t, 30*time.Second, timeout.Timeout)
 	assert.Equal(t, kindHTTP, kind.Kind)
 
 	// Assert: flags are registered on the command.
-	for _, name := range []string{"search", "sort", "order", "fields", "offset", "limit", "dry-run", "timeout", "kind"} {
+	for _, name := range []string{"search", "sort", "order", "fields", "dry-run", "timeout", "kind"} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
 	}
 }

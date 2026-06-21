@@ -69,7 +69,7 @@ func (c *describeController) outputDoesNotContain(_ context.Context, text string
 // unit-tested without a process.
 func descriptorValue(output, label string) (string, bool) {
 	want := label + ":"
-	for _, raw := range strings.Split(output, "\n") {
+	for raw := range strings.SplitSeq(output, "\n") {
 		line := strings.TrimSpace(raw)
 		if !strings.HasPrefix(line, want) {
 			continue
