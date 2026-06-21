@@ -24,7 +24,9 @@ Chapter I, Article 3.
   [state](data/state.md) field→requirement table, and the
   [`describe registry` command contract](contracts/describe-registry.md) agree on
   the `--fields` valid set `{name, transport, uri, ref, auth, tls, sshKey,
-  timeout}`; the **not-found error class** is settled (resolved,
+  timeout, creationTimestamp, lastUpdatedTimestamp}` (the two audit timestamps
+  display by default when populated, FR-006); the **not-found error class** is
+  settled (resolved,
   [plan.md](plan.md) §8) — a `TypeNotFound` mapping to exit 1, recorded in the
   spec `## Notes`. No re-registration of `internal/presentation` is needed: the
   package already ships from [0002](../0002-list-registries/plan.md).
@@ -55,6 +57,7 @@ Chapter I, Article 3.
   | 3 | FR-002 | a registry with `auth` → the `auth` block shows the `${env:…}` references and never a resolved secret |
   | 4 | FR-004 | an unknown name → exit 1, reports the registry does not exist |
   | 5 | FR-005 | an invalid `--fields` value → exit 2 |
+  | 6 | FR-006 | a registry with populated audit timestamps → the default view shows `creationTimestamp` and `lastUpdatedTimestamp` as their stored values |
 - **Files:** `test/e2e/testdata/describe_registry.feature`,
   `test/e2e/internal/gherkin/describe_controller.go` (+ its registration in
   `init.go`).
@@ -67,7 +70,7 @@ Chapter I, Article 3.
 - **Delivers:** `Descriptor{Fields}` / `Field{Label, Value, Children}` and
   `Render(w)` producing the [CLI contract](../contracts/cli.md) detail rendering
   — a `kubectl describe`-style vertical view: left-aligned labels with their
-  values and an indented nested block for a section field (e.g. `auth`);
+  values and an indented nested block for a section field (e.g. `auth`, `tls`);
   explicitly distinct from the column-aligned `Table`. `descriptor.go` beside the
   existing `table.go`.
 - **Files:** `internal/presentation/{descriptor.go, descriptor_test.go}`.
@@ -84,8 +87,10 @@ Chapter I, Article 3.
   `DescribeRegistryRequest` — the `FindByName` → not-found (`TypeNotFound`) →
   field projection → render pipeline over `presentation.Descriptor`; the
   `usage`/`io`/not-found classification; the ECS-logged outcome; the fx wiring.
-  The `auth` block is projected as a nested `Field`, its values left as the
-  stored env references (FR-002).
+  The `auth` and `tls` blocks are projected as nested `Field`s, the credential
+  values left as the stored env references (FR-002); the two audit timestamps
+  (`creationTimestamp`, `lastUpdatedTimestamp`) are leaf fields shown by default
+  when populated (FR-006).
 - **Files:** `internal/usecase/{usecase_describe_registry.go, api.go, fx.go}`,
   `cmd/main.go` (+ tests).
 - **Verify:** `go test ./internal/usecase/... ./cmd/...`

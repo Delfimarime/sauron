@@ -82,7 +82,7 @@ graph TD
   end
   subgraph uc["internal/usecase (stateless)"]
     UC["DeleteRegistryUseCase.Execute(req)<br/>FindByName · absent → exit 0 · cascade(Action) · dry-run? · Remove · report"]
-    AC["UninstallByRegistryAction.Execute(ctx, name) → *RemovalPlan<br/>NO-OP here: returns empty plan, nil — body owned by 0007"]
+    AC["UninstallByRegistryAction.Execute(ctx, name) → *DeleteArtifactsByRegistryResponse<br/>NO-OP here: returns empty plan, nil — body owned by 0007"]
   end
   subgraph store["internal/.../repository/storage"]
     RS["RegistriesStore.Remove(name) (new) · FindByName (0001)"]
@@ -121,7 +121,7 @@ User            cmd            UseCase          Action(no-op)   Store
  │               │              │ nil → "nothing was deleted" → exit 0 (FR-005)
  │               │              │ cascade(name)    │              │
  │               │              │─────────────────▶│ (empty plan) │
- │               │              ◀─ ─ ─ ─ ─ ─ ─ ─ ─ │ *RemovalPlan │
+ │               │              ◀─ ─ ─ ─ ─ ─ ─ ─ ─ │ *DeleteArtifactsByRegistryResponse │
  │               │              │ --dry-run → print plan, write nothing → exit 0 (FR-004)
  │               │              │ Remove(name)     │              │
  │               │              │────────────────────────────────▶│ rewrite (atomic+lock)
@@ -136,8 +136,8 @@ the first failing step, with the exit code shown.
 
 - `(1)` `sauron delete registry acme [--dry-run]`
 - missing/invalid args or flags -> **usage (2)** (FR-006)
-- `FindByName` returns `nil` (no such registry) -> print "nothing was deleted" -> **exit 0** (FR-005)
-- `--dry-run` -> print the (empty) plan, write nothing -> **exit 0** (FR-004)
+- `FindByName` returns `nil` (no such registry) -> print `registry "acme" does not exist; nothing was deleted` -> **exit 0** (FR-005)
+- `--dry-run` -> print the plan, write nothing, summary reads `registry "acme" would be removed; 0 artifacts would be removed` -> **exit 0** (FR-004)
 - `Remove` (or a state read) fails -> **io (1, "registries.yaml could not be written")**
 - success -> remove the document, print `registry "acme" removed; 0 artifacts removed`, **exit 0**
 
@@ -147,16 +147,16 @@ the first failing step, with the exit code shown.
 // internal/usecase — the shared cleaning Action (the cascade seam). 0004 ships
 // the NO-OP body below; 0007 replaces it with the real track-store + provider
 // removal. Both delete-registry and uninstall compose this one Action.
-type RemovalPlan struct {
+type DeleteArtifactsByRegistryResponse struct {
     Skills   []string
     Agents   []string
     Personas []string
 }
-func (p RemovalPlan) Total() int // len(Skills)+len(Agents)+len(Personas)
+func (p DeleteArtifactsByRegistryResponse) Total() int // len(Skills)+len(Agents)+len(Personas)
 
 type UninstallByRegistryAction struct{ /* logger; 0007 adds track store + provider */ }
-func (a *UninstallByRegistryAction) Execute(ctx context.Context, registry string) (*RemovalPlan, error) {
-    return &RemovalPlan{}, nil // no-op: 0007 owns the real body
+func (a *UninstallByRegistryAction) Execute(ctx context.Context, registry string) (*DeleteArtifactsByRegistryResponse, error) {
+    return &DeleteArtifactsByRegistryResponse{}, nil // no-op: 0007 owns the real body
 }
 
 // internal/.../repository/storage — the registry-removal write path (new).
@@ -188,7 +188,7 @@ type DeleteRegistryRequest struct {
 ### `internal/`
 | Path | Holds |
 |---|---|
-| `usecase/{action_uninstall_by_registry.go, action_uninstall_by_registry_test.go}` | the shared `UninstallByRegistryAction` and `RemovalPlan`; the **no-op** body and the test asserting the empty-plan/`nil` contract; a `// 0007 owns the real body` note |
+| `usecase/{action_uninstall_by_registry.go, action_uninstall_by_registry_test.go}` | the shared `UninstallByRegistryAction` and `DeleteArtifactsByRegistryResponse`; the **no-op** body and the test asserting the empty-plan/`nil` contract; a `// 0007 owns the real body` note |
 | `usecase/{usecase_delete_registry.go, fx.go}` (+ test) | `DeleteRegistryUseCase` and `DeleteRegistryRequest`; the find → cascade → dry-run → remove → report orchestration; the grouped-report helper; the `usage`/`io`/not-found-as-success classification; provided through `NewFxOptions` |
 | `infrastructure/repository/storage/{store.go, registries_store.go, mock_based_registries_store.go}` (+ tests) | `Store.Remove` (rewrite, atomic + lock); `RegistriesStore.Remove`; the regenerated mock |
 | `cmd/{delete.go, delete_registry.go, root.go}` (+ tests) | the `Delete()` group, the `DeleteRegistry()` builder and `deleteRegistry()` handler, the `--dry-run` flag, and `root.AddCommand(Delete())` |
@@ -221,7 +221,7 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    `delete registry` and [`uninstall artifacts` (0007)](../0007-uninstall-artifacts/spec.md)
    remove the artifacts of a registry; that logic lives once, in
    `UninstallByRegistryAction` (the [`Action[R,P]`](../contracts/architecture.md)
-   pattern). In this feature the Action **returns an empty `RemovalPlan` and
+   pattern). In this feature the Action **returns an empty `DeleteArtifactsByRegistryResponse` and
    `nil`** — nothing more. 0004 owns the seam and its no-op body; 0007 replaces the
    body with the real track-store + provider removal. This is what keeps 0004
    small and lets it land before 0007 despite the numbering.
@@ -245,7 +245,9 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    `personas:`) followed by the summary count, per the
    [CLI contract](../contracts/cli.md). While the cascade is a no-op every group
    is empty, so only `registry "X" removed; 0 artifacts removed` prints — and
-   `--dry-run` prints the same plan while writing nothing. The helper stays inline
+   `--dry-run` prints the same groups in the conditional ("would be removed")
+   voice (`registry "X" would be removed; 0 artifacts would be removed`) while
+   writing nothing. The helper stays inline
    (not in `internal/presentation`) until 0007 makes the groups non-empty; 0007
    may then promote it to a shared report renderer. Classification stays in the
    use case; `cmd/main.go` remains the single error site (usage → 2; io → 1).

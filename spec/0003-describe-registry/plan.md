@@ -20,8 +20,9 @@ list output: just as `kubectl describe <resource>` differs from `kubectl get`,
 single-record detail is a descriptor, not a row in a table. The output is
 field-selectable (`--fields`). The command is read-only: it persists nothing.
 Credential fields render as their stored environment reference, never a resolved
-secret (FR-002). A name that matches no registry fails with a runtime error
-(exit 1, FR-004).
+secret (FR-002). The registry's audit timestamps (`creationTimestamp`,
+`lastUpdatedTimestamp`) display by default when populated (FR-006). A name that
+matches no registry fails with a runtime error (exit 1, FR-004).
 
 The feature also establishes the foundation every later **describe** feature
 reuses:
@@ -81,13 +82,13 @@ graph TD
     UC["DescribeRegistryUseCase.Execute(req)<br/>FindByName · not-found → runtime error · project(fields) · render"]
   end
   subgraph pres["internal/presentation (shared)"]
-    D["Descriptor{Fields}.Render(w)<br/>kubectl-describe style: left-aligned label: value · indented nested block for auth — new<br/>Table{...} — from 0002 (list/get)"]
+    D["Descriptor{Fields}.Render(w)<br/>kubectl-describe style: left-aligned label: value · indented nested blocks for auth/tls — new<br/>Table{...} — from 0002 (list/get)"]
   end
   subgraph store["internal/.../repository/storage"]
     RS["RegistriesStore.FindByName → *types.Registry"]
     ST["Store.FindOne(kind, name) → *yaml.Node (validate-on-read)"]
   end
-  TYPES["pkg/sauron/types: Registry · RegistrySpec · Auth · Transport"]
+  TYPES["pkg/sauron/types: Registry · RegistrySpec · Auth · TLS · Transport · Metadata (audit timestamps)"]
 
   DR -->|fx.Invoke Execute| UC
   UC -->|capability| RS
@@ -166,7 +167,7 @@ func (uc *DescribeRegistryUseCase) Execute(request *DescribeRegistryRequest) err
 type DescribeRegistryRequest struct {
     context.Context
     Name   string   // the registry to describe (required positional arg)
-    Fields []string // validated against {name,transport,uri,ref,auth,tls,sshKey,timeout}; name forced first
+    Fields []string // validated against {name,transport,uri,ref,auth,tls,sshKey,timeout,creationTimestamp,lastUpdatedTimestamp}; name forced first
     // Out() io.Writer — the command's output writer
 }
 ```
@@ -212,7 +213,7 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    describe`-style view, not a table.** A pure formatter over the standard
    library, producing the [CLI contract](../contracts/cli.md) detail rendering —
    left-aligned field labels with their values and indented nested blocks for
-   structured fields like `auth`. It is a distinct renderer from the
+   structured fields like `auth` and `tls`. It is a distinct renderer from the
    column-aligned `Table` ([0002](../0002-list-registries/plan.md) owns that for
    list/`get` output): single-record detail is a descriptor, the way `kubectl
    describe` differs from `kubectl get`. It owns alignment and nesting; it owns
@@ -220,8 +221,9 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    third-party dependency is introduced.
 3. **Field selection lives in the use case**, never the renderer. `--fields`
    selects and reorders from `{name, transport, uri, ref, auth, tls, sshKey,
-   timeout}` with `name` always present and first; a value outside the set is
-   `usage` (exit 2). The default (no `--fields`) shows every populated field.
+   timeout, creationTimestamp, lastUpdatedTimestamp}` with `name` always present
+   and first; a value outside the set is `usage` (exit 2). The default (no
+   `--fields`) shows every populated field.
 4. **Secrets are a pure pass-through (FR-002).** `spec.auth.*` is rendered as the
    stored environment reference. Sauron never holds a resolved secret at rest, so
    "never display a secret" is satisfied by printing the stored value verbatim;
@@ -237,6 +239,11 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    exit 1 alongside the other non-usage types (the single error site is unchanged
    in shape — only one mapping arm is added). The type is reused by the later
    `describe`/`get`-style features rather than re-derived per feature.
+7. **Audit timestamps are part of the default detail (FR-006).**
+   `metadata.creationTimestamp` and `metadata.lastUpdatedTimestamp` join the
+   `--fields` set and display by default when populated, rendered verbatim as
+   their stored values (the use case reads them from `registry.Metadata`). They
+   are leaf fields, omitted when empty like any other unpopulated field.
 
 ## 9. Tasks
 

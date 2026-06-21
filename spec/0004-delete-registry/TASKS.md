@@ -91,8 +91,8 @@ Chapter I, Article 3.
 
 ### T4 — Shared no-op cascade Action (`UninstallByRegistryAction`)
 - **Delivers:** the `UninstallByRegistryAction` ([`Action[R,P]`](../contracts/architecture.md))
-  and the `RemovalPlan` value type (`Skills`/`Agents`/`Personas` + `Total()`); the
-  **no-op** body returning `&RemovalPlan{}, nil`, with a `// 0007 owns the real
+  and the `DeleteArtifactsByRegistryResponse` value type (`Skills`/`Agents`/`Personas` + `Total()`); the
+  **no-op** body returning `&DeleteArtifactsByRegistryResponse{}, nil`, with a `// 0007 owns the real
   body` note; the test asserting the empty-plan/`nil` contract.
 - **Files:** `internal/usecase/{action_uninstall_by_registry.go,
   action_uninstall_by_registry_test.go}`.
