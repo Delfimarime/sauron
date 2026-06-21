@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 ## Overview
 
 A developer chooses where artifacts are installed. `set provider` records the

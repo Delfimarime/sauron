@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 ## Overview
 
 A developer needs to see which provider is active. `describe provider` shows the

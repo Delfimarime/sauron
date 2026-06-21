@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Built
+
 **Realized by:** [git transport](capabilities/git.md)
 
 **Realized by:** [http transport](capabilities/http.md)

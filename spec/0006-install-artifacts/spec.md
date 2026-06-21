@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 **Realized by:** [persona resolution](capabilities/persona-resolution.md)
 
 **Realized by:** [artifact versioning](capabilities/artifact-versioning.md)

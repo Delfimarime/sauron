@@ -3,6 +3,12 @@
 A provider-agnostic command-line manager for AI coding artifacts — skills and
 agents.
 
+**Audience:** this documentation is written for developers, architects, security
+analysts, and engineers. It is the canonical domain model; the feature specs,
+contracts, and the [glossary](GLOSSARY.md) build on the vocabulary defined here.
+Unless a spec declares a narrower `**Audience:**`, this is the audience it
+assumes.
+
 ## The Problem
 
 Skills and agents are important artifacts when coding with agentic AI, and they
@@ -165,3 +171,29 @@ new on its own.
 - **`sync`** is a full reconcile: everything `upgrade` does, plus repairing local
   drift, removing artifacts that vanished upstream, and removing persona members
   dropped upstream.
+
+## Specifications
+
+Every feature is specified before it is built. Status is owned by each feature's
+`spec.md` `**Status:**` field; this table is the aggregated view.
+
+| # | Feature | Status |
+|---|---|---|
+| [0001](0001-add-registry/spec.md) | Add registry | **Built** |
+| [0002](0002-list-registries/spec.md) | List registries | **Built** |
+| [0003](0003-describe-registry/spec.md) | Describe registry | **Built** |
+| [0004](0004-delete-registry/spec.md) | Delete registry | **Partial** — registry removal ships; artifact cascade deferred to [0007](0007-uninstall-artifacts/spec.md) |
+| [0005](0005-list-catalogue/spec.md) | List catalogue | Specified |
+| [0006](0006-install-artifacts/spec.md) | Install artifacts | Specified |
+| [0007](0007-uninstall-artifacts/spec.md) | Uninstall artifacts | Specified |
+| [0008](0008-sync/spec.md) | Sync | Specified |
+| [0009](0009-upgrade/spec.md) | Upgrade | Specified |
+| [0010](0010-list-artifacts/spec.md) | List artifacts | Specified |
+| [0011](0011-describe-artifact/spec.md) | Describe artifact | Specified |
+| [0012](0012-set-provider/spec.md) | Set provider | Specified |
+| [0013](0013-describe-provider/spec.md) | Describe provider | Specified |
+| [0014](0014-schedule/spec.md) | Schedule | Specified |
+
+Authoring conventions and the requirement taxonomy live in
+[AUTHORING.md](AUTHORING.md); the domain vocabulary in [GLOSSARY.md](GLOSSARY.md);
+the binding cross-cutting contracts under [contracts/](contracts/).

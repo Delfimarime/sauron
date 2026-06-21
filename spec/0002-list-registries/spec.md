@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Built
+
 ## Overview
 
 A developer needs to review which sources are registered. `list registries` prints
@@ -18,13 +20,6 @@ sorting.
   accept `--fields` to choose the displayed columns (the name column is always
   present and first).
 
-### Optional
-
-- FR-003: Where `--search <term>` is provided, Sauron shall include only
-  registries whose name contains the term (case-insensitive).
-- FR-004: Where `--sort <field>` and `--order` are provided, Sauron shall order
-  the rows accordingly; `--sort` accepts `name` (default) and `transport`.
-
 ### State-driven
 
 - FR-005: While no registry is registered, Sauron shall print an empty result and
@@ -36,6 +31,13 @@ sorting.
   runtime error.
 - FR-007: If required arguments or flags are missing or invalid, then Sauron shall
   exit with code 2 without executing the command.
+
+### Optional
+
+- FR-003: Where `--search <term>` is provided, Sauron shall include only
+  registries whose name contains the term (case-insensitive).
+- FR-004: Where `--sort <field>` and `--order` are provided, Sauron shall order
+  the rows accordingly; `--sort` accepts `name` (default) and `transport`.
 
 ## Key Entities
 

@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Built
+
 ## Overview
 
 A developer needs the full detail of one registered source. `describe registry`

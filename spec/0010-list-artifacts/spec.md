@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 ## Overview
 
 A developer needs to see what is installed. `list skills`, `list agents`, and

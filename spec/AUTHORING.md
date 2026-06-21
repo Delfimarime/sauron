@@ -1,7 +1,8 @@
 # Spec Authoring Rules
 
-Normative rules for authoring and organizing specifications in this registry.
-Domain concepts live in [the spec README](README.md); the conventions every CLI
+Normative rules for authoring and organizing specifications in this repository.
+Domain concepts live in [the spec README](README.md) and the
+[glossary](GLOSSARY.md); the conventions every CLI
 command obeys — command grammar, shared flags, exit status, and output
 discipline — are the [CLI contract](contracts/cli.md). When authoring specs in
 this repo, the `sauron-authoring-specs` skill loads and points here.
@@ -76,20 +77,37 @@ written:
 |---|---|---|---|
 | `spec.md` | always | the feature or capability: overview, EARS requirements, key entities | [Required sections](#required-sections), [EARS templates](#ears-templates-normative) |
 | `contracts/<verb>-<noun>.md` | per command the feature owns | the command's synopsis, arguments, flags, output, and exit codes | [CLI contract](contracts/cli.md) (and the `sauron-authoring-cli-contracts` skill) |
-| `data/state.md` | the feature reads or writes persisted state | which state document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/state.md](contracts/state.md) and linked from here | [Glossary](#glossary) terms; link the [state data contract](contracts/state.md). The contract never links back to feature requirements (one-directional, no cycle) |
+| `data/state.md` | the feature reads or writes persisted state | which state document(s) and fields the feature owns or writes, the feature-specific read/write semantics, and the field→requirement (`FR-NNN`) realization for the fields it owns — **not** the schema, which is owned by [contracts/state.md](contracts/state.md) and linked from here | [glossary](GLOSSARY.md) terms; link the [state data contract](contracts/state.md). The contract never links back to feature requirements (one-directional, no cycle) |
 | `capabilities/<name>.md` | the feature introduces a capability | one nested technical capability with no CLI surface | [Required sections](#required-sections) |
 | `architecture/ADR-NNNN-<slug>.md` | a significant decision needs recording | one architectural decision and its rationale | [ADR structure](#adr-structure) |
-| `plan.md` | a feature needs an implementation plan | how the work is built: goal & scope, pre-requirements, design, **checkpoints** (each with a verify command), key decisions, and a link to `TASKS.md` | each checkpoint states the command/criterion that verifies it; the plan links `TASKS.md` |
+| `plan.md` | a feature needs an implementation plan | how the work is built: goal & scope, pre-requirements, design, **checkpoints** (each with a verify command), key decisions, a link to `TASKS.md`, and — once the feature ships — an optional `## Distill` section (see below) | each checkpoint states the command/criterion that verifies it; the plan links `TASKS.md` |
 | `TASKS.md` | a `plan.md` is present | the executable task breakdown — one task per unit of work, each owning its files, a single verification command, and its dependencies, with an overall order | **every task is independently verifiable**: it states the command/criterion that confirms it. A task without a pass/fail check is not a task |
+
+The `## Distill` section of a `plan.md` is the loop back from delivery to the spec
+([Constitution Ch. IV, Art. 5](../CONSTITUTION.md)). It is added only when there is
+something to record — a feature that ships exactly as planned has nothing to
+distill, so the section is omitted, never left as an empty placeholder. When
+present it is a table, one row per insight:
+
+| Insight | Source | Disposition |
+|---|---|---|
+| what delivery or use revealed, in one line | `deliver` \| `usage` \| `bug` \| `retro` | how it was closed: `→ FR-NNN amendment`, `→ PROPOSAL #NN`, or `won't-fix` |
 
 ## Required sections
 
 `spec.md`, in this order:
 
 1. `# <Title>`
-2. Header block: `**Type:** feature` plus cross-links
-   (`**Realized by:**` / `**Depends on:**`) as markdown links, each on its own
-   line with a blank line between them.
+2. Header block, each field on its own line with a blank line between:
+   - `**Type:** feature`.
+   - `**Status:**` — `Built` (shipped and verified), `Specified` (approved spec,
+     not yet implemented), or `Partial — <what ships> (see Notes)` when a feature
+     ships some requirements and defers others. This is the single source of a
+     feature's build status; the [spec index](README.md) aggregates it as a view.
+   - `**Audience:**` — optional; include only when the feature narrows from the
+     project-wide audience declared in the [spec README](README.md) (e.g. a
+     capability only an architect or security analyst needs). Omit otherwise.
+   - Cross-links (`**Realized by:**` / `**Depends on:**`) as markdown links.
 3. `## Overview` — the user's need and intent, in problem/solution form.
 4. `## Requirements` — subsections in this order, omitting empty ones:
    `### Ubiquitous`, `### Event-driven`, `### State-driven`,
@@ -152,34 +170,9 @@ intent and is never generated automatically.
 
 ## Glossary
 
-One canonical term per concept; specs do not use synonyms for these:
-
-| Term | Meaning |
-|---|---|
-| artifact | A unit Sauron distributes: a skill, an agent, or a persona |
-| skill | An artifact hosted under a registry's `.skills/` directory |
-| agent | An artifact hosted under a registry's `.agents/` directory |
-| persona | A first-class artifact that references a set of skills and agents within the same registry; installed, listed, and described like any artifact |
-| membership | The set of skills and agents a persona references; resolved at install and re-resolved by `sync`/`upgrade` |
-| registry | A registered source of artifacts |
-| transport | A registry's type — `git`, `http`, or `filesystem` — selecting how the source is reached, validated, and fetched from; persisted as `spec.transport` and selected at the CLI by `--kind` |
-| kind | In a manifest, the document type (`Registry`, `Skill`, `Agent`, `Persona`, `Provider`, `Schedule`). At the CLI, the `--kind` flag selects a registry's `transport` |
-| ref | A git revision — a branch, tag, or commit — a `git`-transport registry is pinned to; persisted as `spec.ref` and selected at the CLI by `--ref`; when absent, the repository's default branch is used |
-| catalogue | The live, paginated view of what a registry offers, fetched fresh at command time; it is never persisted and has no offline form |
-| provider | The destination environment where artifacts are installed (`claude`, `zencoder`); a single global setting recorded as the `Provider` document in `settings` |
-| namespacing | The installed-target naming `sauron-<registry>-<name>`, which lets two registries offer the same artifact name without conflict; the `sauron-` prefix marks Sauron ownership |
-| install | Fetching named artifacts from a registry and placing them under the provider; installing a persona installs its members |
-| uninstall | Removing named installed artifacts; uninstalling a persona removes the members it brought in |
-| sync | The full reconcile of the installed set against its sources: refresh, drift repair, removal of what vanished upstream, and persona membership re-resolution (additions and removals) |
-| upgrade | The non-destructive refresh of the installed set: refresh changed artifacts and add newly-added persona members; never removes |
-| plan | The printed list of pending changes — `+` additions, `~` updates, `-` removals |
-| digest | The content identity recorded per artifact, used to detect change and local drift; always present |
-| version | An optional artifact label or revision identifier; for `git` it is the commit that last touched the artifact (that commit's SHA), and is declared by the source otherwise |
-| provenance | The origin recorded for each installed artifact in the `track file`: whether it was installed directly and which personas brought it in |
-| track file | `track.yaml`, the multi-document stream of `Skill`/`Agent`/`Persona` manifests recording installed artifacts and provenance |
-| state | The set of files Sauron persists under `~/.sauron/` — `registries.yaml`, `track.yaml`, and `settings.yaml` — whose schema is owned by the [state data contract](contracts/state.md). Distinct from the `Configuration` DI struct, which is app configuration (resolved home), not persisted state |
-| settings | `settings.yaml`, holding the `Provider` document and the `Schedule` documents |
-| manifest | A persisted document carrying `apiVersion` (`sauron.raitonbl.com/v1`) and `kind`, with `metadata` and `spec`, in the spirit of a Kubernetes object |
+The canonical domain vocabulary lives in [GLOSSARY.md](GLOSSARY.md) — one term
+per concept, no synonyms. Use those terms in every spec and contract; link the
+glossary rather than restating a definition.
 
 ## Canonical boilerplate
 

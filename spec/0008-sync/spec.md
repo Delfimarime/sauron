@@ -2,6 +2,8 @@
 
 **Type:** feature
 
+**Status:** Specified
+
 **Depends on:** [install](../0006-install-artifacts/spec.md)
 
 ## Overview
@@ -35,13 +37,6 @@ run; a dry run previews the plan.
   `skills:`, `agents:`, and `personas:`, prefixed `+` (added), `~` (updated), or
   `-` (removed), followed by a summary count.
 
-### Optional
-
-- FR-006: Where a kind list (`skills`, `agents`, `personas`) is given, Sauron
-  shall reconcile only those kinds; with none, it reconciles all.
-- FR-007: Where `--dry-run` is provided, Sauron shall print the plan without
-  changing the environment or the track file.
-
 ### State-driven
 
 - FR-008: While no provider is set, Sauron shall fail with a runtime error.
@@ -52,6 +47,13 @@ run; a dry run previews the plan.
   affected artifacts and continue reconciling the reachable ones.
 - FR-010: If required arguments or flags are missing or invalid, then Sauron shall
   exit with code 2 without executing the command.
+
+### Optional
+
+- FR-006: Where a kind list (`skills`, `agents`, `personas`) is given, Sauron
+  shall reconcile only those kinds; with none, it reconciles all.
+- FR-007: Where `--dry-run` is provided, Sauron shall print the plan without
+  changing the environment or the track file.
 
 ## Key Entities
 

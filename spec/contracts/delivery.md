@@ -38,7 +38,7 @@ least:
   Testcontainers). The task carries **no OS guard** — the Linux restriction is a
   CI concern (see below), not a property of the task; on a Linux CI runner the
   host binary resolves to `sauron-linux-amd64`. The harness and its conventions
-  are owned by [`test/e2e/CONSTITUTION.md`](../../test/e2e/CONSTITUTION.md).
+  are owned by [`test/e2e/HARNESS.md`](../../test/e2e/HARNESS.md).
 - `all` — builds and runs every gate.
 
 ## Continuous integration & delivery
