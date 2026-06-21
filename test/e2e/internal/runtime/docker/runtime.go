@@ -171,6 +171,11 @@ func (c *dockerRuntime) CopyTo(ctx context.Context, locationURI string, content 
 	return nil
 }
 
+// serviceExec runs a command inside a named compose service, returning the exit
+// code and the relevant output stream. The git source injects it to read its
+// revision from its own sidecar.
+type serviceExec func(ctx context.Context, service string, args ...string) (int, string, error)
+
 // Execute runs args inside the "main" container. "sauron" as arg0 is rewritten to
 // the mounted binary path. It mirrors the host runtime's contract: the returned
 // string is stdout on success and stderr on a non-zero exit.
@@ -179,24 +184,32 @@ func (c *dockerRuntime) Execute(ctx context.Context, args ...string) (int, strin
 		return -1, "", fmt.Errorf("docker: command arguments are mandatory")
 	}
 	if args[0] == "sauron" {
-		return c.Execute(ctx, append([]string{sauronPath}, args[1:]...)...)
+		args = append([]string{sauronPath}, args[1:]...)
+	}
+	return c.execIn(ctx, mainService, args...)
+}
+
+// execIn runs args inside the named service's container, splitting Docker's raw
+// multiplexed stream into stdout/stderr so it can return the relevant one per the
+// runtime contract.
+func (c *dockerRuntime) execIn(ctx context.Context, service string, args ...string) (int, string, error) {
+	if len(args) == 0 {
+		return -1, "", fmt.Errorf("docker: command arguments are mandatory")
 	}
 
-	container, err := c.stack.ServiceContainer(ctx, mainService)
+	container, err := c.stack.ServiceContainer(ctx, service)
 	if err != nil {
-		return -1, "", fmt.Errorf("access container %q: %w", mainService, err)
+		return -1, "", fmt.Errorf("access container %q: %w", service, err)
 	}
 
-	// Exec (no Multiplexed option) yields Docker's raw multiplexed stream; split
-	// it into stdout/stderr so we can return the relevant one per the contract.
 	exitCode, reader, err := container.Exec(ctx, args)
 	if err != nil {
-		return -1, "", fmt.Errorf("exec %q in %q: %w", strings.Join(args, " "), mainService, err)
+		return -1, "", fmt.Errorf("exec %q in %q: %w", strings.Join(args, " "), service, err)
 	}
 
 	var stdout, stderr bytes.Buffer
 	if _, err := stdcopy.StdCopy(&stdout, &stderr, reader); err != nil {
-		return -1, "", fmt.Errorf("demux output of %q in %q: %w", strings.Join(args, " "), mainService, err)
+		return -1, "", fmt.Errorf("demux output of %q in %q: %w", strings.Join(args, " "), service, err)
 	}
 
 	if exitCode != 0 {
@@ -265,7 +278,7 @@ func (c *dockerRuntime) Git(alias string) runtime.Source {
 		if err != nil {
 			return runtime.NewErroringSource(fmt.Errorf("docker: generate ssh keys for git source %q: %w", alias, err))
 		}
-		src = &gitSource{alias: alias, keys: keys}
+		src = &gitSource{alias: alias, keys: keys, exec: c.execIn}
 		c.gits[alias] = src
 	}
 	return src

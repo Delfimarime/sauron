@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/delfimarime/sauron/internal/config"
-	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/internal/usecase"
 	"github.com/spf13/cobra"
@@ -49,15 +48,14 @@ func exitCode(err error) int {
 	return exitError
 }
 
-// NewApp builds (but does not start) the transversal fx app and appends the caller's opts.
+// NewApp builds (but does not start) the fx app wired with the modules transversal
+// to every command, then appends the caller's command-specific opts.
 func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
-	base := make([]fx.Option, 0, 10+len(opts))
+	base := make([]fx.Option, 0, 8+len(opts))
 	base = append(base,
 		fx.Provide(func() context.Context { return ctx }),
 		telemetry.NewFxOptions(),
 		config.NewFxOptions(),
-		repository.NewFxOptions(),
-		usecase.NewFxOptions(),
 		fx.Provide(
 			newPondPool,
 		),

@@ -21,3 +21,21 @@ Feature: Add a git registry
     And the registry acme is described by:
       | field    | value    |
       | spec.ref | v1.0.0   |
+
+  # Regression: a ref that is a commit SHA — neither a branch nor a tag — must
+  # resolve via a full clone and checkout. Commit-addressed refs used to fail.
+  Scenario: adds a git registry pinned to a commit
+    Given a git server hosting a registry
+    And the git server hosts the directory testdata/registries/acme
+    When the user adds the git registry acme from #{.git.default.url} pinned to #{.git.default.revision} using ssh key #{.git.default.sshKey}
+    Then the command succeeds
+    And there is exactly one registry
+    And a registry named acme exists
+    And the registry acme has transport git
+
+  # Regression: the git transport cannot apply a client certificate, so it must
+  # reject --client-cert/--client-key as a usage error (exit 2) before contacting
+  # the remote, rather than silently accepting and persisting them.
+  Scenario: rejects a client certificate, which the git transport cannot apply
+    When the user adds the git registry acme from ssh://git@registry-git-default:22/home/git/acme.git with client certificate /tmp/client.crt and key /tmp/client.key
+    Then the command exits with status 2

@@ -7,5 +7,6 @@ import "go.uber.org/fx"
 func NewFxOptions() fx.Option {
 	return fx.Provide(
 		NewAddRegistryUseCase,
+		NewListRegistriesUseCase,
 	)
 }

@@ -64,6 +64,10 @@ type Source interface {
 	// to authenticate against the source (Git sources over ssh). A source that needs
 	// no key returns an error.
 	SSHKey(ctx context.Context) (string, error)
+	// Revision returns the commit the source's content resolves to (Git sources):
+	// the HEAD a scenario can pin to exercise commit-addressed resolution. A source
+	// that has no revision returns an error.
+	Revision(ctx context.Context) (string, error)
 }
 
 // Resource customizes a Source. A file resource (Path/Content set) adds content to

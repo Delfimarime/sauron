@@ -27,8 +27,8 @@ Register an artifact source of any transport.
 | `--password <ref>` | Auth password/token, as an environment reference (`${env:VAR}`); a literal secret is a usage error |
 | `--skip-tls-verify` | Skip TLS certificate verification (http/git) |
 | `--ca-cert <path>` | CA certificate path (http/git) |
-| `--client-cert <path>` | Client certificate path (http/git) |
-| `--client-key <path>` | Client key path (http/git) |
+| `--client-cert <path>` | Client certificate path (http) |
+| `--client-key <path>` | Client key path (http) |
 | `--ssh-key <path>` | SSH private key path (git over SSH) |
 | `--ref <ref>` | Git ref (branch, tag, or commit) to resolve artifacts from; persisted as `spec.ref`; git only |
 

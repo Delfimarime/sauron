@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/alitto/pond/v2"
 	gogit "github.com/go-git/go-git/v5"
@@ -17,23 +18,167 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/extension"
 )
 
-// baseYAML is a fixture file name used across the git factory tests.
-const baseYAML = "base.yaml"
+// baseYAML and extraYAML are fixture file names used across the git factory tests.
+const (
+	baseYAML  = "base.yaml"
+	extraYAML = "extra.yaml"
+)
 
-func TestGitFactory_Validate_AcceptsEverything(t *testing.T) {
+func TestGitFactory_Validate(t *testing.T) {
 	t.Parallel()
 
-	// Act.
-	err := newGitFactory(pond.NewPool(1)).Validate(
-		extension.WithURI("https://example.com/repo.git"),
-		extension.WithRef("release"),
-		extension.WithSSHKey("/id_ed25519"),
-		extension.WithBasicAuth("u", "p"),
-		extension.WithSkipTLSVerify(true),
-	)
+	tests := []struct {
+		name    string
+		opts    []extension.Option
+		wantErr error
+	}{
+		{
+			// Ref, SSH key, basic auth, skip-verify and a CA cert are all honored.
+			name: "accepts the supported options",
+			opts: []extension.Option{
+				extension.WithURI("https://example.com/repo.git"),
+				extension.WithRef("release"),
+				extension.WithSSHKey("/id_ed25519"),
+				extension.WithBasicAuth("u", "p"),
+				extension.WithSkipTLSVerify(true),
+				extension.WithCACert("/ca.pem"),
+			},
+		},
+		{
+			// A client certificate cannot be applied to git: usage error.
+			name:    "rejects a client certificate",
+			opts:    []extension.Option{extension.WithClientCert("/client.crt", "/client.key")},
+			wantErr: api.ErrUsage,
+		},
+		{
+			// A lone client key is equally unsupported.
+			name:    "rejects a client key alone",
+			opts:    []extension.Option{extension.WithClientCert("", "/client.key")},
+			wantErr: api.ErrUsage,
+		},
+	}
 
-	// Assert.
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Act.
+			err := newGitFactory(pond.NewPool(1)).Validate(tt.opts...)
+
+			// Assert.
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestGitFactory_Open_ChecksOutCommit(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: pinning to the default branch's commit hash yields just the base
+	// skill; pinning to the release commit yields both — proving the commit is
+	// resolved via a full clone after branch and tag lookups miss.
+	repo := seedFixtureRepo(t)
+	base, release := commitHashes(t, repo)
+
+	tests := []struct {
+		name      string
+		ref       string
+		wantNames []string
+	}{
+		{name: "base commit", ref: base, wantNames: []string{baseYAML}},
+		{name: "release commit", ref: release, wantNames: []string{baseYAML, extraYAML}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Act.
+			fs, err := newGitFactory(pond.NewPool(1)).Open(context.Background(),
+				extension.WithURI(repo), extension.WithRef(tt.ref))
+			require.NoError(t, err)
+
+			files, listErr := fs.List(context.Background(), ".skills")
+
+			// Assert.
+			require.NoError(t, listErr)
+			assert.Equal(t, tt.wantNames, names(files))
+		})
+	}
+}
+
+func TestGitFactory_Open_WithCACert(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: a readable PEM is loaded into the clone's CA bundle (a local clone
+	// ignores it, but the read path is exercised); a missing file is a usage error.
+	repo := seedFixtureRepo(t)
+	caPath, _ := writeClientCert(t)
+
+	t.Run("readable CA cert is loaded", func(t *testing.T) {
+		t.Parallel()
+
+		// Act.
+		fs, err := newGitFactory(pond.NewPool(1)).Open(context.Background(),
+			extension.WithURI(repo), extension.WithCACert(caPath))
+		require.NoError(t, err)
+
+		files, listErr := fs.List(context.Background(), ".skills")
+
+		// Assert.
+		require.NoError(t, listErr)
+		assert.Equal(t, []string{baseYAML}, names(files))
+	})
+
+	t.Run("missing CA cert is a usage error", func(t *testing.T) {
+		t.Parallel()
+
+		// Act.
+		_, err := newGitFactory(pond.NewPool(1)).Open(context.Background(),
+			extension.WithURI(repo), extension.WithCACert(filepath.Join(t.TempDir(), "absent.pem")))
+
+		// Assert.
+		assert.ErrorIs(t, err, api.ErrUsage)
+	})
+}
+
+func TestGitFactory_Open_TimeoutBoundsClone(t *testing.T) {
+	t.Parallel()
+
+	// Arrange.
+	repo := seedFixtureRepo(t)
+
+	t.Run("generous timeout still clones", func(t *testing.T) {
+		t.Parallel()
+
+		// Act: a positive timeout exercises the bounded-clone path without tripping.
+		fs, err := newGitFactory(pond.NewPool(1)).Open(context.Background(),
+			extension.WithURI(repo), extension.WithTimeout(30*time.Second))
+
+		// Assert.
+		require.NoError(t, err)
+		files, listErr := fs.List(context.Background(), ".skills")
+		require.NoError(t, listErr)
+		assert.Equal(t, []string{baseYAML}, names(files))
+	})
+
+	t.Run("a cancelled context fails the clone", func(t *testing.T) {
+		t.Parallel()
+
+		// Arrange.
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// Act.
+		_, err := newGitFactory(pond.NewPool(1)).Open(ctx, extension.WithURI(repo))
+
+		// Assert.
+		assert.ErrorIs(t, err, api.ErrRuntime)
+	})
 }
 
 func TestGitFactory_Open_ChecksOutRef(t *testing.T) {
@@ -56,12 +201,12 @@ func TestGitFactory_Open_ChecksOutRef(t *testing.T) {
 		{
 			name:      "named branch",
 			ref:       "release",
-			wantNames: []string{baseYAML, "extra.yaml"},
+			wantNames: []string{baseYAML, extraYAML},
 		},
 		{
 			name:      "tag",
 			ref:       "v1",
-			wantNames: []string{baseYAML, "extra.yaml"},
+			wantNames: []string{baseYAML, extraYAML},
 		},
 	}
 
@@ -180,6 +325,23 @@ func seedFixtureRepo(t *testing.T) string {
 	require.NoError(t, tree.Checkout(&gogit.CheckoutOptions{Branch: head.Name()}))
 
 	return dir
+}
+
+// commitHashes returns the default-branch and release-branch commit hashes of a
+// seeded fixture repository.
+func commitHashes(t *testing.T, dir string) (base, release string) {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(dir)
+	require.NoError(t, err)
+
+	head, err := repo.Head()
+	require.NoError(t, err)
+
+	rel, err := repo.Reference(plumbing.NewBranchReferenceName("release"), true)
+	require.NoError(t, err)
+
+	return head.Hash().String(), rel.Hash().String()
 }
 
 // writeAndStage writes a file under the worktree and stages it.

@@ -13,22 +13,40 @@ its architecture, and the principles the harness must never violate.
 
 ## Chapter I — Intent
 
-### Article 1 — Black-box, graybox assertions
+### Article 1 — Black-box exercise, graybox assertions, and the seed exception
 
 The suite drives the **built binary** exactly as an external operator would —
 spawning the process, passing CLI args, reading its exit code, stdout/stderr,
-and the state files it persists. It never calls a use case, an action,
-or anything under `internal/` in-process. "Graybox" means the *assertions* are
+and the state files it persists. It never calls a use case, an action, or
+anything under `internal/` in-process. "Graybox" means the *assertions* are
 allowed to decode the binary's output into the public `pkg/sauron/types` DTOs,
 but the *exercise* is strictly external.
 
-### Article 2 — One binary, three transports, one set of assertions
+**Graybox arrange (bounded exception).** A scenario may *arrange* by seeding a
+public state file directly — writing a schema-valid `pkg/sauron/types` document
+stream into `$SAURON_HOME` through the runtime (`CopyTo`) — instead of producing
+that state by running another command. This is permitted **only** when all hold:
 
-The single behaviour under test is `sauron add registry` across its three
-transports — `filesystem`, `http`, `git`. The action and the assertions are
-**transport-agnostic**: the same `When` adds the registry and the same `Then`
-inspects the persisted config, no matter how the registry was sourced. Only the
-`Given` fixtures differ.
+1. the command under test **only reads** the state it is given (e.g. `list`,
+   `describe`), so seeding cannot hide a defect in the path being tested;
+2. the seeded document is the **public, schema-valid form a user could author**
+   by hand — never a private or internal shape;
+3. producing the same state black-box would require **unrelated commands or
+   transports**, turning a read test into an `add` test.
+
+Black-box arrange through the owning command stays the default. A feature that
+uses this exception **keeps at least one black-box arrange scenario**
+(produce-then-read) so the write→read path is never left unexercised.
+
+### Article 2 — One binary, its commands, one set of assertions
+
+The suite drives one binary across the commands it ships. Each command is
+exercised uniformly: the same `When` family runs it and the same `Then` family
+inspects its stdout, exit code, and the state files it reads or writes — no
+matter how the inputs were sourced. Only the `Given` fixtures differ per command
+and transport. Where a command spans transports (`filesystem`, `http`, `git`),
+its action and assertions stay **transport-agnostic**: the same `When` acts and
+the same `Then` inspects, however the source was reached.
 
 ### Article 3 — Red is the bar until the product lands
 

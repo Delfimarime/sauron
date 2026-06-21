@@ -28,6 +28,7 @@ func New(appName, appVersion, appHash string) (*cobra.Command, error) {
 	}
 	root.SetVersionTemplate(banner)
 	root.AddCommand(Add())
+	root.AddCommand(List())
 	return root, nil
 }
 

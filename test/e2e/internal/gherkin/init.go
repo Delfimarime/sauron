@@ -13,6 +13,7 @@ func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
 		&basicController{rt: rt},
 		&commandController{rt: rt},
 		&stateController{rt: rt},
+		&listController{rt: rt},
 		newRegistryFsController(rt),
 		newRegistryHTTPController(rt),
 		newRegistryGitController(rt),

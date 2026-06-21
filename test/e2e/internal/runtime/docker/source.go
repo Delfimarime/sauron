@@ -72,6 +72,10 @@ func (s *folderSource) SSHKey(context.Context) (string, error) {
 	return "", fmt.Errorf("docker: folder source %q has no ssh key", s.alias)
 }
 
+func (s *folderSource) Revision(context.Context) (string, error) {
+	return "", fmt.Errorf("docker: folder source %q has no revision; use its path", s.alias)
+}
+
 // webserverSource serves content over http from an nginx sidecar. URL returns the
 // sidecar's deterministic in-network address, live once Start brings it up.
 type webserverSource struct {
@@ -89,6 +93,10 @@ func (s *webserverSource) Path(context.Context) (string, error) {
 
 func (s *webserverSource) SSHKey(context.Context) (string, error) {
 	return "", fmt.Errorf("docker: webserver source %q has no ssh key; use its url", s.alias)
+}
+
+func (s *webserverSource) Revision(context.Context) (string, error) {
+	return "", fmt.Errorf("docker: webserver source %q has no revision; use its url", s.alias)
 }
 
 // folderPath is the in-container directory a folder source is mounted at, inside the

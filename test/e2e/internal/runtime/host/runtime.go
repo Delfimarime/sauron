@@ -180,3 +180,7 @@ func (s *folderSource) URL(context.Context) (string, error) {
 func (s *folderSource) SSHKey(context.Context) (string, error) {
 	return "", fmt.Errorf("host: a folder source has no ssh key; use its path")
 }
+
+func (s *folderSource) Revision(context.Context) (string, error) {
+	return "", fmt.Errorf("host: a folder source has no revision; use its path")
+}

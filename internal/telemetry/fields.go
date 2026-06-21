@@ -6,4 +6,5 @@ package telemetry
 const (
 	FieldRegistryName      = "sauron.registry.name"
 	FieldRegistryTransport = "sauron.registry.transport"
+	FieldRegistryCount     = "sauron.registry.count"
 )

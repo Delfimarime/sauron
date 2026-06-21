@@ -1,8 +1,22 @@
 # Architecture Contract
 
-The normative technical contract for sauron's implementation: module identity,
-toolchain, project layout, package responsibilities, dependency wiring, and the
-approved dependency set. Every feature's implementation conforms to it.
+The normative technical contract for sauron's implementation. Every feature's
+implementation conforms to it. It covers:
+
+- **[Module & toolchain](#module--toolchain)** and the **[approved
+  dependencies](#approved-dependencies)** — what the code is built on.
+- **[Project layout](#project-layout)** and **[dependency
+  wiring](#dependency-wiring-uberfx)** — where code lives and how uberfx composes
+  it.
+- **[Root command](#root-command)** and **[command structure](#command-structure)** —
+  the cobra surface, flag binding, the builder/handler split, and error reporting.
+- **[Use Case orchestration](#use-case-orchestration)** and **[state
+  storage](#state-storage)** — the business-logic and persistence layers.
+- **[Coding standards](#coding-standards)**, **[telemetry &
+  logging](#telemetry--logging)**, **[testing](#testing)**, and **[integration
+  tests](#integration-tests)** — how the code is written, observed, and verified.
+- **[Build, versioning & delivery](#build-versioning--delivery)** — a pointer to
+  the [delivery contract](delivery.md).
 
 ## Module & toolchain
 
@@ -23,15 +37,17 @@ cmd/
 internal/
   cmd/
     root.go                root cobra command
-    helper.go              NewApp() builder and common command helpers
-    helper_flags.go        shared flag structs and their bind functions
-    <sub-command>.go       one file per command
-    <sub-command>_capability_<name>.go   a capability of a command
+    helper.go              NewApp() builder and shared command helpers
+    helper_flags.go        shared flag-group structs and their bind functions
+    <verb>.go              a command group (e.g. add.go, list.go)
+    <verb>_<noun>.go       a command in that group (e.g. add_registry.go, list_registries.go)
   config/
     fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     logger.go              logger construction; references pkg/telemetry for shared ECS keys
+  presentation/
+    table.go               shared table renderer for list/describe output (stdlib text/tabwriter); a pure value type, no fx
   infrastructure/
     repository/            umbrella module; its fx.go aggregates the adapters + storage below
       fx.go                NewFxOptions() fx.Option; composes storage + registry + agent
@@ -86,8 +102,9 @@ Adapters are never imported across boundaries — callers depend on the
 `pkg/sauron/extension` ports, not a concrete adapter. The same `repository` module
 also houses the **internal capability** [`storage`](#state-storage), which
 manipulates the `~/.sauron/` state and has no `pkg/` port. The transversal
-framework modules (`internal/config`, `internal/telemetry`, `internal/cmd`) are
-not adapters and stay at the `internal/` root.
+framework modules (`internal/config`, `internal/telemetry`,
+`internal/presentation`, `internal/cmd`) are not adapters and stay at the
+`internal/` root.
 
 ## Dependency wiring (uberfx)
 
@@ -160,33 +177,38 @@ CI/CD pipeline, and the version-decoration scheme — is the
 enforcement points for the standards this contract defines (coverage target,
 gocognit ceiling, the approved-dependency set, the CGO-free build).
 
-## Command flags
+## Command structure
 
-Flags are bound into structs in package `internal/cmd`; command logic never
-reads flags off the `*cobra.Command`.
+The cobra layer is thin: a command is a **builder** that wires cobra and a
+**handler** that holds the logic, split so the logic is tested without cobra. This
+shape is canonical — the [use-case](#use-case-orchestration) and
+[testing](#testing) sections refer here rather than restating it.
 
-- Flags shared across commands are defined once as small, concern-grouped
-  structs (e.g. listing, paging, dry-run, timeout) in
-  `internal/cmd/helper_flags.go`, each paired with a `bind<Group>Flags` function
-  that registers the flags and binds them to the struct. These are the shared
-  flags defined by the CLI conventions.
-- Each command declares its own `<command>Flags` struct that embeds the common
-  group structs for the flags it shares and adds any command-specific fields.
-- A command's public **builder, named for the command verb** (`Add()` for `add`;
-  a subcommand follows suit, e.g. `AddRegistry()`), registers its shared flags via the
-  `bind<Group>Flags` functions and binds its command-specific flags inline; the
-  private **handler**, named
-  `<verb><Noun>()` (e.g. `addRegistry()`), receives that populated struct —
-  alongside the `context.Context` and the command's positional arguments — so the
-  logic is tested without cobra. `Serve()`/`serve()` names apply only to a
-  server's `serve` command, never to an action command.
-- Flag values are not bound to viper; there is no flag→viper binding. Flags pass
-  directly to the handler, independent of the persisted configuration in
-  `internal/config`.
-- **One error-reporting site.** A handler returns a classified error and never
+- **Builder / handler split.** A command's public **builder is named for the
+  command verb** (`Add()` for `add`; a subcommand follows suit, e.g.
+  `AddRegistry()`, `ListRegistries()`); it builds the `*cobra.Command` and binds
+  its flags. The private **handler is named `<verb><Noun>()`** (e.g.
+  `addRegistry()`, `listRegistries()`); it receives the populated flag struct —
+  alongside the `context.Context` and positional arguments — builds the use-case
+  `Request`, and runs it, so the logic is tested without cobra. `Serve()`/`serve()`
+  names apply only to a server's `serve` command, never to an action command.
+- **Flags are bound into structs** in `internal/cmd`; command logic never reads
+  flags off the `*cobra.Command`. Flags shared across commands are defined once as
+  small, concern-grouped structs (listing, paging, dry-run, timeout) in
+  `internal/cmd/helper_flags.go`, each paired with a `bind<Group>Flags` function;
+  a command's own `<command>Flags` struct embeds the groups it shares and adds its
+  command-specific fields. Flag values are not bound to viper — they pass directly
+  to the handler, independent of the persisted `internal/config`.
+- **One error-reporting site.** A handler returns a **classified error** and never
   prints it; `cmd/main.go` is the single place that maps the error to an exit code
-  and writes exactly one `error: <message>` line to stderr — there is no
-  per-handler print paired with an `IsReported` flag.
+  and writes exactly one `error: <message>` line to stderr — no per-handler print
+  paired with an `IsReported` flag.
+- **Classified errors.** A use case returns a `usecase.Error{Type, Reason}`: the
+  `Type` buckets the failure (usage, conflict, unreachable, validation, io) and
+  `Reason` is the message. `cmd/main.go` maps the `Type` to the process exit code —
+  a usage class to `2`, every other class to `1`, success to `0` — per the
+  [CLI contract](cli.md) exit-status semantics. The handler never chooses an exit
+  code itself.
 
 ## Use Case orchestration
 
@@ -243,11 +265,10 @@ through which use cases and actions are provided with their `pkg/` ports, the
 `<Name>UseCase` / `<Name>Action`; their files are `usecase_<name>.go` /
 `action_<name>.go`.
 
-A command's private **handler** (`<verb><Noun>()`, e.g. `addRegistry()`) maps its
-`<command>Flags` struct and positional arguments into a concrete `Request`,
-resolves the use case from the container with `fx.Populate`, and calls `Execute` —
-exercising the orchestration without the cobra API, consistent with the
-[builder/handler split](#testing).
+The cobra **handler** that drives a use case — its naming and the builder/handler
+split — is fixed under [Command structure](#command-structure). It maps the flag
+struct and positional arguments into a concrete `Request`, resolves the use case
+from the container with `fx.Populate`, and calls `Execute`.
 
 ## State storage
 
@@ -280,9 +301,9 @@ directly.
   depend on it. Centralizing the filesystem here is why the `Request` no longer
   exposes it.
 - **The base path is `Configuration.HomeDirectory`.** The stores resolve every
-  file under the home the fx-provided `Configuration` carries (`$SAURON_HOME` or
-  `~/.sauron`, see [Root command](#root-command)); they never re-derive the home
-  themselves.
+  file under the home the fx-provided `Configuration` carries (see
+  [Root command](#root-command) for how it is resolved); they never re-derive the
+  home themselves.
 - **Per-type stores.** State access is expected to split into one store per
   persisted concern (e.g. a registries store, a track store, a settings store)
   rather than a single catch-all, each provided through `storage`'s
@@ -298,21 +319,18 @@ addition:
 - **No global mutable state.** Dependencies are supplied through uberfx
   (`fx.Option`s), not package-level variables.
 - **No rogue goroutines.** No component starts a bare goroutine. All concurrency
-  runs on a [pond](https://github.com/alitto/pond) (`github.com/alitto/pond/v2`)
-  pool injected via uberfx; the raw `go` keyword is disallowed in production code.
-  The pool's lifecycle is bound to the `fx.App` (see
-  [Dependency wiring](#dependency-wiring-uberfx)), so application shutdown stops
-  the pool and waits for every in-flight task — no goroutine outlives the
-  process. Enforced in review, and by a linter ban on `go` statements outside the
-  pool wiring where the toolchain supports it.
+  runs on the fx-injected [pond](https://github.com/alitto/pond)
+  (`github.com/alitto/pond/v2`) pool; the raw `go` keyword is disallowed in
+  production code, enforced in review and by a linter ban on `go` statements
+  outside the pool wiring where the toolchain supports it. The pool's lifecycle
+  binding — so no goroutine outlives the process — is fixed under
+  [Dependency wiring](#dependency-wiring-uberfx).
 - **Parameter structs.** A function that would take more than seven parameters
   takes a single parameter struct instead. `context.Context` is never moved into
-  that struct — it stays an explicit parameter (conventionally first). In tests,
-  ambient values such as `*testing.T` may likewise remain in the signature
-  rather than the struct. The sole exception is the use-case `Request` context
-  object (see [Use Case orchestration](#use-case-orchestration)): it deliberately
-  *extends* `context.Context` rather than storing one as data, is built per
-  invocation, and is passed live to `Execute`.
+  that struct — it stays an explicit parameter (conventionally first); in tests,
+  ambient values such as `*testing.T` may likewise stay in the signature. The sole
+  exception is the use-case `Request`, which *is* the context rather than storing
+  one as data — see [Use Case orchestration](#use-case-orchestration).
 - **Cognitive complexity.** Each function stays at or below 15 (measured with
   `gocognit`); a higher value may be suppressed only with a comment that
   justifies it. A function below 3 is questionable — a trivial helper is not
@@ -326,8 +344,13 @@ addition:
   and the `package` clause — never on an arbitrary source file.
 - **A file leads with its primary type.** The type a file is named for comes
   first; its constructor and methods follow. The primary type is never buried
-  below the helpers. A helper used by a single type is a method of that type; only
-  a genuinely shared, type-agnostic helper lives in a `helper.go`.
+  below the helpers.
+- **Behavior belongs to its type.** A function specific to a single struct — one
+  that operates on its data or is only meaningful in that struct's context — is a
+  method of that struct, not a free function that takes the struct as a parameter.
+  A function stands alone (in a `helper.go` or a dedicated package) only when it is
+  genuinely reusable by other types, components, or callers, and is then
+  type-agnostic — frequently generic. Reuse, not size, is the deciding test.
 - **No test-only seams.** Production code does not grow an injectable indirection
   (a function-type field, a package-level var) solely so a test can replace it.
   Use the standard library directly and exercise it through the real graph or
@@ -365,13 +388,9 @@ redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 - **Coverage** ideal is 90%; the [verification gate](../../CONSTITUTION.md)
   enforces a project-level floor of 80%, a lower figure permitted only when
   justified.
-- **Command testability.** Each command is split into a public **builder named for
-  the command verb** (e.g. `Add()`, and the `registry` subcommand's
-  `AddRegistry()`) that builds the `*cobra.Command` (the cobra wiring), and a
-  private **handler** (`<verb><Noun>()`, e.g. `addRegistry()`) that holds the
-  command's logic, decoupled from the cobra API, so the logic is unit tested
-  without constructing a command. `Serve()`/`serve()` is reserved for a server's
-  `serve` command — it is not the convention for action commands.
+- **Command testability.** The builder/handler split fixed under
+  [Command structure](#command-structure) exists so a command's logic is unit
+  tested through its handler, without constructing a `*cobra.Command`.
 
 ## Integration tests
 

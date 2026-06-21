@@ -14,9 +14,9 @@ sorting.
 
 - FR-001: Sauron shall list every registered registry, one row each, reading from
   `registries.yaml`.
-- FR-002: Sauron shall show the registry name and transport by default, and accept
-  `--fields` to choose the displayed columns (the name column is always present
-  and first).
+- FR-002: Sauron shall show the registry name, transport, and uri by default, and
+  accept `--fields` to choose the displayed columns (the name column is always
+  present and first).
 
 ### Optional
 

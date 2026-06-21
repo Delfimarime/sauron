@@ -130,3 +130,10 @@ func (s *lazySource) SSHKey(ctx context.Context) (string, error) {
 	}
 	return s.fetch().SSHKey(ctx)
 }
+
+func (s *lazySource) Revision(ctx context.Context) (string, error) {
+	if err := s.rt.Start(ctx); err != nil {
+		return "", err
+	}
+	return s.fetch().Revision(ctx)
+}

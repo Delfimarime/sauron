@@ -15,6 +15,8 @@ type RegistriesStore interface {
 	FindByName(ctx context.Context, name string) (*types.Registry, error)
 	// Add stamps the document envelope and persists the registry.
 	Add(ctx context.Context, r types.Registry) error
+	// List returns every stored registry, validated on read.
+	List(ctx context.Context) ([]types.Registry, error)
 }
 
 // registriesStore implements RegistriesStore over a Store.
@@ -58,4 +60,23 @@ func (s *registriesStore) Add(ctx context.Context, r types.Registry) error {
 	}
 
 	return s.store.Append(ctx, types.KindRegistry, &node)
+}
+
+// List reads every registry document and decodes each into a Registry.
+func (s *registriesStore) List(ctx context.Context) ([]types.Registry, error) {
+	nodes, err := s.store.FindAll(ctx, types.KindRegistry)
+	if err != nil {
+		return nil, err
+	}
+
+	registries := make([]types.Registry, 0, len(nodes))
+	for _, node := range nodes {
+		var registry types.Registry
+		if err := node.Decode(&registry); err != nil {
+			return nil, fmt.Errorf("decode registry: %w", err)
+		}
+		registries = append(registries, registry)
+	}
+
+	return registries, nil
 }

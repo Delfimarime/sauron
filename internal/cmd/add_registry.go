@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 
+	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
@@ -76,9 +77,13 @@ func addRegistry(ctx context.Context, flags *addRegistryFlags, args []string, st
 	request := newAddRegistryRequest(runCtx, flags, args, stdout)
 
 	var execErr error
-	app := NewApp(runCtx, fx.Invoke(func(uc *usecase.AddRegistryUseCase) {
-		execErr = uc.Execute(request)
-	}))
+	app := NewApp(runCtx,
+		repository.NewFxOptions(),
+		usecase.NewFxOptions(),
+		fx.Invoke(func(uc *usecase.AddRegistryUseCase) {
+			execErr = uc.Execute(request)
+		}),
+	)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}
