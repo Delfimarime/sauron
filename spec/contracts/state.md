@@ -45,7 +45,9 @@ apiVersion: sauron.raitonbl.com/v1
 kind: <Registry|Skill|Agent|Persona|Provider|Schedule>
 metadata:
   name: <identity>
-  labels: {}            # optional, free-form, on every kind
+  labels: {}                                # optional, free-form, on every kind
+  creationTimestamp: 2026-06-21T07:30:00Z   # writer-stamped, RFC3339 UTC
+  lastUpdatedTimestamp: 2026-06-21T07:30:00Z
 spec:
   ...                   # kind-specific; see the kind's schema (Provider has none)
 ```
@@ -55,6 +57,11 @@ spec:
 - `kind` selects the document type and thereby its `spec` schema.
 - `metadata.name` is the document's identity; `metadata.labels` is an optional
   free-form string map available on every kind.
+- `metadata.creationTimestamp` and `metadata.lastUpdatedTimestamp` are audit
+  timestamps available on every kind: RFC3339 UTC instants stamped by the use case
+  that writes the document, never hand-edited. They are equal when the document is
+  first created; a later write advances `lastUpdatedTimestamp` only. Both are
+  optional on read, so documents written before they existed still load.
 
 ## Write semantics
 
@@ -65,6 +72,10 @@ spec:
 - **No secrets at rest.** Credential fields hold environment references
   (`${env:VAR}`) only; resolved secret values are never written to any file. The
   track file holds no credentials at all.
+- **Audit timestamps are writer-stamped.** Whenever Sauron writes a document it
+  stamps `metadata.creationTimestamp` (on first create) and
+  `metadata.lastUpdatedTimestamp` (on every write) from an injected clock as
+  RFC3339 UTC; these fields are never hand-edited and are tolerated absent on read.
 - **Validation is on read, not on app-authored write.** Documents are validated
   against their schema when loaded (the home files are hand-editable); documents
   Sauron itself authors are constructed from typed values and written without

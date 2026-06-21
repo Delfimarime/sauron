@@ -35,6 +35,9 @@ this feature is realized by.
   reachable and hosts at least one skill or agent before persisting it.
 - FR-005: When validation succeeds, Sauron shall report the registered name and
   transport on stdout.
+- FR-014: When the `Registry` document is persisted, Sauron shall stamp
+  `metadata.creationTimestamp` and `metadata.lastUpdatedTimestamp` as equal
+  RFC3339 UTC instants taken from its clock.
 
 ### State-driven
 

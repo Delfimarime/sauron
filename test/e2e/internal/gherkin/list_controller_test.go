@@ -52,8 +52,8 @@ func TestBuildRegistryStreamStampsEnvelopeAndSpec(t *testing.T) {
 
 func TestBuildRegistryStreamCarriesOptionalColumns(t *testing.T) {
 	stream, err := buildRegistryStream(table(
-		[]string{"name", "transport", "uri", "ref", "timeout"},
-		[]string{"acme", "git", "git@github.com:acme/artifacts.git", "v1.2.0", "45s"},
+		[]string{"name", "transport", "uri", "ref", "timeout", "sshKey", "creationTimestamp", "lastUpdatedTimestamp"},
+		[]string{"acme", "git", "git@github.com:acme/artifacts.git", "v1.2.0", "45s", "/home/dev/.ssh/id_ed25519", "2026-06-21T07:30:00Z", "2026-06-22T08:00:00Z"},
 	))
 	require.NoError(t, err)
 
@@ -62,6 +62,9 @@ func TestBuildRegistryStreamCarriesOptionalColumns(t *testing.T) {
 	require.Len(t, regs, 1)
 	assert.Equal(t, "v1.2.0", regs[0].Spec.Ref)
 	assert.Equal(t, "45s", regs[0].Spec.Timeout)
+	assert.Equal(t, "/home/dev/.ssh/id_ed25519", regs[0].Spec.SSHKey)
+	assert.Equal(t, "2026-06-21T07:30:00Z", regs[0].Metadata.CreationTimestamp)
+	assert.Equal(t, "2026-06-22T08:00:00Z", regs[0].Metadata.LastUpdatedTimestamp)
 }
 
 func TestBuildRegistryStreamRejectsUnknownColumnAndEmptyTable(t *testing.T) {

@@ -3,7 +3,6 @@ package gherkin
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
@@ -12,27 +11,15 @@ import (
 // defaultAlias is assumed when a #{} reference omits the alias segment.
 const defaultAlias = "default"
 
-// valueOf resolves a step argument to T. A "#{.capability[.alias].attr}" string is
-// routed to the runtime's typed source accessor (forcing the lazy Start); any other
-// value is coerced directly. This is the ONLY resolver — the runtime owns the
-// provisioned addresses, this helper owns the parsing and typing.
-func valueOf[T any](ctx context.Context, rt runtime.Runtime, raw any) (T, error) {
-	var zero T
-	s, ok := raw.(string)
-	if !ok {
-		if v, ok := raw.(T); ok {
-			return v, nil
-		}
-		return zero, fmt.Errorf("valueOf: cannot use %T as %T", raw, zero)
-	}
+// valueOf resolves a step argument to its concrete value. A "#{.capability[.alias].attr}"
+// string is routed to the runtime's typed source accessor (forcing the lazy Start); any
+// other value is returned as-is. This is the ONLY resolver — the runtime owns the
+// provisioned addresses, this helper owns the parsing.
+func valueOf(ctx context.Context, rt runtime.Runtime, s string) (string, error) {
 	if isReference(s) {
-		resolved, err := resolveReference(ctx, rt, s)
-		if err != nil {
-			return zero, err
-		}
-		return coerce[T](resolved)
+		return resolveReference(ctx, rt, s)
 	}
-	return coerce[T](s)
+	return s, nil
 }
 
 // isReference reports whether s is a #{…} dynamic reference.
@@ -96,23 +83,5 @@ func resolveReference(ctx context.Context, rt runtime.Runtime, s string) (string
 		}
 	default:
 		return "", fmt.Errorf("unknown capability %q in reference %q", ref.capability, s)
-	}
-}
-
-// coerce converts a resolved string to the requested target type. Only the types the
-// step catalog needs (string, int) are supported.
-func coerce[T any](s string) (T, error) {
-	var zero T
-	switch any(zero).(type) {
-	case string:
-		return any(s).(T), nil
-	case int:
-		n, err := strconv.Atoi(strings.TrimSpace(s))
-		if err != nil {
-			return zero, fmt.Errorf("coerce %q to int: %w", s, err)
-		}
-		return any(n).(T), nil
-	default:
-		return zero, fmt.Errorf("valueOf: unsupported target type %T", zero)
 	}
 }

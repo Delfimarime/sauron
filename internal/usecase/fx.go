@@ -8,5 +8,8 @@ func NewFxOptions() fx.Option {
 	return fx.Provide(
 		NewAddRegistryUseCase,
 		NewListRegistriesUseCase,
+		NewDescribeRegistryUseCase,
+		NewUninstallByRegistryAction,
+		NewDeleteRegistryUseCase,
 	)
 }

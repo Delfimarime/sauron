@@ -25,8 +25,12 @@ type TypeMeta struct {
 }
 
 // Metadata is the shared metadata block. Name is required and, for most kinds,
-// path-safe; Labels is an optional free-form string map.
+// path-safe; Labels is an optional free-form string map. The audit timestamps
+// are RFC3339 UTC strings stamped by the writing use case from an injected clock,
+// never hand-edited; both are optional on read so documents predating them load.
 type Metadata struct {
-	Name   string            `json:"name" yaml:"name"`
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Name                 string            `json:"name" yaml:"name"`
+	Labels               map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	CreationTimestamp    string            `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
+	LastUpdatedTimestamp string            `json:"lastUpdatedTimestamp,omitempty" yaml:"lastUpdatedTimestamp,omitempty"`
 }

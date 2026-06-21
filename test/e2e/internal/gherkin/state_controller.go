@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/cucumber/godog"
 	"gopkg.in/yaml.v3"
@@ -34,6 +35,7 @@ func (c *stateController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the registry (\S+) has label (\S+) with value (\S+)$`, c.registryLabel)
 	sc.Step(`^the registry (\S+) is described by:$`, c.registryDescribedBy)
 	sc.Step(`^the registry (\S+) stores password as the reference (\S+)$`, c.registryPasswordRef)
+	sc.Step(`^the registry (\S+) has a creation timestamp$`, c.registryHasCreationTimestamp)
 	sc.Step(`^the stored state does not contain (.+)$`, c.configDoesNotContain)
 }
 
@@ -104,6 +106,29 @@ func (c *stateController) registryPasswordRef(ctx context.Context, name, ref str
 		return fmt.Errorf("registry %q has no auth block", name)
 	}
 	return assertExpected("password reference of "+name, ref, reg.Spec.Auth.Password)
+}
+
+// registryHasCreationTimestamp proves add stamps the audit timestamps: both are
+// present, parse as RFC3339, and are equal on create. The instant itself is not
+// asserted — time is the real wall clock here, so only presence and format are
+// checked.
+func (c *stateController) registryHasCreationTimestamp(ctx context.Context, name string) error {
+	reg, err := c.findRegistry(ctx, name)
+	if err != nil {
+		return err
+	}
+	created := reg.Metadata.CreationTimestamp
+	updated := reg.Metadata.LastUpdatedTimestamp
+	if created == "" {
+		return fmt.Errorf("registry %q has no creationTimestamp", name)
+	}
+	if _, err := time.Parse(time.RFC3339, created); err != nil {
+		return fmt.Errorf("registry %q creationTimestamp %q is not RFC3339: %w", name, created, err)
+	}
+	if _, err := time.Parse(time.RFC3339, updated); err != nil {
+		return fmt.Errorf("registry %q lastUpdatedTimestamp %q is not RFC3339: %w", name, updated, err)
+	}
+	return assertExpected("audit timestamps of "+name+" equal on create", created, updated)
 }
 
 // configDoesNotContain proves a resolved secret is never persisted: it reads the

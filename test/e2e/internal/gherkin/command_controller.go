@@ -122,20 +122,20 @@ type addOptions struct {
 // placeholder), then run `sauron add registry` with the optional ref, basic-auth,
 // and ssh-key flags.
 func (c *commandController) add(ctx context.Context, o addOptions) error {
-	uri, err := valueOf[string](ctx, c.rt, o.uriRef)
+	uri, err := valueOf(ctx, c.rt, o.uriRef)
 	if err != nil {
 		return err
 	}
 	sshKey := o.sshKeyRef
 	if sshKey != "" {
-		sshKey, err = valueOf[string](ctx, c.rt, o.sshKeyRef)
+		sshKey, err = valueOf(ctx, c.rt, o.sshKeyRef)
 		if err != nil {
 			return err
 		}
 	}
 	ref := o.ref
 	if ref != "" {
-		ref, err = valueOf[string](ctx, c.rt, o.ref)
+		ref, err = valueOf(ctx, c.rt, o.ref)
 		if err != nil {
 			return err
 		}
@@ -232,6 +232,15 @@ func (c *commandController) requireRun() error {
 		return fmt.Errorf("no command has run yet")
 	}
 	return nil
+}
+
+// lastOutput returns the output of the most recent command, for sibling
+// controllers that assert on it. It errors when no command has run.
+func (c *commandController) lastOutput() (string, error) {
+	if err := c.requireRun(); err != nil {
+		return "", err
+	}
+	return c.last.output, nil
 }
 
 // addRegistryArgs assembles the `sauron add registry` invocation shared by every

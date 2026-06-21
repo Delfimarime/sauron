@@ -52,3 +52,15 @@ what it delivered. A dry run previews the cascade.
 
 Removal is by source, not by provenance reason: a skill that a persona also
 brought in is removed too, because its source registry is gone.
+
+The artifact cascade is realized by a single shared cleaning step that both this
+feature and [uninstall](../0007-uninstall-artifacts/spec.md) invoke. This feature
+introduces that step as a **seam** and ships the registry-document removal (FR-001),
+the not-found-as-success outcome (FR-005), the `--dry-run` preview (FR-004), the
+grouped report shape (FR-003), and the usage rejection (FR-006). The cascade's
+**body** — uninstalling every tracked artifact whose `spec.registry` matches and
+removing it from the provider and `track.yaml` (FR-002), the resulting non-empty
+plan content (FR-003), and the continue-on-individual-failure behavior (FR-007) —
+is realized only once [uninstall](../0007-uninstall-artifacts/spec.md) fills the
+shared step. Until then the cascade is a no-op: the plan is empty, so an applied
+removal reports `registry "X" removed; 0 artifacts removed`.

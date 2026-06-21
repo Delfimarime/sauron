@@ -345,12 +345,15 @@ addition:
 - **A file leads with its primary type.** The type a file is named for comes
   first; its constructor and methods follow. The primary type is never buried
   below the helpers.
-- **Behavior belongs to its type.** A function specific to a single struct — one
-  that operates on its data or is only meaningful in that struct's context — is a
-  method of that struct, not a free function that takes the struct as a parameter.
-  A function stands alone (in a `helper.go` or a dedicated package) only when it is
-  genuinely reusable by other types, components, or callers, and is then
-  type-agnostic — frequently generic. Reuse, not size, is the deciding test.
+- **Behavior belongs to its type.** A function used by exactly one struct and
+  nowhere else is **bound to that struct** as a method — never a free function that
+  takes the struct (or its data) as a parameter — so the behavior lives with the
+  type that owns it. A function used by **two or more** structs is **shared** and
+  stands alone — preferentially in a `helper.go` (or a topical `helper_<area>.go`
+  variant), otherwise in a dedicated package — and is then type-agnostic,
+  frequently generic. Reuse, not size, is the deciding test: a stateless or tiny
+  function still binds to its sole user, and only genuine reuse across types lifts
+  it into a helper.
 - **No test-only seams.** Production code does not grow an injectable indirection
   (a function-type field, a package-level var) solely so a test can replace it.
   Use the standard library directly and exercise it through the real graph or

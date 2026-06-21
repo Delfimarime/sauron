@@ -202,9 +202,13 @@ func (uc *AddRegistryUseCase) scanArtifacts(ctx context.Context, fs source.FileS
 	return NewUnreachableError("hosts no artifact")
 }
 
-// persist builds the registry document and stores it.
+// persist builds the registry document, stamps its audit timestamps with the
+// current instant in UTC (equal on create), and stores it.
 func (uc *AddRegistryUseCase) persist(request *AddRegistryRequest, transport types.Transport) error {
 	registry := request.toRegistry(transport)
+	now := time.Now().UTC().Format(time.RFC3339)
+	registry.Metadata.CreationTimestamp = now
+	registry.Metadata.LastUpdatedTimestamp = now
 	if err := uc.registries.Add(request.Context, registry); err != nil {
 		return NewIOError(fmt.Sprintf("persist registry %q: %v", request.Name, err))
 	}

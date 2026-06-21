@@ -17,11 +17,6 @@ type UseCase[R Request] interface {
 	Execute(request R) error
 }
 
-// Action is a reusable step a use case composes, taking an explicit context and a plain input.
-type Action[R, P any] interface {
-	Execute(ctx context.Context, input R) (*P, error)
-}
-
 // Type classifies a use-case failure so callers can map it to an exit code or
 // presentation without inspecting the reason text.
 type Type string
@@ -34,10 +29,10 @@ const (
 	TypeConflict Type = "conflict"
 	// TypeUnreachable marks a source that could not be reached or read.
 	TypeUnreachable Type = "unreachable"
-	// TypeValidation marks input that is well-formed but semantically invalid.
-	TypeValidation Type = "validation"
 	// TypeIO marks a failure of the underlying storage.
 	TypeIO Type = "io"
+	// TypeNotFound marks a named resource that does not exist.
+	TypeNotFound Type = "not_found"
 )
 
 // Error is a classified use-case failure: Type buckets it, Reason explains it.
@@ -66,12 +61,12 @@ func NewUnreachableError(reason string) *Error {
 	return &Error{Type: TypeUnreachable, Reason: reason}
 }
 
-// NewValidationError reports input that is well-formed but semantically invalid.
-func NewValidationError(reason string) *Error {
-	return &Error{Type: TypeValidation, Reason: reason}
-}
-
 // NewIOError reports a failure of the underlying storage.
 func NewIOError(reason string) *Error {
 	return &Error{Type: TypeIO, Reason: reason}
+}
+
+// NewNotFoundError reports a named resource that does not exist.
+func NewNotFoundError(reason string) *Error {
+	return &Error{Type: TypeNotFound, Reason: reason}
 }

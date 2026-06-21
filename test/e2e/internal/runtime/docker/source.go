@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -185,9 +186,7 @@ func setMainEnv(specs []ContainerSpec, key, value string) ([]ContainerSpec, erro
 			continue
 		}
 		env := make(map[string]string, len(s.Env)+1)
-		for k, v := range s.Env {
-			env[k] = v
-		}
+		maps.Copy(env, s.Env)
 		env[key] = value
 		s.Env = env
 		specs[i] = s

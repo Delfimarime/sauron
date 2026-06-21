@@ -14,22 +14,13 @@ import (
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
-// corruptRegistries is the malformed state seeded for FR-006: a Registry document
-// whose spec.transport opens a flow sequence that is never closed, so the file is
-// unparseable and a validate-on-read listing rejects it (io error, exit 1).
-const corruptRegistries = `apiVersion: sauron.raitonbl.com/v1
-kind: Registry
-metadata:
-  name: broken
-spec:
-  transport: [this is not closed
-  uri:
-`
-
 // seedColumns are the table columns the seed step understands; name carries the
-// metadata.name and every other column populates the matching spec field.
+// metadata.name, the username/password columns populate spec.auth, and every
+// other column populates the matching spec field.
 var seedColumns = map[string]struct{}{
 	"name": {}, "transport": {}, "uri": {}, "ref": {}, "timeout": {},
+	"username": {}, "password": {}, "sshKey": {},
+	"creationTimestamp": {}, "lastUpdatedTimestamp": {},
 }
 
 // listController owns the list-registries Given seeds (arranging the read-only
@@ -42,7 +33,7 @@ type listController struct {
 
 func (c *listController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the following registries are configured:$`, c.registriesConfigured)
-	sc.Step(`^the stored registries file is corrupt$`, c.registriesCorrupt)
+	sc.Step(`^the registries file contains:$`, c.registriesFileContains)
 }
 
 // registriesConfigured seeds a schema-valid Registry document stream into
@@ -55,10 +46,11 @@ func (c *listController) registriesConfigured(ctx context.Context, table *godog.
 	return c.rt.CopyTo(ctx, registriesFile, stream)
 }
 
-// registriesCorrupt seeds malformed bytes into registries.yaml so the listing fails
-// with a runtime (io) error (FR-006).
-func (c *listController) registriesCorrupt(ctx context.Context) error {
-	return c.rt.CopyTo(ctx, registriesFile, []byte(corruptRegistries))
+// registriesFileContains writes the exact bytes the scenario provides into
+// registries.yaml, so the file under test — including a deliberately malformed one
+// (FR-006) — is designed explicitly by the feature, never synthesized in code.
+func (c *listController) registriesFileContains(ctx context.Context, content *godog.DocString) error {
+	return c.rt.CopyTo(ctx, registriesFile, []byte(content.Content))
 }
 
 // buildRegistryStream turns a |name|transport|uri|…| table into a multi-document
@@ -71,7 +63,7 @@ func buildRegistryStream(table *godog.Table) ([]byte, error) {
 	header := table.Rows[0].Cells
 	for _, cell := range header {
 		if _, ok := seedColumns[cell.Value]; !ok {
-			return nil, fmt.Errorf("unknown registry column %q (valid: name, transport, uri, ref, timeout)", cell.Value)
+			return nil, fmt.Errorf("unknown registry column %q (valid: name, transport, uri, ref, timeout, username, password, sshKey, creationTimestamp, lastUpdatedTimestamp)", cell.Value)
 		}
 	}
 	var buf bytes.Buffer
@@ -114,6 +106,16 @@ func registryFromRow(header, cells []*messages.PickleTableCell) (types.Registry,
 			reg.Spec.Ref = value
 		case "timeout":
 			reg.Spec.Timeout = value
+		case "username":
+			ensureAuth(&reg).Username = value
+		case "password":
+			ensureAuth(&reg).Password = value
+		case "sshKey":
+			reg.Spec.SSHKey = value
+		case "creationTimestamp":
+			reg.Metadata.CreationTimestamp = value
+		case "lastUpdatedTimestamp":
+			reg.Metadata.LastUpdatedTimestamp = value
 		}
 	}
 	if reg.Metadata.Name == "" {
@@ -122,13 +124,22 @@ func registryFromRow(header, cells []*messages.PickleTableCell) (types.Registry,
 	return reg, nil
 }
 
+// ensureAuth lazily allocates the registry's auth block so the username and
+// password columns populate spec.auth, leaving it nil when neither is given.
+func ensureAuth(reg *types.Registry) *types.Auth {
+	if reg.Spec.Auth == nil {
+		reg.Spec.Auth = &types.Auth{}
+	}
+	return reg.Spec.Auth
+}
+
 // nameColumn reads the name column down the data rows of a rendered list: the first
 // whitespace-delimited token of every line after the header. Pure (text in, names
 // out) so it is unit-tested without a process.
 func nameColumn(output string) []string {
 	var names []string
 	headerSeen := false
-	for _, raw := range strings.Split(output, "\n") {
+	for raw := range strings.SplitSeq(output, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
