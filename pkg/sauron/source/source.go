@@ -47,6 +47,7 @@ type Options struct {
 	Limit  *int64
 	Offset *int64
 	Sort   *string
+	Order  *string
 }
 
 // Option mutates Options.
@@ -77,5 +78,12 @@ func WithOffset(offset int64) Option {
 func WithSort(sort string) Option {
 	return func(o *Options) {
 		o.Sort = &sort
+	}
+}
+
+// WithOrder sets the sort direction, either "asc" or "desc".
+func WithOrder(order string) Option {
+	return func(o *Options) {
+		o.Order = &order
 	}
 }

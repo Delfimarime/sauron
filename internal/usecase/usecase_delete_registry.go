@@ -128,8 +128,7 @@ func (uc *DeleteRegistryUseCase) write(request *DeleteRegistryRequest, text stri
 
 // DeleteRegistryRequest is the per-invocation input for deleting a source.
 type DeleteRegistryRequest struct {
-	context.Context
-	out io.Writer
+	baseRequest
 
 	Name   string
 	DryRun bool
@@ -137,10 +136,5 @@ type DeleteRegistryRequest struct {
 
 // NewDeleteRegistryRequest builds a request bound to ctx and writing to out.
 func NewDeleteRegistryRequest(ctx context.Context, out io.Writer) *DeleteRegistryRequest {
-	return &DeleteRegistryRequest{Context: ctx, out: out}
-}
-
-// Out returns the writer the command's output goes to.
-func (r *DeleteRegistryRequest) Out() io.Writer {
-	return r.out
+	return &DeleteRegistryRequest{baseRequest: baseRequest{Context: ctx, out: out}}
 }

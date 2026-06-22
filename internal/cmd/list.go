@@ -12,5 +12,6 @@ func List() *cobra.Command {
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(ListRegistries())
+	cmd.AddCommand(Catalogue())
 	return cmd
 }

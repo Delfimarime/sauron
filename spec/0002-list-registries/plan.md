@@ -35,7 +35,7 @@ The feature also establishes the foundations every later listing feature reuses:
 
 **Out of scope — deferred to later features (YAGNI):**
 
-- Pagination (`--offset`/`--limit`): catalogue-only per the
+- Pagination (`--page`/`--limit`): catalogue-only per the
   [CLI contract](../contracts/cli.md); `list registries` is unpaginated.
 - Sorting by `uri`, `ref`, or `timeout`: `--sort` accepts `name` and `transport`
   only (FR-004), though those fields may still be displayed via `--fields`.

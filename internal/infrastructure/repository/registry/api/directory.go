@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"sort"
+	"strings"
 
 	"github.com/spf13/afero"
 
@@ -36,7 +38,25 @@ func (d *Directory) List(_ context.Context, uri string, opts ...source.Option) (
 		return nil, fmt.Errorf("%w: read %q: %w", ErrRuntime, uri, err)
 	}
 
-	return d.page(d.toEntries(infos), options), nil
+	return d.page(d.toEntries(d.filter(infos, options), uri, options), options), nil
+}
+
+// filter keeps only the infos whose name contains options.Search, comparing
+// case-insensitively; a nil or empty Search matches every info.
+func (d *Directory) filter(infos []os.FileInfo, options source.Options) []os.FileInfo {
+	if options.Search == nil || *options.Search == "" {
+		return infos
+	}
+
+	term := strings.ToLower(*options.Search)
+	matched := make([]os.FileInfo, 0, len(infos))
+	for _, info := range infos {
+		if strings.Contains(strings.ToLower(info.Name()), term) {
+			matched = append(matched, info)
+		}
+	}
+
+	return matched
 }
 
 // Describe is not supported by the directory-backed transports yet.
@@ -49,18 +69,25 @@ func (d *Directory) Get(_ context.Context, _ string) (source.File, error) {
 	return nil, source.ErrNotImplemented
 }
 
-// toEntries maps directory infos to sorted File entries.
-func (d *Directory) toEntries(infos []os.FileInfo) []source.File {
+// toEntries maps directory infos to File entries sorted by name in the direction
+// given by options; the order is ascending unless Order is "desc".
+func (d *Directory) toEntries(infos []os.FileInfo, uri string, options source.Options) []source.File {
 	entries := make([]source.File, 0, len(infos))
 	for _, info := range infos {
 		entries = append(entries, directoryEntry{
+			fs:    d.fs,
+			path:  path.Join(uri, info.Name()),
 			name:  info.Name(),
 			isDir: info.IsDir(),
 			size:  info.Size(),
 		})
 	}
 
+	descending := options.Order != nil && *options.Order == "desc"
 	sort.Slice(entries, func(i, j int) bool {
+		if descending {
+			return entries[i].Name() > entries[j].Name()
+		}
 		return entries[i].Name() < entries[j].Name()
 	})
 
@@ -89,8 +116,10 @@ func (d *Directory) page(entries []source.File, options source.Options) []source
 	return entries
 }
 
-// directoryEntry is a directory listing entry. Its content is not readable yet.
+// directoryEntry is a directory listing entry that reads its content through fs.
 type directoryEntry struct {
+	fs    afero.Fs
+	path  string
 	name  string
 	isDir bool
 	size  int64
@@ -108,7 +137,17 @@ func (e directoryEntry) Size() int64 { return e.size }
 // Version returns the entry's version identifier, which is not derived yet.
 func (e directoryEntry) Version() string { return "" }
 
-// Read is not supported by the directory-backed transports yet.
+// Read opens the entry's content through its filesystem; the caller closes the
+// returned reader. Directories are not readable.
 func (e directoryEntry) Read(_ context.Context) (io.ReadCloser, error) {
-	return nil, source.ErrNotImplemented
+	if e.isDir {
+		return nil, fmt.Errorf("%w: read %q: is a directory", ErrRuntime, e.path)
+	}
+
+	file, err := e.fs.Open(e.path)
+	if err != nil {
+		return nil, fmt.Errorf("%w: read %q: %w", ErrRuntime, e.path, err)
+	}
+
+	return file, nil
 }

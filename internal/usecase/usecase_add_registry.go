@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"time"
 
@@ -31,7 +30,7 @@ var (
 
 	// artifactRoots are the locations whose presence proves a source hosts at least
 	// one artifact.
-	artifactRoots = []string{".skills", ".agents"}
+	artifactRoots = []string{rootSkills, rootAgents}
 )
 
 // AddRegistryUseCaseParams injects the adapters and collaborators the use case
@@ -41,6 +40,7 @@ type AddRegistryUseCaseParams struct {
 	Filesystem extension.Registry `name:"registry.filesystem"`
 	Git        extension.Registry `name:"registry.git"`
 	HTTP       extension.Registry `name:"registry.http"`
+	Open       OpenRegistry
 	Registries storage.RegistriesStore
 	Logger     *zap.Logger
 }
@@ -48,6 +48,7 @@ type AddRegistryUseCaseParams struct {
 // AddRegistryUseCase registers a validated, reachable source.
 type AddRegistryUseCase struct {
 	adapters   map[types.Transport]extension.Registry
+	open       OpenRegistry
 	registries storage.RegistriesStore
 	logger     *zap.Logger
 }
@@ -61,6 +62,7 @@ func NewAddRegistryUseCase(params AddRegistryUseCaseParams) *AddRegistryUseCase 
 			types.TransportGit:        params.Git,
 			types.TransportHTTP:       params.HTTP,
 		},
+		open:       params.Open,
 		registries: params.Registries,
 		logger:     params.Logger,
 	}
@@ -82,18 +84,14 @@ func (uc *AddRegistryUseCase) Execute(request *AddRegistryRequest) error {
 	}
 
 	opts := request.referenceOptions(transport)
-	if err := uc.classifyAdapterErr(adapter.Validate(opts...)); err != nil {
+	if err := classifyAdapterErr(adapter.Validate(opts...)); err != nil {
 		return err
 	}
 	if err := uc.ensureUnique(request); err != nil {
 		return err
 	}
 
-	connectOpts, err := uc.connectOptions(request, opts)
-	if err != nil {
-		return err
-	}
-	if err := uc.probe(request, adapter, connectOpts); err != nil {
+	if err := uc.probe(request, transport); err != nil {
 		return err
 	}
 
@@ -142,46 +140,13 @@ func (uc *AddRegistryUseCase) ensureUnique(request *AddRegistryRequest) error {
 	return nil
 }
 
-// connectOptions clones the reference options, replacing credential references
-// with their resolved values for connecting only.
-func (uc *AddRegistryUseCase) connectOptions(request *AddRegistryRequest, opts []extension.Option) ([]extension.Option, error) {
-	username, err := uc.resolveRef(request.Username)
+// probe opens the source through the shared open action — which resolves
+// credential references, builds the options, and opens the transport — then
+// confirms the source hosts at least one artifact.
+func (uc *AddRegistryUseCase) probe(request *AddRegistryRequest, transport types.Transport) error {
+	fs, err := uc.open.Execute(request.Context, request.toRegistry(transport))
 	if err != nil {
-		return nil, err
-	}
-	password, err := uc.resolveRef(request.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	if request.Username == "" && request.Password == "" {
-		return opts, nil
-	}
-
-	return append(opts, extension.WithBasicAuth(username, password)), nil
-}
-
-// resolveRef resolves a ${env:VAR} reference to its value; a literal (or empty)
-// value is returned unchanged. A referenced but unset variable is unreachable.
-func (uc *AddRegistryUseCase) resolveRef(value string) (string, error) {
-	match := envRefPattern.FindStringSubmatch(value)
-	if match == nil {
-		return value, nil
-	}
-
-	resolved, ok := os.LookupEnv(match[1])
-	if !ok {
-		return "", NewUnreachableError(fmt.Sprintf("environment variable %q is not set", match[1]))
-	}
-
-	return resolved, nil
-}
-
-// probe opens the source and confirms it hosts at least one artifact.
-func (uc *AddRegistryUseCase) probe(request *AddRegistryRequest, adapter extension.Registry, opts []extension.Option) error {
-	fs, err := adapter.Open(request.Context, opts...)
-	if err != nil {
-		return uc.classifyAdapterErr(err)
+		return err
 	}
 
 	return uc.scanArtifacts(request.Context, fs)
@@ -226,7 +191,7 @@ func (uc *AddRegistryUseCase) persist(request *AddRegistryRequest, transport typ
 
 // classifyAdapterErr maps an adapter failure to a classified use-case error: a
 // usage class is preserved, anything else becomes unreachable.
-func (uc *AddRegistryUseCase) classifyAdapterErr(err error) error {
+func classifyAdapterErr(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -239,8 +204,7 @@ func (uc *AddRegistryUseCase) classifyAdapterErr(err error) error {
 
 // AddRegistryRequest is the per-invocation input for registering a source.
 type AddRegistryRequest struct {
-	context.Context
-	out io.Writer
+	baseRequest
 
 	Name      string
 	URI       string
@@ -260,12 +224,7 @@ type AddRegistryRequest struct {
 
 // NewAddRegistryRequest builds a request bound to ctx and writing to out.
 func NewAddRegistryRequest(ctx context.Context, out io.Writer) *AddRegistryRequest {
-	return &AddRegistryRequest{Context: ctx, out: out}
-}
-
-// Out returns the writer the command's output goes to.
-func (r *AddRegistryRequest) Out() io.Writer {
-	return r.out
+	return &AddRegistryRequest{baseRequest: baseRequest{Context: ctx, out: out}}
 }
 
 // referenceOptions builds the options used to validate the request, carrying the

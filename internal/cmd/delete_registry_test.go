@@ -138,7 +138,7 @@ func TestDeleteRegistryEndToEnd(t *testing.T) {
 		},
 		{
 			name:      "unknown registry reports nothing was deleted and leaves state",
-			args:      []string{"ghost"},
+			args:      []string{argGhost},
 			wantOut:   []string{"nothing was deleted"},
 			wantState: []string{docNameAcme, "name: " + internalName},
 		},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,11 +117,13 @@ func TestRESTFactory_Open_List(t *testing.T) {
 
 			// Assert.
 			require.NoError(t, listErr)
+			gotValues, parseErr := url.ParseQuery(gotQuery)
+			require.NoError(t, parseErr)
 			assert.Equal(t, tt.wantPath, gotPath)
 			assert.Contains(t, gotQuery, "limit=1")
 			assert.Contains(t, gotQuery, "q=wr")
 			assert.Contains(t, gotQuery, "offset=2")
-			assert.Contains(t, gotQuery, "sort=name")
+			assert.Equal(t, "+name", gotValues.Get("sort"))
 			require.Len(t, files, len(tt.wantNames))
 			assert.Equal(t, tt.wantNames[0], files[0].Name())
 			assert.Equal(t, int64(42), files[0].Size())
@@ -128,6 +131,63 @@ func TestRESTFactory_Open_List(t *testing.T) {
 			if tt.wantVersion != "" {
 				assert.Equal(t, tt.wantVersion, files[0].Version())
 			}
+		})
+	}
+}
+
+func TestRESTFactory_Open_List_Order(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		opts     []source.Option
+		wantSort string
+	}{
+		{
+			name:     "ascending order signs the sort directive with +",
+			opts:     []source.Option{source.WithSort("name"), source.WithOrder("asc")},
+			wantSort: "+name",
+		},
+		{
+			name:     "descending order signs the sort directive with -",
+			opts:     []source.Option{source.WithSort("name"), source.WithOrder("desc")},
+			wantSort: "-name",
+		},
+		{
+			name:     "unset order defaults to ascending",
+			opts:     []source.Option{source.WithSort("name")},
+			wantSort: "+name",
+		},
+		{
+			name:     "order without sort sends no sort directive",
+			opts:     []source.Option{source.WithOrder("desc")},
+			wantSort: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange.
+			var gotQuery string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotQuery = r.URL.RawQuery
+				_, _ = w.Write([]byte(`{"items":[]}`))
+			}))
+			defer server.Close()
+
+			fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
+			require.NoError(t, err)
+
+			// Act.
+			_, listErr := fs.List(context.Background(), ".skills", tt.opts...)
+
+			// Assert.
+			require.NoError(t, listErr)
+			gotValues, parseErr := url.ParseQuery(gotQuery)
+			require.NoError(t, parseErr)
+			assert.Equal(t, tt.wantSort, gotValues.Get("sort"))
 		})
 	}
 }

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -159,6 +160,60 @@ func TestProvidePool(t *testing.T) {
 	assert.True(t, pool.Stopped())
 }
 
+// fakeUseCase is a trivial type runUseCase can resolve from a supplied fx.Option,
+// letting the helper be exercised without depending on a real use case's graph.
+type fakeUseCase struct{}
+
+// TestRunUseCase exercises the shared build->start->cancel->stop helper: the
+// success path resolves the use case and surfaces exec's error verbatim, and a
+// build failure surfaces the wrapped "build application" message.
+func TestRunUseCase(t *testing.T) {
+	t.Run("resolves use case and returns exec error", func(t *testing.T) {
+		// Arrange.
+		t.Setenv("SAURON_HOME", t.TempDir())
+		wantErr := errors.New("boom")
+		var (
+			resolved   bool
+			liveAtExec bool
+		)
+		provide := fx.Provide(func() *fakeUseCase { return &fakeUseCase{} })
+
+		// Act.
+		err := runUseCase(context.Background(),
+			func(runCtx context.Context, uc *fakeUseCase) error {
+				resolved = uc != nil
+				liveAtExec = runCtx.Err() == nil
+				return wantErr
+			},
+			provide,
+		)
+
+		// Assert: exec's error is surfaced verbatim and it ran with a live context.
+		assert.ErrorIs(t, err, wantErr)
+		assert.True(t, resolved, "use case resolved from supplied opt")
+		assert.True(t, liveAtExec, "exec receives a still-live run context")
+	})
+
+	t.Run("wraps a build failure", func(t *testing.T) {
+		// Arrange: no provider for *fakeUseCase, so the fx graph fails to build.
+		t.Setenv("SAURON_HOME", t.TempDir())
+		var ran bool
+
+		// Act: runUseCase appends repository+usecase, but *fakeUseCase is unprovided.
+		err := runUseCase(context.Background(),
+			func(context.Context, *fakeUseCase) error {
+				ran = true
+				return nil
+			},
+		)
+
+		// Assert: the build failure is wrapped and exec never ran.
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "build application")
+		assert.False(t, ran, "exec must not run when the graph fails to build")
+	})
+}
+
 // TestBindFlags verifies each shared flag group registers its flags with the
 // documented defaults and binds them to its struct.
 func TestBindFlags(t *testing.T) {
@@ -185,7 +240,7 @@ func TestBindFlags(t *testing.T) {
 	assert.Equal(t, kindHTTP, kind.Kind)
 
 	// Assert: flags are registered on the command.
-	for _, name := range []string{"search", "sort", "order", "fields", "dry-run", "timeout", "kind"} {
+	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName, "dry-run", "timeout", flagKind} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
 	}
 }

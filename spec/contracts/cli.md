@@ -43,8 +43,8 @@ contradict it.
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
-| `--offset <n>` | Number of leading results to skip (catalogue paging) |
-| `--limit <n>` | Maximum number of results to return (catalogue paging) |
+| `--page <n>` | Page number, 1-based (catalogue paging), default `1`; the client computes the backend offset as `(page−1)·limit` |
+| `--limit <n>` | Page size (catalogue paging), default `20` |
 | `--fields <list>` | Comma-separated columns to display, in order, for `list` and `describe`; the identity field is always present and first. Each contract defines its valid field set |
 | `--timeout <duration>` | Bound on network operations, default `30s` |
 
@@ -91,7 +91,7 @@ sql-review  acme      —        2026-06-12
 NAME         KIND
 go-style     skill
 code-helper  skill
-showing 1–20 of 57 (offset 0, limit 20)
+showing 1–20 (page 1, limit 20)
 ```
 
 **Detail** (`describe`) — left-aligned `key:` values, nested for persona

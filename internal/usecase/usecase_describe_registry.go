@@ -76,25 +76,7 @@ func (uc *DescribeRegistryUseCase) Execute(request *DescribeRegistryRequest) err
 // determineFields validates the requested fields and forces name present and
 // first; an empty request yields every field, so only populated ones render.
 func (uc *DescribeRegistryUseCase) determineFields(requested []string) ([]string, error) {
-	if len(requested) == 0 {
-		return uc.describeFields(), nil
-	}
-
-	known := uc.knownFields()
-	fields := []string{fieldName}
-	seen := map[string]struct{}{fieldName: {}}
-	for _, f := range requested {
-		if _, ok := known[f]; !ok {
-			return nil, NewUsageError(fmt.Sprintf("unknown field %q", f))
-		}
-		if _, dup := seen[f]; dup {
-			continue
-		}
-		seen[f] = struct{}{}
-		fields = append(fields, f)
-	}
-
-	return fields, nil
+	return selectFields(requested, uc.knownFields(), uc.describeFields())
 }
 
 // render projects the registry onto the selected fields and writes the
@@ -220,8 +202,7 @@ func (uc *DescribeRegistryUseCase) tlsChildren(tls *types.TLS) []presentation.Fi
 
 // DescribeRegistryRequest is the per-invocation input for describing a registry.
 type DescribeRegistryRequest struct {
-	context.Context
-	out io.Writer
+	baseRequest
 
 	Name   string
 	Fields []string
@@ -229,10 +210,5 @@ type DescribeRegistryRequest struct {
 
 // NewDescribeRegistryRequest builds a request bound to ctx and writing to out.
 func NewDescribeRegistryRequest(ctx context.Context, out io.Writer) *DescribeRegistryRequest {
-	return &DescribeRegistryRequest{Context: ctx, out: out}
-}
-
-// Out returns the writer the command's output goes to.
-func (r *DescribeRegistryRequest) Out() io.Writer {
-	return r.out
+	return &DescribeRegistryRequest{baseRequest: baseRequest{Context: ctx, out: out}}
 }

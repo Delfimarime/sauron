@@ -62,14 +62,6 @@ func (uc *ListRegistriesUseCase) sortColumns() map[string]struct{} {
 	}
 }
 
-// sortOrders is the set --order may select from.
-func (uc *ListRegistriesUseCase) sortOrders() map[string]struct{} {
-	return map[string]struct{}{
-		orderAsc:  {},
-		orderDesc: {},
-	}
-}
-
 // projectors maps each column to the registry field it reads.
 func (uc *ListRegistriesUseCase) projectors() map[string]func(types.Registry) string {
 	return map[string]func(types.Registry) string{
@@ -125,39 +117,16 @@ func (uc *ListRegistriesUseCase) render(request *ListRegistriesRequest, registri
 // determineFields validates the requested columns and forces name present and
 // first; an empty request yields the default columns.
 func (uc *ListRegistriesUseCase) determineFields(requested []string) ([]string, error) {
-	if len(requested) == 0 {
-		return uc.defaultColumns(), nil
-	}
-
-	known := uc.knownColumns()
-	fields := []string{fieldName}
-	seen := map[string]struct{}{fieldName: {}}
-	for _, f := range requested {
-		if _, ok := known[f]; !ok {
-			return nil, NewUsageError(fmt.Sprintf("unknown field %q", f))
-		}
-		if _, dup := seen[f]; dup {
-			continue
-		}
-		seen[f] = struct{}{}
-		fields = append(fields, f)
-	}
-
-	return fields, nil
+	return selectFields(requested, uc.knownColumns(), uc.defaultColumns())
 }
 
 // determineOrder validates the sort field and direction, applying the defaults.
 func (uc *ListRegistriesUseCase) determineOrder(sortBy, order string) (string, string, error) {
-	if sortBy == "" {
-		sortBy = fieldName
-	}
-	if order == "" {
-		order = orderAsc
-	}
+	sortBy, order = defaultSortOrder(sortBy, order)
 	if _, ok := uc.sortColumns()[sortBy]; !ok {
 		return "", "", NewUsageError(fmt.Sprintf("unknown sort field %q", sortBy))
 	}
-	if _, ok := uc.sortOrders()[order]; !ok {
+	if !isValidOrder(order) {
 		return "", "", NewUsageError(fmt.Sprintf("unknown order %q", order))
 	}
 
@@ -196,23 +165,12 @@ func (uc *ListRegistriesUseCase) sortKey(sortBy string) func(types.Registry) str
 
 // rows projects each registry onto the selected columns.
 func (uc *ListRegistriesUseCase) rows(registries []types.Registry, fields []string) [][]string {
-	projectors := uc.projectors()
-	out := make([][]string, len(registries))
-	for i, r := range registries {
-		row := make([]string, len(fields))
-		for j, f := range fields {
-			row[j] = projectors[f](r)
-		}
-		out[i] = row
-	}
-
-	return out
+	return projectRows(registries, fields, uc.projectors())
 }
 
 // ListRegistriesRequest is the per-invocation input for the registry listing.
 type ListRegistriesRequest struct {
-	context.Context
-	out io.Writer
+	baseRequest
 
 	Search string
 	Fields []string
@@ -222,10 +180,5 @@ type ListRegistriesRequest struct {
 
 // NewListRegistriesRequest builds a request bound to ctx and writing to out.
 func NewListRegistriesRequest(ctx context.Context, out io.Writer) *ListRegistriesRequest {
-	return &ListRegistriesRequest{Context: ctx, out: out}
-}
-
-// Out returns the writer the command's output goes to.
-func (r *ListRegistriesRequest) Out() io.Writer {
-	return r.out
+	return &ListRegistriesRequest{baseRequest: baseRequest{Context: ctx, out: out}}
 }

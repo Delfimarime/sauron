@@ -6,9 +6,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 
-	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
@@ -38,29 +36,9 @@ func ListRegistries() *cobra.Command {
 // listRegistries holds the cobra-free logic: it builds the request and lets the
 // fx graph invoke the use case, returning the classified failure to the caller.
 func listRegistries(ctx context.Context, flags *listingFlags, stdout io.Writer) error {
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	request := newListRegistriesRequest(runCtx, flags, stdout)
-
-	var execErr error
-	app := NewApp(runCtx,
-		repository.NewFxOptions(),
-		usecase.NewFxOptions(),
-		fx.Invoke(func(uc *usecase.ListRegistriesUseCase) {
-			execErr = uc.Execute(request)
-		}),
-	)
-	if err := app.Err(); err != nil {
-		return fmt.Errorf("build application: %w", err)
-	}
-	if err := app.Start(runCtx); err != nil {
-		return fmt.Errorf("start application: %w", err)
-	}
-	cancel()
-	_ = app.Stop(context.WithoutCancel(ctx))
-
-	return execErr
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListRegistriesUseCase) error {
+		return uc.Execute(newListRegistriesRequest(runCtx, flags, stdout))
+	})
 }
 
 // newListRegistriesRequest maps the parsed flags onto the use case's request,

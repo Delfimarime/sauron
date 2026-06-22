@@ -26,6 +26,7 @@ func TestOptions(t *testing.T) {
 		{name: "WithLimit sets Limit", option: source.WithLimit(25), field: "limit", wantInt: 25},
 		{name: "WithOffset sets Offset", option: source.WithOffset(50), field: "offset", wantInt: 50},
 		{name: "WithSort sets Sort", option: source.WithSort("name"), field: "sort", wantStr: "name"},
+		{name: "WithOrder sets Order", option: source.WithOrder("desc"), field: "order", wantStr: "desc"},
 	}
 
 	for _, tt := range tests {
@@ -46,24 +47,35 @@ func TestOptions(t *testing.T) {
 				assert.Nil(t, o.Limit)
 				assert.Nil(t, o.Offset)
 				assert.Nil(t, o.Sort)
+				assert.Nil(t, o.Order)
 			case "limit":
 				require.NotNil(t, o.Limit)
 				assert.Equal(t, tt.wantInt, *o.Limit)
 				assert.Nil(t, o.Search)
 				assert.Nil(t, o.Offset)
 				assert.Nil(t, o.Sort)
+				assert.Nil(t, o.Order)
 			case "offset":
 				require.NotNil(t, o.Offset)
 				assert.Equal(t, tt.wantInt, *o.Offset)
 				assert.Nil(t, o.Search)
 				assert.Nil(t, o.Limit)
 				assert.Nil(t, o.Sort)
+				assert.Nil(t, o.Order)
 			case "sort":
 				require.NotNil(t, o.Sort)
 				assert.Equal(t, tt.wantStr, *o.Sort)
 				assert.Nil(t, o.Search)
 				assert.Nil(t, o.Limit)
 				assert.Nil(t, o.Offset)
+				assert.Nil(t, o.Order)
+			case "order":
+				require.NotNil(t, o.Order)
+				assert.Equal(t, tt.wantStr, *o.Order)
+				assert.Nil(t, o.Search)
+				assert.Nil(t, o.Limit)
+				assert.Nil(t, o.Offset)
+				assert.Nil(t, o.Sort)
 			}
 		})
 	}
@@ -81,6 +93,7 @@ func TestOptionsComposed(t *testing.T) {
 		source.WithLimit(25),
 		source.WithOffset(50),
 		source.WithSort("name"),
+		source.WithOrder("desc"),
 	}
 
 	// Act
@@ -93,10 +106,12 @@ func TestOptionsComposed(t *testing.T) {
 	require.NotNil(t, o.Limit)
 	require.NotNil(t, o.Offset)
 	require.NotNil(t, o.Sort)
+	require.NotNil(t, o.Order)
 	assert.Equal(t, "go-style", *o.Search)
 	assert.Equal(t, int64(25), *o.Limit)
 	assert.Equal(t, int64(50), *o.Offset)
 	assert.Equal(t, "name", *o.Sort)
+	assert.Equal(t, "desc", *o.Order)
 }
 
 // TestErrNotImplemented asserts the sentinel error is a non-nil, identifiable

@@ -41,6 +41,7 @@ func TestNewFxOptions(t *testing.T) {
 		fx.Invoke(func(*AddRegistryUseCase) {}),
 		fx.Invoke(func(*ListRegistriesUseCase) {}),
 		fx.Invoke(func(*DescribeRegistryUseCase) {}),
+		fx.Invoke(func(*ListCatalogueUseCase) {}),
 		fx.Invoke(func(*DeleteRegistryUseCase) {}),
 	)
 

@@ -6,9 +6,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 
-	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
@@ -67,33 +65,13 @@ func addRegistry(ctx context.Context, flags *addRegistryFlags, args []string, st
 		return err
 	}
 
-	// A cancellable run context: adapters schedule deferred work (e.g. the git
-	// clone cleanup) on the worker pool keyed to it. Cancelling before the pool
-	// drains lets that work finish, so Stop does not deadlock waiting on a task
-	// that is itself waiting on the context.
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	request := newAddRegistryRequest(runCtx, flags, args, stdout)
-
-	var execErr error
-	app := NewApp(runCtx,
-		repository.NewFxOptions(),
-		usecase.NewFxOptions(),
-		fx.Invoke(func(uc *usecase.AddRegistryUseCase) {
-			execErr = uc.Execute(request)
-		}),
-	)
-	if err := app.Err(); err != nil {
-		return fmt.Errorf("build application: %w", err)
-	}
-	if err := app.Start(runCtx); err != nil {
-		return fmt.Errorf("start application: %w", err)
-	}
-	cancel()
-	_ = app.Stop(context.WithoutCancel(ctx))
-
-	return execErr
+	// runUseCase runs on a cancellable run context: adapters schedule deferred
+	// work (e.g. the git clone cleanup) on the worker pool keyed to it, and the
+	// cancel-before-Stop teardown lets that work finish so Stop does not deadlock
+	// waiting on a task that is itself waiting on the context.
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.AddRegistryUseCase) error {
+		return uc.Execute(newAddRegistryRequest(runCtx, flags, args, stdout))
+	})
 }
 
 // newAddRegistryRequest maps the parsed flags and positional arguments onto the
