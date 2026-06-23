@@ -140,7 +140,7 @@ func TestRegistriesStoreListReturnsAll(t *testing.T) {
 	registries, _ := newTestRegistriesStore(t)
 	require.NoError(t, registries.Add(context.Background(), types.Registry{
 		Metadata: types.Metadata{Name: acmeName},
-		Spec:     types.RegistrySpec{Transport: types.TransportGit, URI: "https://example.com/acme.git"},
+		Spec:     types.RegistrySpec{Transport: types.TransportGit, URI: acmeURI},
 	}))
 	require.NoError(t, registries.Add(context.Background(), types.Registry{
 		Metadata: types.Metadata{Name: "beta"},

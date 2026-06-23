@@ -22,6 +22,9 @@ const registriesFile = "registries.yaml"
 // acmeName is a fixture registry name shared by the storage tests.
 const acmeName = "acme"
 
+// acmeURI is the fixture registry URI shared by the storage tests.
+const acmeURI = "https://example.com/acme.git"
+
 // validRegistryYAML is a schema-valid Registry document.
 const validRegistryYAML = `apiVersion: sauron.raitonbl.com/v1
 kind: Registry

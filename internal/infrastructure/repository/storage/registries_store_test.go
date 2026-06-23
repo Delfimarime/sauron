@@ -39,7 +39,7 @@ func TestRegistriesStoreAddRoundTrip(t *testing.T) {
 		Metadata: types.Metadata{Name: acmeName},
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			URI:       "https://example.com/acme.git",
+			URI:       acmeURI,
 			Ref:       "release-1.2.3",
 		},
 	}
@@ -89,7 +89,7 @@ func TestRegistriesStoreRemoveDropsRegistry(t *testing.T) {
 		Metadata: types.Metadata{Name: acmeName},
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			URI:       "https://example.com/acme.git",
+			URI:       acmeURI,
 		},
 	}
 	require.NoError(t, registries.Add(context.Background(), in))
