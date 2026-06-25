@@ -47,23 +47,6 @@ func readRegistries(t *testing.T) string {
 	return string(data)
 }
 
-// TestNewDeleteRegistryRequestMapsArgs asserts the positional name and the
-// --dry-run flag land on the use case request.
-func TestNewDeleteRegistryRequestMapsArgs(t *testing.T) {
-	// Arrange.
-	var stdout bytes.Buffer
-	flags := deleteRegistryFlags{dryRunFlags: dryRunFlags{DryRun: true}}
-
-	// Act.
-	request := newDeleteRegistryRequest(context.Background(), &flags, []string{acmeName}, &stdout)
-
-	// Assert.
-	require.NotNil(t, request)
-	assert.Equal(t, acmeName, request.Name)
-	assert.True(t, request.DryRun)
-	assert.Same(t, &stdout, request.Out())
-}
-
 // TestDeleteGroup asserts the delete group has no run behaviour and attaches the
 // registry subcommand.
 func TestDeleteGroup(t *testing.T) {

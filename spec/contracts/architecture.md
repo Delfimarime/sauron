@@ -41,13 +41,12 @@ internal/
     helper_flags.go        shared flag-group structs and their bind functions
     <verb>.go              a command group (e.g. add.go, list.go)
     <verb>_<noun>.go       a command in that group (e.g. add_registry.go, list_registries.go)
+    view_<name>.go         rendering: turns a use case's domain result + view options (selected fields, sort, search) into the table/descriptor and its bytes (stdlib text/tabwriter); cobra-free, pure value types, no fx — the command layer's view, not a separate package
   config/
     fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
     fx.go                  NewFxOptions() fx.Option; provides the zap+ECS logger
     logger.go              logger construction; references pkg/telemetry for shared ECS keys
-  presentation/
-    table.go               shared table renderer for list/describe output (stdlib text/tabwriter); a pure value type, no fx
   infrastructure/
     repository/            umbrella module; its fx.go aggregates the adapters + storage below
       fx.go                NewFxOptions() fx.Option; composes storage + registry + agent
@@ -102,9 +101,11 @@ Adapters are never imported across boundaries — callers depend on the
 `pkg/sauron/extension` ports, not a concrete adapter. The same `repository` module
 also houses the **internal capability** [`storage`](#state-storage), which
 manipulates the `~/.sauron/` state and has no `pkg/` port. The transversal
-framework modules (`internal/config`, `internal/telemetry`,
-`internal/presentation`, `internal/cmd`) are not adapters and stay at the
-`internal/` root.
+framework modules (`internal/config`, `internal/telemetry`, `internal/cmd`) are
+not adapters and stay at the `internal/` root. Rendering is **not** a separate
+module — it lives inside `internal/cmd` as cobra-free `view_<name>.go` files,
+since the command layer is its only consumer (see
+[Command structure](#command-structure)).
 
 ## Dependency wiring (uberfx)
 
@@ -190,8 +191,12 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   its flags. The private **handler is named `<verb><Noun>()`** (e.g.
   `addRegistry()`, `listRegistries()`); it receives the populated flag struct —
   alongside the `context.Context` and positional arguments — builds the use-case
-  `Request`, and runs it, so the logic is tested without cobra. `Serve()`/`serve()`
-  names apply only to a server's `serve` command, never to an action command.
+  input, calls `Execute`, and renders the returned result to stdout through the
+  command layer's `view_<name>.go` rendering, so the logic is tested without
+  cobra. View flags
+  (`--fields`, `--sort`) are validated at this boundary, yielding a usage error
+  before the use case runs. `Serve()`/`serve()` names apply only to a server's
+  `serve` command, never to an action command.
 - **Flags are bound into structs** in `internal/cmd`; command logic never reads
   flags off the `*cobra.Command`. Flags shared across commands are defined once as
   small, concern-grouped structs (listing, paging, dry-run, timeout) in
@@ -217,45 +222,40 @@ command's entrypoint is a `UseCase`; the reusable capabilities a use case
 composes are `Action`s. Both live in `internal/usecase`.
 
 ```go
-type Request interface {
-	context.Context
-	Out() io.Writer
+type UseCase[I, P any] interface {
+	Execute(ctx context.Context, in I) (*P, error)
 }
 
-type UseCase[R Request] interface {
-	Execute(R) error
-}
-
-type Action[R, P any] interface {
-	Execute(context.Context, R) (*P, error)
+type Action[I, P any] interface {
+	Execute(ctx context.Context, in I) (*P, error)
 }
 ```
 
-- **`Request` is a context object**, in the spirit of `gin.Context`: it
-  *extends* `context.Context` and adds `Out()`, the writer the command's output
-  goes to, so a use case stays ignorant of where its bytes are printed.
-  Persisted state is reached through the [`storage`](#state-storage) collaborator,
-  not the `Request` — the filesystem is not part of the invocation environment. A
-  concrete `Request` holds the per-invocation context; `golangci-lint`'s
-  `containedctx` is scope-disabled for these types, because the context object is
-  the sanctioned exception to the no-context-in-a-struct rule under
-  [Coding standards](#coding-standards) — it *is* the context rather than storing
-  one as data.
-- **`UseCase` is the command entrypoint and is stateless.** Its collaborators —
-  the `pkg/` ports (`pkg/sauron/extension`), the
-  [`storage`](#state-storage) stores, and the zap logger — are injected by
-  uberfx; everything call-scoped arrives through the `Request`, so a single
-  instance is safe to reuse across invocations. `Execute` takes the `Request`
-  alone (the context rides inside it) and returns only `error`; user-facing
-  results are written to `Out()`.
-- **`Action` is a reusable step** a use case composes. Unlike `UseCase`, it takes
-  an explicit `context.Context` first parameter and a plain input `R` — left
-  unconstrained on purpose: a pure action uses a value type, while an action that
-  needs the IO environment declares its `R` as a `Request`. It returns
-  `(*P, error)`.
-- **Lifecycle.** A `Request` is constructed per invocation and passed directly to
-  `Execute`; a use case or action never retains it beyond the call, so the
-  embedded context cannot go stale.
+- **A use case returns a result, never bytes.** `Execute` answers the question
+  and returns a *presentation-agnostic* `*P` — domain objects from
+  `pkg/sauron/types`, or a small struct composed of them — alongside a classified
+  `*Error`. It never renders: no `Table`/`Descriptor`, no `io.Writer`, no field
+  projection. How the result is displayed is the client's decision, performed by
+  the command layer's [`view_<name>.go`](#project-layout) rendering after
+  `Execute` returns (see [Command structure](#command-structure)). A use case is
+  thus ignorant of presentation *entirely* — not merely of the output
+  destination — which is the separation an `Out()` writer could not provide.
+- **`UseCase` and `Action` share one shape**, distinguished only by role: a
+  `UseCase` is a command's entrypoint; an `Action` is a reusable step a use case
+  composes. Both take an explicit `context.Context` first and a typed input `in`
+  (a value type, or an empty struct for a parameterless query), and return
+  `(*P, error)`. There is no `Request` context object and no `Out()`: the
+  per-invocation context is the explicit first parameter, and call-scoped
+  *business* input is `in`. *View* options (field selection, sort, search) are
+  **not** use-case input — they belong to the client.
+- **`UseCase` is stateless.** Its collaborators — the `pkg/` ports
+  (`pkg/sauron/extension`), the [`storage`](#state-storage) stores, and the zap
+  logger — are injected by uberfx; everything call-scoped arrives as `ctx`/`in`,
+  so a single instance is safe to reuse across invocations. Persisted state is
+  reached through the [`storage`](#state-storage) collaborator, not the input —
+  the filesystem is not part of the invocation environment.
+- **Lifecycle.** Inputs are plain values constructed per call and passed to
+  `Execute`; there is no context object to retain, so nothing can go stale.
 
 ### Layout & naming
 
@@ -267,8 +267,9 @@ through which use cases and actions are provided with their `pkg/` ports, the
 
 The cobra **handler** that drives a use case — its naming and the builder/handler
 split — is fixed under [Command structure](#command-structure). It maps the flag
-struct and positional arguments into a concrete `Request`, resolves the use case
-from the container with `fx.Populate`, and calls `Execute`.
+struct and positional arguments into the use-case input, resolves the use case
+from the container with `fx.Populate`, calls `Execute`, and renders the returned
+`*P` result to the command's stdout through the `view_<name>.go` rendering.
 
 ## State storage
 
@@ -328,9 +329,7 @@ addition:
 - **Parameter structs.** A function that would take more than seven parameters
   takes a single parameter struct instead. `context.Context` is never moved into
   that struct — it stays an explicit parameter (conventionally first); in tests,
-  ambient values such as `*testing.T` may likewise stay in the signature. The sole
-  exception is the use-case `Request`, which *is* the context rather than storing
-  one as data — see [Use Case orchestration](#use-case-orchestration).
+  ambient values such as `*testing.T` may likewise stay in the signature.
 - **Cognitive complexity.** Each function stays at or below 15 (measured with
   `gocognit`); a higher value may be suppressed only with a comment that
   justifies it. A function below 3 is questionable — a trivial helper is not

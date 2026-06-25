@@ -38,19 +38,48 @@ func DeleteRegistry() *cobra.Command {
 	return cmd
 }
 
-// deleteRegistry holds the cobra-free logic: it builds the request and lets the fx
-// graph invoke the use case, returning the classified failure to the caller.
+// deleteRegistry holds the cobra-free logic: it builds the input, invokes the use
+// case through the fx graph, and renders the outcome to stdout.
 func deleteRegistry(ctx context.Context, flags *deleteRegistryFlags, args []string, stdout io.Writer) error {
+	in := usecase.DeleteRegistryInput{Name: args[0], DryRun: flags.DryRun}
+
 	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.DeleteRegistryUseCase) error {
-		return uc.Execute(newDeleteRegistryRequest(runCtx, flags, args, stdout))
+		result, err := uc.Execute(runCtx, in)
+		if err != nil {
+			return err
+		}
+		return renderDelete(stdout, result)
 	})
 }
 
-// newDeleteRegistryRequest maps the parsed flags and positional argument onto the
-// use case's request, binding it to ctx and the command's output writer.
-func newDeleteRegistryRequest(ctx context.Context, flags *deleteRegistryFlags, args []string, stdout io.Writer) *usecase.DeleteRegistryRequest {
-	request := usecase.NewDeleteRegistryRequest(ctx, stdout)
-	request.Name = args[0]
-	request.DryRun = flags.DryRun
-	return request
+// renderDelete writes the cascade plan groups and the summary line; a registry
+// that did not exist renders only the idempotent-delete notice.
+func renderDelete(stdout io.Writer, result *usecase.DeleteRegistryResult) error {
+	if !result.Existed {
+		_, err := fmt.Fprintf(stdout, "registry %q does not exist; nothing was deleted\n", result.Name)
+		return err
+	}
+
+	groups := []Group{
+		{Heading: "skills", Items: result.Plan.Skills},
+		{Heading: "agents", Items: result.Plan.Agents},
+		{Heading: "personas", Items: result.Plan.Personas},
+	}
+	if err := RenderGroups(stdout, groups); err != nil {
+		return err
+	}
+
+	_, err := fmt.Fprint(stdout, deleteSummary(result))
+	return err
+}
+
+// deleteSummary is the closing line: a dry-run previews the removal, an applied
+// delete reports it, each with the artifact count.
+func deleteSummary(result *usecase.DeleteRegistryResult) string {
+	total := result.Plan.Total()
+	if result.DryRun {
+		return fmt.Sprintf("registry %q would be removed; %d artifacts would be removed\n", result.Name, total)
+	}
+
+	return fmt.Sprintf("registry %q removed; %d artifacts removed\n", result.Name, total)
 }

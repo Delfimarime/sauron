@@ -16,7 +16,6 @@ const (
 	flagFields     = "--fields"
 	flagUnknown    = "--nope"
 	transportSel   = "transport,uri"
-	fieldTransport = "transport"
 	caseUnknown    = "rejects an unknown flag"
 
 	labelName      = "name:"
@@ -55,23 +54,6 @@ func runDescribeRegistry(t *testing.T, args ...string) (string, error) {
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return stdout.String(), err
-}
-
-// TestNewDescribeRegistryRequestMapsArgs asserts the positional name and parsed
-// flags land on the use case request.
-func TestNewDescribeRegistryRequestMapsArgs(t *testing.T) {
-	// Arrange.
-	var stdout bytes.Buffer
-	flags := describeRegistryFlags{Fields: []string{fieldTransport, colURI}}
-
-	// Act.
-	request := newDescribeRegistryRequest(context.Background(), &flags, []string{acmeName}, &stdout)
-
-	// Assert.
-	require.NotNil(t, request)
-	assert.Equal(t, acmeName, request.Name)
-	assert.Equal(t, []string{fieldTransport, colURI}, request.Fields)
-	assert.Same(t, &stdout, request.Out())
 }
 
 // TestDescribeGroup asserts the describe group has no run behaviour and attaches

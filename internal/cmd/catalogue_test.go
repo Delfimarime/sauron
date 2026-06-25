@@ -32,7 +32,6 @@ const (
 	flagSort   = "sort"
 	fieldsName = "fields"
 	flagKind   = "kind"
-	orderDesc  = "desc"
 	sortName   = "name"
 )
 
@@ -136,26 +135,23 @@ func TestCatalogueFlagSurface(t *testing.T) {
 	}
 }
 
-// TestNewListCatalogueRequestMapsArgs asserts the kind, the positional registry,
-// and the parsed flags land on the use case request.
-func TestNewListCatalogueRequestMapsArgs(t *testing.T) {
+// TestNewListCatalogueInputMapsArgs asserts the kind, the positional registry,
+// and the parsed flags land on the use case input.
+func TestNewListCatalogueInputMapsArgs(t *testing.T) {
 	// Arrange.
-	var stdout bytes.Buffer
 	flags := catalogueFlags{Search: "rev", Sort: sortName, Order: orderDesc, paging: pagingFlags{Page: 2, Limit: 5}}
 
 	// Act.
-	request := newListCatalogueRequest(context.Background(), usecase.CatalogueSkill, &flags, []string{acmeName}, &stdout)
+	in := newListCatalogueInput(usecase.CatalogueSkill, &flags, []string{acmeName})
 
 	// Assert.
-	require.NotNil(t, request)
-	assert.Equal(t, usecase.CatalogueSkill, request.Kind)
-	assert.Equal(t, acmeName, request.Registry)
-	assert.Equal(t, "rev", request.Search)
-	assert.Equal(t, sortName, request.Sort)
-	assert.Equal(t, orderDesc, request.Order)
-	assert.Equal(t, int64(2), request.Page)
-	assert.Equal(t, int64(5), request.Limit)
-	assert.Same(t, &stdout, request.Out())
+	assert.Equal(t, usecase.CatalogueSkill, in.Kind)
+	assert.Equal(t, acmeName, in.Registry)
+	assert.Equal(t, "rev", in.Search)
+	assert.Equal(t, sortName, in.Sort)
+	assert.Equal(t, orderDesc, in.Order)
+	assert.Equal(t, int64(2), in.Page)
+	assert.Equal(t, int64(5), in.Limit)
 }
 
 // TestListCatalogueRejectsBadInput asserts a missing registry, an unknown flag,

@@ -11,7 +11,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/delfimarime/sauron/internal/infrastructure/repository/storage"
-	"github.com/delfimarime/sauron/internal/presentation"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/pkg/sauron/source"
 	"github.com/delfimarime/sauron/pkg/sauron/types"
@@ -45,13 +44,6 @@ var catalogueRoots = map[CatalogueKind]string{
 	CataloguePersona: rootPersonas,
 }
 
-// the catalogue table column headers.
-const (
-	colName    = "NAME"
-	colKind    = "KIND"
-	colMembers = "MEMBERS"
-)
-
 // ListCatalogueUseCaseParams injects the collaborators the use case composes.
 type ListCatalogueUseCaseParams struct {
 	fx.In
@@ -60,8 +52,8 @@ type ListCatalogueUseCaseParams struct {
 	Logger     *zap.Logger
 }
 
-// ListCatalogueUseCase resolves a registry, opens its source live, and renders
-// the artifacts of the selected kind followed by a paging line.
+// ListCatalogueUseCase resolves a registry, opens its source live, and returns
+// the artifacts of the selected kind.
 type ListCatalogueUseCase struct {
 	registries storage.RegistriesStore
 	open       OpenRegistry
@@ -77,52 +69,93 @@ func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListCatalogueUs
 	}
 }
 
-// Execute runs the validate → find → open → list → project → render pipeline,
-// returning a classified *Error on the first failing step.
-func (uc *ListCatalogueUseCase) Execute(request *ListCatalogueRequest) error {
-	if err := uc.validate(request); err != nil {
-		return err
+// ListCatalogueInput is the input for browsing a registry's catalogue of one kind.
+type ListCatalogueInput struct {
+	Kind     CatalogueKind
+	Registry string
+	Search   string
+	Sort     string
+	Order    string
+	Page     int64
+	Limit    int64
+}
+
+// offset translates the 1-based page and page size to a source offset.
+func (in ListCatalogueInput) offset() int64 {
+	return (in.Page - 1) * in.Limit
+}
+
+// CatalogueEntry is one listed artifact: its catalogue name and, for personas,
+// a membership summary (empty for skills and agents).
+type CatalogueEntry struct {
+	Name    string
+	Members string
+}
+
+// ListCatalogueResult carries the listed entries and the applied paging window.
+type ListCatalogueResult struct {
+	Kind    CatalogueKind
+	Entries []CatalogueEntry
+	Page    int64
+	Limit   int64
+}
+
+// Execute runs the validate → find → open → list → build pipeline, returning a
+// classified *Error on the first failing step.
+func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInput) (*ListCatalogueResult, error) {
+	in.Sort, in.Order = defaultSortOrder(in.Sort, in.Order)
+	if err := uc.validate(in); err != nil {
+		return nil, err
 	}
 
-	registry, err := uc.registries.FindByName(request.Context, request.Registry)
+	registry, err := uc.registries.FindByName(ctx, in.Registry)
 	if err != nil {
-		return NewIOError(fmt.Sprintf("read registry %q: %v", request.Registry, err))
+		return nil, NewIOError(fmt.Sprintf("read registry %q: %v", in.Registry, err))
 	}
 	if registry == nil {
-		return NewNotFoundError(fmt.Sprintf("registry %q does not exist", request.Registry))
+		return nil, NewNotFoundError(fmt.Sprintf("registry %q does not exist", in.Registry))
 	}
 
-	fs, err := uc.open.Execute(request.Context, *registry)
+	fs, err := uc.open.Execute(ctx, *registry)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	files, err := uc.list(request, fs)
+	files, err := uc.list(ctx, in, fs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return uc.render(request, files)
+	entries, err := uc.entries(ctx, in, files)
+	if err != nil {
+		return nil, err
+	}
+
+	uc.logger.Info("catalogue listed",
+		zap.String(telemetry.FieldRegistryName, in.Registry),
+		zap.Int(telemetry.FieldArtifactCount, len(entries)),
+	)
+
+	return &ListCatalogueResult{Kind: in.Kind, Entries: entries, Page: in.Page, Limit: in.Limit}, nil
 }
 
 // validate checks the inputs, returning a usage *Error for any out-of-range
-// value. Sort and Order default to name and asc when unset.
-func (uc *ListCatalogueUseCase) validate(request *ListCatalogueRequest) error {
-	request.Sort, request.Order = defaultSortOrder(request.Sort, request.Order)
-	if _, ok := catalogueRoots[request.Kind]; !ok {
-		return NewUsageError(fmt.Sprintf("unknown kind %q", request.Kind))
+// value. Sort and Order are already defaulted to name and asc by the caller.
+func (uc *ListCatalogueUseCase) validate(in ListCatalogueInput) error {
+	if _, ok := catalogueRoots[in.Kind]; !ok {
+		return NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
 	}
-	if request.Sort != fieldName {
-		return NewUsageError(fmt.Sprintf("unknown sort field %q", request.Sort))
+	if in.Sort != fieldName {
+		return NewUsageError(fmt.Sprintf("unknown sort field %q", in.Sort))
 	}
-	if !isValidOrder(request.Order) {
-		return NewUsageError(fmt.Sprintf("unknown order %q", request.Order))
+	if !isValidOrder(in.Order) {
+		return NewUsageError(fmt.Sprintf("unknown order %q", in.Order))
 	}
-	if request.Page < 1 {
-		return NewUsageError(fmt.Sprintf("page must be at least 1, got %d", request.Page))
+	if in.Page < 1 {
+		return NewUsageError(fmt.Sprintf("page must be at least 1, got %d", in.Page))
 	}
-	if request.Limit < 1 {
-		return NewUsageError(fmt.Sprintf("limit must be at least 1, got %d", request.Limit))
+	if in.Limit < 1 {
+		return NewUsageError(fmt.Sprintf("limit must be at least 1, got %d", in.Limit))
 	}
 
 	return nil
@@ -130,18 +163,18 @@ func (uc *ListCatalogueUseCase) validate(request *ListCatalogueRequest) error {
 
 // list opens the source root for the kind and returns its entries, paging at the
 // source with the computed offset.
-func (uc *ListCatalogueUseCase) list(request *ListCatalogueRequest, fs source.FileSystem) ([]source.File, error) {
+func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueInput, fs source.FileSystem) ([]source.File, error) {
 	opts := []source.Option{
 		source.WithSort(fieldName),
-		source.WithOrder(request.Order),
-		source.WithOffset(request.offset()),
-		source.WithLimit(request.Limit),
+		source.WithOrder(in.Order),
+		source.WithOffset(in.offset()),
+		source.WithLimit(in.Limit),
 	}
-	if request.Search != "" {
-		opts = append([]source.Option{source.WithSearch(request.Search)}, opts...)
+	if in.Search != "" {
+		opts = append([]source.Option{source.WithSearch(in.Search)}, opts...)
 	}
 
-	files, err := fs.List(request.Context, catalogueRoots[request.Kind], opts...)
+	files, err := fs.List(ctx, catalogueRoots[in.Kind], opts...)
 	if err != nil {
 		return nil, classifyAdapterErr(err)
 	}
@@ -149,68 +182,27 @@ func (uc *ListCatalogueUseCase) list(request *ListCatalogueRequest, fs source.Fi
 	return files, nil
 }
 
-// render builds the kind-specific rows, writes the table, then always writes the
-// paging line, logging the outcome.
-func (uc *ListCatalogueUseCase) render(request *ListCatalogueRequest, files []source.File) error {
-	headers, rows, err := uc.project(request, files)
-	if err != nil {
-		return err
-	}
-
-	table := presentation.Table{Headers: headers, Rows: rows}
-	if err := table.Render(request.Out()); err != nil {
-		return NewIOError(fmt.Sprintf("render table: %v", err))
-	}
-	if _, err := fmt.Fprintln(request.Out(), uc.pagingLine(request, len(rows))); err != nil {
-		return NewIOError(fmt.Sprintf("write paging line: %v", err))
-	}
-
-	uc.logger.Info("catalogue listed",
-		zap.String(telemetry.FieldRegistryName, request.Registry),
-		zap.Int(telemetry.FieldArtifactCount, len(rows)),
-	)
-
-	return nil
-}
-
-// project builds the headers and rows for the kind, skipping directory entries.
-// Skills and agents render NAME/KIND with no content read; personas render
-// NAME/MEMBERS by reading each manifest.
-func (uc *ListCatalogueUseCase) project(request *ListCatalogueRequest, files []source.File) ([]string, [][]string, error) {
-	if request.Kind == CataloguePersona {
-		rows, err := uc.personaRows(request, files)
-		if err != nil {
-			return nil, nil, err
-		}
-		return []string{colName, colMembers}, rows, nil
-	}
-
-	manifests := filterBy(files, func(f source.File) bool { return !f.IsDirectory() })
-	projectors := map[string]func(source.File) string{
-		colName: func(f source.File) string { return catalogueName(f.Name()) },
-		colKind: func(source.File) string { return string(request.Kind) },
-	}
-	rows := projectRows(manifests, []string{colName, colKind}, projectors)
-
-	return []string{colName, colKind}, rows, nil
-}
-
-// personaRows reads each listed persona manifest and projects NAME/MEMBERS. A
-// manifest that cannot be read or decoded is an io failure.
-func (uc *ListCatalogueUseCase) personaRows(request *ListCatalogueRequest, files []source.File) ([][]string, error) {
-	rows := make([][]string, 0, len(files))
+// entries projects the listed files into catalogue entries, skipping directory
+// entries. Personas read each manifest to summarize membership; skills and
+// agents carry the name alone.
+func (uc *ListCatalogueUseCase) entries(ctx context.Context, in ListCatalogueInput, files []source.File) ([]CatalogueEntry, error) {
+	entries := make([]CatalogueEntry, 0, len(files))
 	for _, file := range files {
 		if file.IsDirectory() {
 			continue
 		}
-		members, err := uc.readMembers(request.Context, file)
-		if err != nil {
-			return nil, err
+		entry := CatalogueEntry{Name: catalogueName(file.Name())}
+		if in.Kind == CataloguePersona {
+			members, err := uc.readMembers(ctx, file)
+			if err != nil {
+				return nil, err
+			}
+			entry.Members = members
 		}
-		rows = append(rows, []string{catalogueName(file.Name()), members})
+		entries = append(entries, entry)
 	}
 
-	return rows, nil
+	return entries, nil
 }
 
 // readMembers reads and decodes a persona manifest, summarizing its declared
@@ -233,19 +225,6 @@ func (uc *ListCatalogueUseCase) readMembers(ctx context.Context, file source.Fil
 	}
 
 	return summarizeMembers(persona.Spec.Members), nil
-}
-
-// pagingLine renders the applied-paging report; an empty page reports zero
-// results, a populated page the inclusive from–to window.
-func (uc *ListCatalogueUseCase) pagingLine(request *ListCatalogueRequest, count int) string {
-	if count == 0 {
-		return fmt.Sprintf("showing 0 results (page %d, limit %d)", request.Page, request.Limit)
-	}
-
-	from := request.offset() + 1
-	to := request.offset() + int64(count)
-
-	return fmt.Sprintf("showing %d–%d (page %d, limit %d)", from, to, request.Page, request.Limit)
 }
 
 // catalogueName trims a manifest's .yaml or .yml extension to its catalogue name.
@@ -274,28 +253,4 @@ func summarizeMembers(members types.PersonaMembers) string {
 	}
 
 	return strings.Join(groups, "; ")
-}
-
-// ListCatalogueRequest is the per-invocation input for browsing a registry's
-// catalogue of one kind.
-type ListCatalogueRequest struct {
-	baseRequest
-
-	Kind     CatalogueKind
-	Registry string
-	Search   string
-	Sort     string
-	Order    string
-	Page     int64
-	Limit    int64
-}
-
-// NewListCatalogueRequest builds a request bound to ctx and writing to out.
-func NewListCatalogueRequest(ctx context.Context, out io.Writer) *ListCatalogueRequest {
-	return &ListCatalogueRequest{baseRequest: baseRequest{Context: ctx, out: out}}
-}
-
-// offset translates the 1-based page and page size to a source offset.
-func (r *ListCatalogueRequest) offset() int64 {
-	return (r.Page - 1) * r.Limit
 }

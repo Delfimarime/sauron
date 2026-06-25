@@ -22,10 +22,10 @@ const (
 	envRef  = "${env:TOKEN}"
 )
 
-// TestNewAddRegistryRequestMapsFlags asserts the parsed flags and positional
-// arguments land on the use case request, including the --kind default and the
+// TestNewAddRegistryInputMapsFlags asserts the parsed flags and positional
+// arguments land on the use case input, including the --kind default and the
 // git-specific --ref.
-func TestNewAddRegistryRequestMapsFlags(t *testing.T) {
+func TestNewAddRegistryInputMapsFlags(t *testing.T) {
 	tests := []struct {
 		name      string
 		flags     addRegistryFlags
@@ -66,23 +66,18 @@ func TestNewAddRegistryRequestMapsFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Arrange.
-			var stdout bytes.Buffer
-
 			// Act.
-			request := newAddRegistryRequest(context.Background(), &tt.flags, tt.args, &stdout)
+			in := newAddRegistryInput(&tt.flags, tt.args)
 
 			// Assert.
-			require.NotNil(t, request)
-			assert.Equal(t, regName, request.Name)
-			assert.Equal(t, regURI, request.URI)
-			assert.Equal(t, tt.wantKind, request.Transport)
-			assert.Equal(t, tt.wantRef, request.Ref)
-			assert.Equal(t, tt.wantUser, request.Username)
-			assert.Equal(t, tt.wantTLS, request.SkipTLSVerify)
-			assert.Equal(t, tt.wantSSH, request.SSHKey)
-			assert.Equal(t, tt.wantTmout, request.Timeout)
-			assert.Same(t, &stdout, request.Out())
+			assert.Equal(t, regName, in.Name)
+			assert.Equal(t, regURI, in.URI)
+			assert.Equal(t, tt.wantKind, in.Transport)
+			assert.Equal(t, tt.wantRef, in.Ref)
+			assert.Equal(t, tt.wantUser, in.Username)
+			assert.Equal(t, tt.wantTLS, in.SkipTLSVerify)
+			assert.Equal(t, tt.wantSSH, in.SSHKey)
+			assert.Equal(t, tt.wantTmout, in.Timeout)
 		})
 	}
 }

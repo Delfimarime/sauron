@@ -57,38 +57,45 @@ func AddRegistry() *cobra.Command {
 	return cmd
 }
 
-// addRegistry holds the cobra-free logic: it validates flags, builds the
-// request, and lets the fx graph invoke the use case, returning the classified
-// failure to the caller.
+// addRegistry holds the cobra-free logic: it validates flags, builds the input,
+// invokes the use case through the fx graph, and writes the confirmation to
+// stdout.
 func addRegistry(ctx context.Context, flags *addRegistryFlags, args []string, stdout io.Writer) error {
 	if err := flags.validate(); err != nil {
 		return err
 	}
+
+	in := newAddRegistryInput(flags, args)
 
 	// runUseCase runs on a cancellable run context: adapters schedule deferred
 	// work (e.g. the git clone cleanup) on the worker pool keyed to it, and the
 	// cancel-before-Stop teardown lets that work finish so Stop does not deadlock
 	// waiting on a task that is itself waiting on the context.
 	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.AddRegistryUseCase) error {
-		return uc.Execute(newAddRegistryRequest(runCtx, flags, args, stdout))
+		result, err := uc.Execute(runCtx, in)
+		if err != nil {
+			return err
+		}
+		_, werr := fmt.Fprintf(stdout, "registered registry %q (%s)\n", result.Metadata.Name, result.Spec.Transport)
+		return werr
 	})
 }
 
-// newAddRegistryRequest maps the parsed flags and positional arguments onto the
-// use case's request, binding it to ctx and the command's output writer.
-func newAddRegistryRequest(ctx context.Context, flags *addRegistryFlags, args []string, stdout io.Writer) *usecase.AddRegistryRequest {
-	request := usecase.NewAddRegistryRequest(ctx, stdout)
-	request.Name = args[0]
-	request.URI = args[1]
-	request.Transport = flags.Kind
-	request.Ref = flags.Ref
-	request.Username = flags.Username
-	request.Password = flags.Password
-	request.SSHKey = flags.SSHKey
-	request.SkipTLSVerify = flags.SkipTLSVerify
-	request.CACert = flags.CACert
-	request.ClientCert = flags.ClientCert
-	request.ClientKey = flags.ClientKey
-	request.Timeout = flags.Timeout
-	return request
+// newAddRegistryInput maps the parsed flags and positional arguments onto the
+// use case's input.
+func newAddRegistryInput(flags *addRegistryFlags, args []string) usecase.AddRegistryInput {
+	return usecase.AddRegistryInput{
+		Name:          args[0],
+		URI:           args[1],
+		Transport:     flags.Kind,
+		Ref:           flags.Ref,
+		Username:      flags.Username,
+		Password:      flags.Password,
+		SSHKey:        flags.SSHKey,
+		SkipTLSVerify: flags.SkipTLSVerify,
+		CACert:        flags.CACert,
+		ClientCert:    flags.ClientCert,
+		ClientKey:     flags.ClientKey,
+		Timeout:       flags.Timeout,
+	}
 }

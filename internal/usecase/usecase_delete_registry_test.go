@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -29,18 +28,13 @@ func newDeleteUseCase(store storage.RegistriesStore) *DeleteRegistryUseCase {
 	})
 }
 
-// runDelete executes the use case, returning the captured output and the error.
-func runDelete(uc *DeleteRegistryUseCase, name string, dryRun bool) (string, error) {
-	var out bytes.Buffer
-	request := NewDeleteRegistryRequest(context.Background(), &out)
-	request.Name = name
-	request.DryRun = dryRun
-	err := uc.Execute(request)
-	return out.String(), err
+// runDelete executes the use case, returning the result and the error.
+func runDelete(uc *DeleteRegistryUseCase, name string, dryRun bool) (*DeleteRegistryResult, error) {
+	return uc.Execute(context.Background(), DeleteRegistryInput{Name: name, DryRun: dryRun})
 }
 
-// TestDeleteRegistryRemovesAndReports removes the registry and reports the summary
-// with zero artifacts (the cascade is a no-op).
+// TestDeleteRegistryRemovesAndReports removes the registry and reports the
+// applied outcome with the empty (no-op) cascade plan.
 func TestDeleteRegistryRemovesAndReports(t *testing.T) {
 	// Arrange.
 	store := &storage.MockBasedRegistriesStore{}
@@ -49,15 +43,19 @@ func TestDeleteRegistryRemovesAndReports(t *testing.T) {
 	uc := newDeleteUseCase(store)
 
 	// Act.
-	out, err := runDelete(uc, testName, false)
+	result, err := runDelete(uc, testName, false)
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Contains(t, out, `registry "acme" removed; 0 artifacts removed`)
+	require.NotNil(t, result)
+	assert.True(t, result.Existed)
+	assert.False(t, result.DryRun)
+	require.NotNil(t, result.Plan)
+	assert.Equal(t, 0, result.Plan.Total())
 	store.AssertExpectations(t)
 }
 
-// TestDeleteRegistryNotFoundIsSuccess reports nothing was deleted and never removes
+// TestDeleteRegistryNotFoundIsSuccess reports nothing existed and never removes
 // (FR-005): a missing registry is exit 0, not an error.
 func TestDeleteRegistryNotFoundIsSuccess(t *testing.T) {
 	// Arrange.
@@ -66,11 +64,12 @@ func TestDeleteRegistryNotFoundIsSuccess(t *testing.T) {
 	uc := newDeleteUseCase(store)
 
 	// Act.
-	out, err := runDelete(uc, "ghost", false)
+	result, err := runDelete(uc, "ghost", false)
 
-	// Assert: success, the message, and Remove was never called.
+	// Assert: success, Existed false, and Remove was never called.
 	require.NoError(t, err)
-	assert.Contains(t, out, "nothing was deleted")
+	require.NotNil(t, result)
+	assert.False(t, result.Existed)
 	store.AssertNotCalled(t, "Remove", mock.Anything, mock.Anything)
 	store.AssertExpectations(t)
 }
@@ -83,11 +82,13 @@ func TestDeleteRegistryDryRunWritesNothing(t *testing.T) {
 	uc := newDeleteUseCase(store)
 
 	// Act.
-	out, err := runDelete(uc, testName, true)
+	result, err := runDelete(uc, testName, true)
 
-	// Assert: success, a preview line, and Remove was never called.
+	// Assert: success, DryRun true, and Remove was never called.
 	require.NoError(t, err)
-	assert.Contains(t, out, "would be removed")
+	require.NotNil(t, result)
+	assert.True(t, result.Existed)
+	assert.True(t, result.DryRun)
 	store.AssertNotCalled(t, "Remove", mock.Anything, mock.Anything)
 	store.AssertExpectations(t)
 }
@@ -100,12 +101,11 @@ func TestDeleteRegistryLookupFailsIsIOError(t *testing.T) {
 	uc := newDeleteUseCase(store)
 
 	// Act.
-	_, err := runDelete(uc, testName, false)
+	result, err := runDelete(uc, testName, false)
 
 	// Assert.
-	var ucErr *Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, TypeIO, ucErr.Type)
+	assert.Nil(t, result)
+	_ = asUseCaseError(t, err, TypeIO)
 }
 
 // TestDeleteRegistryRemoveFailsIsIOError classifies a removal write failure as io.
@@ -117,48 +117,9 @@ func TestDeleteRegistryRemoveFailsIsIOError(t *testing.T) {
 	uc := newDeleteUseCase(store)
 
 	// Act.
-	_, err := runDelete(uc, testName, false)
+	result, err := runDelete(uc, testName, false)
 
 	// Assert.
-	var ucErr *Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, TypeIO, ucErr.Type)
-}
-
-// TestDeleteRegistryRendersNonEmptyGroups renders only the non-empty kind groups,
-// each entry "-"-prefixed, followed by the summary count.
-func TestDeleteRegistryRendersNonEmptyGroups(t *testing.T) {
-	// Arrange.
-	uc := newDeleteUseCase(&storage.MockBasedRegistriesStore{})
-	plan := &DeleteArtifactsByRegistryResponse{
-		Skills: []string{"sauron-acme-go-style"},
-		Agents: []string{"sauron-acme-code-reviewer"},
-	}
-
-	// Act.
-	out := uc.renderPlan(plan)
-
-	// Assert: skills and agents groups render, personas (empty) does not.
-	assert.Contains(t, out, "skills:\n  - sauron-acme-go-style\n")
-	assert.Contains(t, out, "agents:\n  - sauron-acme-code-reviewer\n")
-	assert.NotContains(t, out, "personas:")
-}
-
-// TestRemovalPlanSummaryReflectsTotal counts artifacts across kinds in the summary.
-func TestRemovalPlanSummaryReflectsTotal(t *testing.T) {
-	// Arrange: a store that resolves the registry and accepts the removal.
-	store := &storage.MockBasedRegistriesStore{}
-	store.On("FindByName", mock.Anything, testName).Return(acmeRegistry(), nil)
-	store.On("Remove", mock.Anything, testName).Return(nil)
-	uc := newDeleteUseCase(store)
-	plan := &DeleteArtifactsByRegistryResponse{Skills: []string{"a", "b"}}
-
-	// Act: the summary helper is exercised directly for a non-empty plan.
-	var out bytes.Buffer
-	request := NewDeleteRegistryRequest(context.Background(), &out)
-	request.Name = testName
-	require.NoError(t, uc.reportRemoved(request, plan))
-
-	// Assert.
-	assert.Contains(t, out.String(), `registry "acme" removed; 2 artifacts removed`)
+	assert.Nil(t, result)
+	_ = asUseCaseError(t, err, TypeIO)
 }

@@ -1,6 +1,6 @@
 ---
 name: sauron-architect
-description: Read-only architecture guardian for sauron. Use after Go code is written or changed to audit it against the architecture contract (spec/contracts/architecture.md) and the Constitution — the Use Case/Action pattern, the Request context object, the internal/infrastructure ports-and-adapters layout and fx wiring, the storage fs-injection, the no-rogue-goroutines rule, file/type naming, and the versioning vars. Reports conformance findings; does not modify code.
+description: Read-only architecture guardian for sauron. Use after Go code is written or changed to audit it against the architecture contract (spec/contracts/architecture.md) and the Constitution — the Use Case/Action pattern (one Execute(ctx, in) (*P, error) shape, use cases returning presentation-agnostic results), the internal/infrastructure ports-and-adapters layout and fx wiring, the storage fs-injection, the no-rogue-goroutines rule, file/type naming, and the versioning vars. Reports conformance findings; does not modify code.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -19,12 +19,18 @@ convention. Sauron uses **Use Cases, not services**.
 
 ## What to check
 
-1. **Use Case/Action shape.** Command entrypoints are `UseCase[R Request]`
-   (`Execute(R) error`); reusable steps are `Action[R, P any]`
-   (`Execute(context.Context, R) (*P, error)`). No "service" types.
-2. **Request context object.** It extends `context.Context`, exposes `Out()`,
-   is built per invocation, and is never retained. Use cases are stateless;
-   collaborators arrive via fx, call-scoped state via the `Request`.
+1. **Use Case/Action shape.** Command entrypoints are `UseCase[I, P any]` and
+   reusable steps `Action[I, P any]`, sharing one shape:
+   `Execute(ctx context.Context, in I) (*P, error)`. No "service" types.
+2. **Use cases return results, not bytes.** `Execute` returns a
+   presentation-agnostic `*P` (domain objects or a small result struct) and a
+   classified `*Error` — never a `Table`/`Descriptor`, an `io.Writer`, or field
+   projection. There is **no `Request` and no `Out()`**: context is the explicit
+   first parameter, business input is `in`, and rendering happens in the cobra
+   handler's `view_<name>.go` files (cobra-free, in `package cmd` — not a separate
+   package) after `Execute` returns. Use cases are stateless; collaborators arrive
+   via fx. Flag any `usecase` code that renders (`Table`/`Descriptor`/`io.Writer`)
+   or imports `internal/cmd`.
 3. **Ports & adapters.** Public interfaces in `pkg/{registry,provider,backend}`;
    adapters in `internal/infrastructure/<name>/<kind>` with `NewFxOptions()`;
    `storage` is internal (no `pkg/` port) with an **fx-injected `afero.Fs`** and

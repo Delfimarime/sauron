@@ -1,6 +1,6 @@
 ---
 name: sauron-implementing-architecture
-description: Use when writing or modifying Go code in this repository — the Use Case/Action orchestration pattern (UseCase[R Request], Action, the Request context object, the verb-named command builder/handler + fx.Populate), the ports-and-adapters layout under internal/infrastructure with pkg/ ports, the storage internal capability (fx-injected afero.Fs), the root-command and package.json/git ldflags versioning, the no-rogue-goroutines (pond) rule, and the local Taskfile gates. Normative rules live in spec/contracts/architecture.md and CONSTITUTION.md.
+description: Use when writing or modifying Go code in this repository — the Use Case/Action orchestration pattern (UseCase/Action sharing one Execute(ctx, in) (*P, error) shape, use cases returning a presentation-agnostic result rendered by the cobra handler's view_<name>.go files in package cmd, the verb-named command builder/handler + fx.Populate), the ports-and-adapters layout under internal/infrastructure with pkg/ ports, the storage internal capability (fx-injected afero.Fs), the root-command and package.json/git ldflags versioning, the no-rogue-goroutines (pond) rule, and the local Taskfile gates. Normative rules live in spec/contracts/architecture.md and CONSTITUTION.md.
 ---
 
 # Implementing Sauron's Architecture
@@ -16,21 +16,29 @@ infrastructure layout below — when they conflict, this skill wins.
 ## Procedural reminders
 
 1. **Use Case = command entrypoint.** A command's business logic is a
-   `UseCase[R Request]` (`Execute(R) error`), not a service. Reusable steps are
-   `Action[R, P any]` (`Execute(context.Context, R) (*P, error)`). Both live in
-   `internal/usecase` as `<Name>UseCase` / `<Name>Action`, in files
-   `usecase_<name>.go` / `action_<name>.go`.
-2. **The `Request` is a context object** (gin-style): it *extends*
-   `context.Context` and exposes `Out() io.Writer`. A use case is **stateless** —
-   its collaborators (the `pkg/` ports, the `storage` stores, the logger) are
-   injected by uberfx; everything call-scoped arrives through the `Request`,
-   which is built per invocation and never retained.
-3. **The handler wires it.** A command's builder is named for the command verb
-   (`Add()` for `add`; a subcommand follows, e.g. `AddRegistry()`), and its private
-   handler is `<verb><Noun>()` (e.g. `addRegistry()`) — *not* `serve()`, which
-   names only a server's `serve` command. The handler maps its flag struct + args
-   into a concrete `Request`, resolves the use case with `fx.Populate`, and calls
-   `Execute` — no business logic in the cobra layer.
+   `UseCase[I, P any]`, not a service; reusable steps are `Action[I, P any]`.
+   Both share one shape — `Execute(ctx context.Context, in I) (*P, error)` —
+   distinguished only by role. Both live in `internal/usecase` as `<Name>UseCase`
+   / `<Name>Action`, in files `usecase_<name>.go` / `action_<name>.go`.
+2. **A use case returns a result, never bytes.** `Execute` returns a
+   *presentation-agnostic* `*P` — domain objects from `pkg/sauron/types`, or a
+   small struct of them — and a classified `*Error`. It never renders: no
+   `Table`/`Descriptor`, no `io.Writer`, no field projection. There is **no
+   `Request` and no `Out()`**: the context is the explicit first parameter, and
+   only call-scoped *business* input is `in` (view options — fields, sort,
+   search — belong to the client). A use case is **stateless** — its
+   collaborators (the `pkg/` ports, the `storage` stores, the logger) are
+   injected by uberfx.
+3. **The handler wires it and renders.** A command's builder is named for the
+   command verb (`Add()` for `add`; a subcommand follows, e.g. `AddRegistry()`),
+   and its private handler is `<verb><Noun>()` (e.g. `addRegistry()`) — *not*
+   `serve()`, which names only a server's `serve` command. The handler maps its
+   flag struct + args into the use-case input, resolves the use case with
+   `fx.Populate`, calls `Execute`, and renders the `*P` result to stdout through
+   the command layer's own `view_<name>.go` rendering (cobra-free files in
+   `package cmd` — rendering is not a separate package). View flags (`--fields`,
+   `--sort`) are validated here, before the use case runs — no business logic in
+   the cobra layer, no rendering in the use case.
 4. **Ports & adapters.** Public ports live in `pkg/sauron/extension` (`Registry`,
    `Provider`); adapters live under `internal/infrastructure/repository/<name>`
    with a `NewFxOptions()`. `registry/` is **one package with a file per transport**

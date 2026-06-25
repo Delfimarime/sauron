@@ -38,19 +38,19 @@ func DescribeRegistry() *cobra.Command {
 	return cmd
 }
 
-// describeRegistry holds the cobra-free logic: it builds the request and lets the
-// fx graph invoke the use case, returning the classified failure to the caller.
+// describeRegistry holds the cobra-free logic: it validates the view options,
+// invokes the use case through the fx graph, and renders the result to stdout.
 func describeRegistry(ctx context.Context, flags *describeRegistryFlags, args []string, stdout io.Writer) error {
-	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.DescribeRegistryUseCase) error {
-		return uc.Execute(newDescribeRegistryRequest(runCtx, flags, args, stdout))
-	})
-}
+	opts := RegistryDetailOptions{Fields: flags.Fields}
+	if err := opts.Validate(); err != nil {
+		return usecase.NewUsageError(err.Error())
+	}
 
-// newDescribeRegistryRequest maps the positional name and parsed flags onto the
-// use case's request, binding it to ctx and the command's output writer.
-func newDescribeRegistryRequest(ctx context.Context, flags *describeRegistryFlags, args []string, stdout io.Writer) *usecase.DescribeRegistryRequest {
-	request := usecase.NewDescribeRegistryRequest(ctx, stdout)
-	request.Name = args[0]
-	request.Fields = flags.Fields
-	return request
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.DescribeRegistryUseCase) error {
+		result, err := uc.Execute(runCtx, usecase.DescribeRegistryInput{Name: args[0]})
+		if err != nil {
+			return err
+		}
+		return RenderRegistryDetail(stdout, *result, opts)
+	})
 }

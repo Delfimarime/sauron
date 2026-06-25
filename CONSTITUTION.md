@@ -162,12 +162,15 @@ package with no `pkg/` port. The transversal framework modules (`internal/config
 
 A command's business logic is an interactor, not a service. Each command's
 entrypoint is a **use case** that orchestrates the work; the reusable steps a use
-case composes are **actions**. A use case is stateless: its collaborators — the
-`pkg/` ports, the state stores, and the logger — are supplied by uberfx, while
-the per-invocation context and the writer that command output goes to arrive
-through a `Request` passed to its `Execute`. The use case therefore stays
-ignorant of where its output is printed and where state is persisted — output
-flows through an `io.Writer` on the `Request`, and persisted state through the
+case composes are **actions**, and the two share one shape. A use case is
+stateless: its collaborators — the `pkg/` ports, the state stores, and the
+logger — are supplied by uberfx, while the per-invocation `context.Context` and
+the call's business input are passed to its `Execute`. A use case **returns a
+presentation-agnostic result** — domain objects, not rendered output — and never
+decides how that result is displayed: rendering is the client's responsibility,
+performed by the command layer (`internal/cmd`) after `Execute` returns. The
+use case therefore stays ignorant of presentation entirely, and of where state is
+persisted — persisted state flows through the
 `internal/infrastructure/repository/storage` package (which owns the `afero.Fs`),
 never through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
 interface shapes, the `internal/usecase` layout, and the naming convention are

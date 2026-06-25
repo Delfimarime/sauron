@@ -64,25 +64,6 @@ func runListRegistries(t *testing.T, args ...string) (string, error) {
 	return stdout.String(), err
 }
 
-// TestNewListRegistriesRequestMapsFlags asserts the parsed flags land on the use
-// case request.
-func TestNewListRegistriesRequestMapsFlags(t *testing.T) {
-	// Arrange.
-	var stdout bytes.Buffer
-	flags := listingFlags{Search: acmeName, Sort: fieldTransport, Order: orderDesc, Fields: []string{sortName, colURI}}
-
-	// Act.
-	request := newListRegistriesRequest(context.Background(), &flags, &stdout)
-
-	// Assert.
-	require.NotNil(t, request)
-	assert.Equal(t, acmeName, request.Search)
-	assert.Equal(t, fieldTransport, request.Sort)
-	assert.Equal(t, orderDesc, request.Order)
-	assert.Equal(t, []string{sortName, colURI}, request.Fields)
-	assert.Same(t, &stdout, request.Out())
-}
-
 // TestListGroup asserts the list group has no run behaviour and attaches the
 // registries subcommand.
 func TestListGroup(t *testing.T) {

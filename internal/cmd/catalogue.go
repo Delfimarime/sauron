@@ -10,6 +10,13 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
+// the catalogue table column headers.
+const (
+	colName    = "NAME"
+	colKind    = "KIND"
+	colMembers = "MEMBERS"
+)
+
 // catalogueFlags groups the filter, sort, and paging flags the catalogue leaf
 // commands share.
 type catalogueFlags struct {
@@ -96,25 +103,59 @@ func bindCatalogueFlags(cmd *cobra.Command, f *catalogueFlags) {
 }
 
 // listCatalogue holds the cobra-free logic shared by every kind: it builds the
-// request and lets the fx graph invoke the use case, returning the classified
-// failure to the caller.
+// input, invokes the use case through the fx graph, and renders the result to
+// stdout.
 func listCatalogue(ctx context.Context, kind usecase.CatalogueKind, flags *catalogueFlags, args []string, stdout io.Writer) error {
+	in := newListCatalogueInput(kind, flags, args)
+
 	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListCatalogueUseCase) error {
-		return uc.Execute(newListCatalogueRequest(runCtx, kind, flags, args, stdout))
+		result, err := uc.Execute(runCtx, in)
+		if err != nil {
+			return err
+		}
+		return renderCatalogue(stdout, result)
 	})
 }
 
-// newListCatalogueRequest maps the kind, the positional registry, and the parsed
-// flags onto the use case's request, binding it to ctx and the command's output
-// writer.
-func newListCatalogueRequest(ctx context.Context, kind usecase.CatalogueKind, flags *catalogueFlags, args []string, stdout io.Writer) *usecase.ListCatalogueRequest {
-	request := usecase.NewListCatalogueRequest(ctx, stdout)
-	request.Kind = kind
-	request.Registry = args[0]
-	request.Search = flags.Search
-	request.Sort = flags.Sort
-	request.Order = flags.Order
-	request.Page = flags.paging.Page
-	request.Limit = flags.paging.Limit
-	return request
+// newListCatalogueInput maps the kind, the positional registry, and the parsed
+// flags onto the use case's input.
+func newListCatalogueInput(kind usecase.CatalogueKind, flags *catalogueFlags, args []string) usecase.ListCatalogueInput {
+	return usecase.ListCatalogueInput{
+		Kind:     kind,
+		Registry: args[0],
+		Search:   flags.Search,
+		Sort:     flags.Sort,
+		Order:    flags.Order,
+		Page:     flags.paging.Page,
+		Limit:    flags.paging.Limit,
+	}
+}
+
+// renderCatalogue writes the catalogue table followed by the paging line.
+func renderCatalogue(stdout io.Writer, result *usecase.ListCatalogueResult) error {
+	headers, rows := catalogueTable(result)
+	table := Table{Headers: headers, Rows: rows}
+	if err := table.Render(stdout); err != nil {
+		return err
+	}
+
+	_, err := fmt.Fprintln(stdout, CataloguePagingLine(result.Page, result.Limit, len(result.Entries)))
+	return err
+}
+
+// catalogueTable builds the headers and rows for the result's kind: personas
+// render NAME/MEMBERS, skills and agents render NAME/KIND.
+func catalogueTable(result *usecase.ListCatalogueResult) ([]string, [][]string) {
+	rows := make([][]string, len(result.Entries))
+	if result.Kind == usecase.CataloguePersona {
+		for i, entry := range result.Entries {
+			rows[i] = []string{entry.Name, entry.Members}
+		}
+		return []string{colName, colMembers}, rows
+	}
+
+	for i, entry := range result.Entries {
+		rows[i] = []string{entry.Name, string(result.Kind)}
+	}
+	return []string{colName, colKind}, rows
 }

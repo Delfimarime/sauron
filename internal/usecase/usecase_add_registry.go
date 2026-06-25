@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"time"
 
@@ -68,34 +67,34 @@ func NewAddRegistryUseCase(params AddRegistryUseCaseParams) *AddRegistryUseCase 
 	}
 }
 
-// Execute runs the ordered registration pipeline, returning a *Error on the
-// first failing step.
-func (uc *AddRegistryUseCase) Execute(request *AddRegistryRequest) error {
-	if err := uc.validateName(request.Name); err != nil {
-		return err
+// Execute runs the ordered registration pipeline, returning the persisted
+// registry, or a *Error on the first failing step.
+func (uc *AddRegistryUseCase) Execute(ctx context.Context, in AddRegistryInput) (*types.Registry, error) {
+	if err := uc.validateName(in.Name); err != nil {
+		return nil, err
 	}
-	if err := uc.validateCredentialFormat(request.Password); err != nil {
-		return err
+	if err := uc.validateCredentialFormat(in.Password); err != nil {
+		return nil, err
 	}
 
-	adapter, transport, err := uc.selectAdapter(request.Transport)
+	adapter, transport, err := uc.selectAdapter(in.Transport)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	opts := request.referenceOptions(transport)
+	opts := in.referenceOptions(transport)
 	if err := classifyAdapterErr(adapter.Validate(opts...)); err != nil {
-		return err
+		return nil, err
 	}
-	if err := uc.ensureUnique(request); err != nil {
-		return err
-	}
-
-	if err := uc.probe(request, transport); err != nil {
-		return err
+	if err := uc.ensureUnique(ctx, in); err != nil {
+		return nil, err
 	}
 
-	return uc.persist(request, transport)
+	if err := uc.probe(ctx, in, transport); err != nil {
+		return nil, err
+	}
+
+	return uc.persist(ctx, in, transport)
 }
 
 // validateName enforces the path-safe name grammar.
@@ -129,13 +128,13 @@ func (uc *AddRegistryUseCase) selectAdapter(transport string) (extension.Registr
 }
 
 // ensureUnique rejects a name already taken by a stored registry.
-func (uc *AddRegistryUseCase) ensureUnique(request *AddRegistryRequest) error {
-	valueOf, err := uc.registries.FindByName(request.Context, request.Name)
+func (uc *AddRegistryUseCase) ensureUnique(ctx context.Context, in AddRegistryInput) error {
+	valueOf, err := uc.registries.FindByName(ctx, in.Name)
 	if err != nil {
-		return NewIOError(fmt.Sprintf("lookup registry %q: %v", request.Name, err))
+		return NewIOError(fmt.Sprintf("lookup registry %q: %v", in.Name, err))
 	}
 	if valueOf != nil {
-		return NewConflictError(fmt.Sprintf("registry %q already exists", request.Name))
+		return NewConflictError(fmt.Sprintf("registry %q already exists", in.Name))
 	}
 	return nil
 }
@@ -143,13 +142,13 @@ func (uc *AddRegistryUseCase) ensureUnique(request *AddRegistryRequest) error {
 // probe opens the source through the shared open action — which resolves
 // credential references, builds the options, and opens the transport — then
 // confirms the source hosts at least one artifact.
-func (uc *AddRegistryUseCase) probe(request *AddRegistryRequest, transport types.Transport) error {
-	fs, err := uc.open.Execute(request.Context, request.toRegistry(transport))
+func (uc *AddRegistryUseCase) probe(ctx context.Context, in AddRegistryInput, transport types.Transport) error {
+	fs, err := uc.open.Execute(ctx, in.toRegistry(transport))
 	if err != nil {
 		return err
 	}
 
-	return uc.scanArtifacts(request.Context, fs)
+	return uc.scanArtifacts(ctx, fs)
 }
 
 // scanArtifacts reports unreachable when no artifact root yields an entry.
@@ -168,25 +167,23 @@ func (uc *AddRegistryUseCase) scanArtifacts(ctx context.Context, fs source.FileS
 }
 
 // persist builds the registry document, stamps its audit timestamps with the
-// current instant in UTC (equal on create), and stores it.
-func (uc *AddRegistryUseCase) persist(request *AddRegistryRequest, transport types.Transport) error {
-	registry := request.toRegistry(transport)
+// current instant in UTC (equal on create), stores it, and returns the stamped
+// document.
+func (uc *AddRegistryUseCase) persist(ctx context.Context, in AddRegistryInput, transport types.Transport) (*types.Registry, error) {
+	registry := in.toRegistry(transport)
 	now := time.Now().UTC().Format(time.RFC3339)
 	registry.Metadata.CreationTimestamp = now
 	registry.Metadata.LastUpdatedTimestamp = now
-	if err := uc.registries.Add(request.Context, registry); err != nil {
-		return NewIOError(fmt.Sprintf("persist registry %q: %v", request.Name, err))
+	if err := uc.registries.Add(ctx, registry); err != nil {
+		return nil, NewIOError(fmt.Sprintf("persist registry %q: %v", in.Name, err))
 	}
 
 	uc.logger.Info("registry registered",
-		zap.String(telemetry.FieldRegistryName, request.Name),
+		zap.String(telemetry.FieldRegistryName, in.Name),
 		zap.String(telemetry.FieldRegistryTransport, string(transport)),
 	)
-	if _, err := fmt.Fprintf(request.Out(), "registered registry %q (%s)\n", request.Name, transport); err != nil {
-		return NewIOError(fmt.Sprintf("write report: %v", err))
-	}
 
-	return nil
+	return &registry, nil
 }
 
 // classifyAdapterErr maps an adapter failure to a classified use-case error: a
@@ -202,10 +199,8 @@ func classifyAdapterErr(err error) error {
 	return NewUnreachableError(err.Error())
 }
 
-// AddRegistryRequest is the per-invocation input for registering a source.
-type AddRegistryRequest struct {
-	baseRequest
-
+// AddRegistryInput is the input for registering a source.
+type AddRegistryInput struct {
 	Name      string
 	URI       string
 	Transport string
@@ -222,44 +217,39 @@ type AddRegistryRequest struct {
 	Timeout time.Duration
 }
 
-// NewAddRegistryRequest builds a request bound to ctx and writing to out.
-func NewAddRegistryRequest(ctx context.Context, out io.Writer) *AddRegistryRequest {
-	return &AddRegistryRequest{baseRequest: baseRequest{Context: ctx, out: out}}
-}
-
-// referenceOptions builds the options used to validate the request, carrying the
+// referenceOptions builds the options used to validate the input, carrying the
 // raw credential references untouched.
-func (r *AddRegistryRequest) referenceOptions(transport types.Transport) []extension.Option {
-	opts := []extension.Option{extension.WithURI(r.URI)}
+func (in AddRegistryInput) referenceOptions(transport types.Transport) []extension.Option {
+	opts := []extension.Option{extension.WithURI(in.URI)}
 
-	if transport == types.TransportGit && r.Ref != "" {
-		opts = append(opts, extension.WithRef(r.Ref))
+	if transport == types.TransportGit && in.Ref != "" {
+		opts = append(opts, extension.WithRef(in.Ref))
 	}
-	if r.Timeout > 0 {
-		opts = append(opts, extension.WithTimeout(r.Timeout))
+	if in.Timeout > 0 {
+		opts = append(opts, extension.WithTimeout(in.Timeout))
 	}
-	if r.SSHKey != "" {
-		opts = append(opts, extension.WithSSHKey(r.SSHKey))
+	if in.SSHKey != "" {
+		opts = append(opts, extension.WithSSHKey(in.SSHKey))
 	}
-	if r.Username != "" || r.Password != "" {
-		opts = append(opts, extension.WithBasicAuth(r.Username, r.Password))
+	if in.Username != "" || in.Password != "" {
+		opts = append(opts, extension.WithBasicAuth(in.Username, in.Password))
 	}
 
-	return append(opts, r.tlsOptions()...)
+	return append(opts, in.tlsOptions()...)
 }
 
-// tlsOptions builds the transport-security options from the request.
-func (r *AddRegistryRequest) tlsOptions() []extension.Option {
+// tlsOptions builds the transport-security options from the input.
+func (in AddRegistryInput) tlsOptions() []extension.Option {
 	var opts []extension.Option
 
-	if r.SkipTLSVerify {
+	if in.SkipTLSVerify {
 		opts = append(opts, extension.WithSkipTLSVerify(true))
 	}
-	if r.CACert != "" {
-		opts = append(opts, extension.WithCACert(r.CACert))
+	if in.CACert != "" {
+		opts = append(opts, extension.WithCACert(in.CACert))
 	}
-	if r.ClientCert != "" || r.ClientKey != "" {
-		opts = append(opts, extension.WithClientCert(r.ClientCert, r.ClientKey))
+	if in.ClientCert != "" || in.ClientKey != "" {
+		opts = append(opts, extension.WithClientCert(in.ClientCert, in.ClientKey))
 	}
 
 	return opts
@@ -267,47 +257,47 @@ func (r *AddRegistryRequest) tlsOptions() []extension.Option {
 
 // toRegistry assembles the persisted document, storing credential references
 // verbatim and never the resolved values.
-func (r *AddRegistryRequest) toRegistry(transport types.Transport) types.Registry {
+func (in AddRegistryInput) toRegistry(transport types.Transport) types.Registry {
 	spec := types.RegistrySpec{
 		Transport: transport,
-		URI:       r.URI,
-		SSHKey:    r.SSHKey,
-		Auth:      r.toAuth(),
-		TLS:       r.toTLS(),
+		URI:       in.URI,
+		SSHKey:    in.SSHKey,
+		Auth:      in.toAuth(),
+		TLS:       in.toTLS(),
 	}
 
 	if transport == types.TransportGit {
-		spec.Ref = r.Ref
+		spec.Ref = in.Ref
 	}
-	if r.Timeout > 0 {
-		spec.Timeout = r.Timeout.String()
+	if in.Timeout > 0 {
+		spec.Timeout = in.Timeout.String()
 	}
 
 	return types.Registry{
-		Metadata: types.Metadata{Name: r.Name},
+		Metadata: types.Metadata{Name: in.Name},
 		Spec:     spec,
 	}
 }
 
 // toAuth returns the credential references, or nil when none were supplied.
-func (r *AddRegistryRequest) toAuth() *types.Auth {
-	if r.Username == "" && r.Password == "" {
+func (in AddRegistryInput) toAuth() *types.Auth {
+	if in.Username == "" && in.Password == "" {
 		return nil
 	}
 
-	return &types.Auth{Username: r.Username, Password: r.Password}
+	return &types.Auth{Username: in.Username, Password: in.Password}
 }
 
 // toTLS returns the transport-security block, or nil when none was supplied.
-func (r *AddRegistryRequest) toTLS() *types.TLS {
-	if !r.SkipTLSVerify && r.CACert == "" && r.ClientCert == "" && r.ClientKey == "" {
+func (in AddRegistryInput) toTLS() *types.TLS {
+	if !in.SkipTLSVerify && in.CACert == "" && in.ClientCert == "" && in.ClientKey == "" {
 		return nil
 	}
 
 	return &types.TLS{
-		SkipVerify: r.SkipTLSVerify,
-		CACert:     r.CACert,
-		ClientCert: r.ClientCert,
-		ClientKey:  r.ClientKey,
+		SkipVerify: in.SkipTLSVerify,
+		CACert:     in.CACert,
+		ClientCert: in.ClientCert,
+		ClientKey:  in.ClientKey,
 	}
 }

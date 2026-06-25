@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -45,12 +44,18 @@ func newCatalogueFixture() *catalogueFixture {
 	}
 }
 
-// run executes the use case against the request, returning the output and error.
-func (f *catalogueFixture) run(request *ListCatalogueRequest) (string, error) {
-	var out bytes.Buffer
-	request.out = &out
-	err := f.uc.Execute(request)
-	return out.String(), err
+// run executes the use case against the input, returning the result and error.
+func (f *catalogueFixture) run(in ListCatalogueInput) (*ListCatalogueResult, error) {
+	return f.uc.Execute(context.Background(), in)
+}
+
+// names projects a result's entries to their catalogue names.
+func names(result *ListCatalogueResult) []string {
+	out := make([]string, len(result.Entries))
+	for i, entry := range result.Entries {
+		out[i] = entry.Name
+	}
+	return out
 }
 
 // expectFound stubs FindByName to return the stored catalogue registry.
@@ -103,19 +108,14 @@ func personaFile(name, content string) *source.MockBasedFile {
 	return file
 }
 
-// request builds a catalogue request with the page/limit defaults applied.
-func request(kind CatalogueKind) *ListCatalogueRequest {
-	req := NewListCatalogueRequest(context.Background(), nil)
-	req.Kind = kind
-	req.Registry = catalogueReg
-	req.Page = 1
-	req.Limit = 20
-	return req
-}
-
-// lines splits rendered output into its non-empty trimmed lines.
-func lines(out string) []string {
-	return strings.Split(strings.TrimRight(out, "\n"), "\n")
+// catalogueInput builds a catalogue input with the page/limit defaults applied.
+func catalogueInput(kind CatalogueKind) ListCatalogueInput {
+	return ListCatalogueInput{
+		Kind:     kind,
+		Registry: catalogueReg,
+		Page:     1,
+		Limit:    20,
+	}
 }
 
 func TestListCatalogueSkillAndAgent(t *testing.T) {
@@ -139,18 +139,16 @@ func TestListCatalogueSkillAndAgent(t *testing.T) {
 			}, nil)
 
 			// Act.
-			out, err := f.run(request(tc.kind))
+			result, err := f.run(catalogueInput(tc.kind))
 
 			// Assert.
 			require.NoError(t, err)
-			rows := lines(out)
-			assert.Equal(t, "NAME", strings.Fields(rows[0])[0])
-			assert.Equal(t, "KIND", strings.Fields(rows[0])[1])
-			assert.Contains(t, out, "review")
-			assert.Contains(t, out, "doc")
-			assert.NotContains(t, out, "nested")
-			assert.Contains(t, out, tc.name)
-			assert.Contains(t, out, "showing 1–2 (page 1, limit 20)")
+			assert.Equal(t, []string{"review", "doc"}, names(result))
+			for _, entry := range result.Entries {
+				assert.Empty(t, entry.Members)
+			}
+			assert.Equal(t, int64(1), result.Page)
+			assert.Equal(t, int64(20), result.Limit)
 		})
 	}
 }
@@ -167,15 +165,11 @@ func TestListCatalogueNameTrimming(t *testing.T) {
 	}, nil)
 
 	// Act.
-	out, err := f.run(request(CatalogueSkill))
+	result, err := f.run(catalogueInput(CatalogueSkill))
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Contains(t, out, "alpha")
-	assert.Contains(t, out, "beta")
-	assert.Contains(t, out, "gamma")
-	assert.NotContains(t, out, "alpha.yaml")
-	assert.NotContains(t, out, "beta.yml")
+	assert.Equal(t, []string{"alpha", "beta", "gamma"}, names(result))
 }
 
 func TestListCataloguePersonaMembers(t *testing.T) {
@@ -190,15 +184,14 @@ func TestListCataloguePersonaMembers(t *testing.T) {
 	}, nil)
 
 	// Act.
-	out, err := f.run(request(CataloguePersona))
+	result, err := f.run(catalogueInput(CataloguePersona))
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Contains(t, lines(out)[0], "MEMBERS")
-	assert.Contains(t, out, "skills: a, b; agents: c")
-	assert.Contains(t, out, "skills: x")
-	assert.Contains(t, out, "—")
-	assert.Contains(t, out, "showing 1–3 (page 1, limit 20)")
+	require.Len(t, result.Entries, 3)
+	assert.Equal(t, "skills: a, b; agents: c", result.Entries[0].Members)
+	assert.Equal(t, "skills: x", result.Entries[1].Members)
+	assert.Equal(t, "—", result.Entries[2].Members)
 }
 
 func TestListCatalogueListOptions(t *testing.T) {
@@ -209,14 +202,14 @@ func TestListCatalogueListOptions(t *testing.T) {
 	var captured source.Options
 	f.expectList(rootSkills, []source.File{stat("a.yaml")}, &captured)
 
-	req := request(CatalogueSkill)
-	req.Search = "rev"
-	req.Order = orderDesc
-	req.Page = 3
-	req.Limit = 5
+	in := catalogueInput(CatalogueSkill)
+	in.Search = "rev"
+	in.Order = orderDesc
+	in.Page = 3
+	in.Limit = 5
 
 	// Act.
-	_, err := f.run(req)
+	_, err := f.run(in)
 
 	// Assert.
 	require.NoError(t, err)
@@ -241,55 +234,11 @@ func TestListCatalogueNoSearchOption(t *testing.T) {
 	f.expectList(rootAgents, []source.File{stat("a.yaml")}, &captured)
 
 	// Act.
-	_, err := f.run(request(CatalogueAgent))
+	_, err := f.run(catalogueInput(CatalogueAgent))
 
 	// Assert.
 	require.NoError(t, err)
 	assert.Nil(t, captured.Search)
-}
-
-func TestListCataloguePagingLine(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		page  int64
-		limit int64
-		files []source.File
-		want  string
-	}{
-		{
-			name:  "populated window",
-			page:  2,
-			limit: 1,
-			files: []source.File{stat("b.yaml")},
-			want:  "showing 2–2 (page 2, limit 1)",
-		},
-		{
-			name:  "empty page",
-			page:  9,
-			limit: 20,
-			files: nil,
-			want:  "showing 0 results (page 9, limit 20)",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			// Arrange.
-			f := newCatalogueFixture()
-			f.expectFound()
-			f.expectOpen()
-			f.expectList(rootSkills, tc.files, nil)
-
-			req := request(CatalogueSkill)
-			req.Page = tc.page
-			req.Limit = tc.limit
-
-			// Act.
-			out, err := f.run(req)
-
-			// Assert.
-			require.NoError(t, err)
-			assert.Contains(t, out, tc.want)
-		})
-	}
 }
 
 func TestListCatalogueNotFound(t *testing.T) {
@@ -298,12 +247,10 @@ func TestListCatalogueNotFound(t *testing.T) {
 	f.store.On("FindByName", mock.Anything, catalogueReg).Return(nil, nil)
 
 	// Act.
-	_, err := f.run(request(CatalogueSkill))
+	_, err := f.run(catalogueInput(CatalogueSkill))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeNotFound, useErr.Type)
+	useErr := asUseCaseError(t, err, TypeNotFound)
 	assert.Contains(t, useErr.Reason, `registry "acme" does not exist`)
 }
 
@@ -314,12 +261,10 @@ func TestListCatalogueReadError(t *testing.T) {
 		Return(nil, errors.New("boom"))
 
 	// Act.
-	_, err := f.run(request(CatalogueSkill))
+	_, err := f.run(catalogueInput(CatalogueSkill))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeIO, useErr.Type)
+	_ = asUseCaseError(t, err, TypeIO)
 }
 
 func TestListCatalogueUnreachable(t *testing.T) {
@@ -330,12 +275,10 @@ func TestListCatalogueUnreachable(t *testing.T) {
 		Return(nil, NewUnreachableError("source down"))
 
 	// Act.
-	_, err := f.run(request(CatalogueSkill))
+	_, err := f.run(catalogueInput(CatalogueSkill))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeUnreachable, useErr.Type)
+	useErr := asUseCaseError(t, err, TypeUnreachable)
 	assert.Equal(t, "source down", useErr.Reason)
 }
 
@@ -348,12 +291,10 @@ func TestListCatalogueListFailureUnreachable(t *testing.T) {
 		Return(nil, errors.New("connection reset"))
 
 	// Act.
-	_, err := f.run(request(CatalogueSkill))
+	_, err := f.run(catalogueInput(CatalogueSkill))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeUnreachable, useErr.Type)
+	_ = asUseCaseError(t, err, TypeUnreachable)
 }
 
 func TestListCataloguePersonaReadError(t *testing.T) {
@@ -366,12 +307,10 @@ func TestListCataloguePersonaReadError(t *testing.T) {
 	f.expectList(rootPersonas, []source.File{bad}, nil)
 
 	// Act.
-	_, err := f.run(request(CataloguePersona))
+	_, err := f.run(catalogueInput(CataloguePersona))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeIO, useErr.Type)
+	_ = asUseCaseError(t, err, TypeIO)
 }
 
 func TestListCataloguePersonaDecodeError(t *testing.T) {
@@ -384,39 +323,35 @@ func TestListCataloguePersonaDecodeError(t *testing.T) {
 	}, nil)
 
 	// Act.
-	_, err := f.run(request(CataloguePersona))
+	_, err := f.run(catalogueInput(CataloguePersona))
 
 	// Assert.
-	var useErr *Error
-	require.ErrorAs(t, err, &useErr)
-	assert.Equal(t, TypeIO, useErr.Type)
+	_ = asUseCaseError(t, err, TypeIO)
 }
 
 func TestListCatalogueUsageErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
-		mutate  func(*ListCatalogueRequest)
+		mutate  func(*ListCatalogueInput)
 		wantSub string
 	}{
-		{name: "unknown kind", mutate: func(r *ListCatalogueRequest) { r.Kind = "widget" }, wantSub: "kind"},
-		{name: "unknown sort", mutate: func(r *ListCatalogueRequest) { r.Sort = "size" }, wantSub: "sort"},
-		{name: "unknown order", mutate: func(r *ListCatalogueRequest) { r.Order = invalidOrder }, wantSub: "order"},
-		{name: "page below one", mutate: func(r *ListCatalogueRequest) { r.Page = 0 }, wantSub: "page"},
-		{name: "limit below one", mutate: func(r *ListCatalogueRequest) { r.Limit = 0 }, wantSub: "limit"},
+		{name: "unknown kind", mutate: func(in *ListCatalogueInput) { in.Kind = "widget" }, wantSub: "kind"},
+		{name: "unknown sort", mutate: func(in *ListCatalogueInput) { in.Sort = "size" }, wantSub: "sort"},
+		{name: "unknown order", mutate: func(in *ListCatalogueInput) { in.Order = invalidOrder }, wantSub: "order"},
+		{name: "page below one", mutate: func(in *ListCatalogueInput) { in.Page = 0 }, wantSub: "page"},
+		{name: "limit below one", mutate: func(in *ListCatalogueInput) { in.Limit = 0 }, wantSub: "limit"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
 			f := newCatalogueFixture()
-			req := request(CatalogueSkill)
-			tc.mutate(req)
+			in := catalogueInput(CatalogueSkill)
+			tc.mutate(&in)
 
 			// Act.
-			_, err := f.run(req)
+			_, err := f.run(in)
 
 			// Assert.
-			var useErr *Error
-			require.ErrorAs(t, err, &useErr)
-			assert.Equal(t, TypeUsage, useErr.Type)
+			useErr := asUseCaseError(t, err, TypeUsage)
 			assert.Contains(t, useErr.Reason, tc.wantSub)
 			f.store.AssertNotCalled(t, "FindByName", mock.Anything, mock.Anything)
 		})
@@ -431,12 +366,12 @@ func TestListCatalogueSortDefaults(t *testing.T) {
 	var captured source.Options
 	f.expectList(rootSkills, []source.File{stat("a.yaml")}, &captured)
 
-	req := request(CatalogueSkill)
-	req.Sort = ""
-	req.Order = ""
+	in := catalogueInput(CatalogueSkill)
+	in.Sort = ""
+	in.Order = ""
 
 	// Act.
-	_, err := f.run(req)
+	_, err := f.run(in)
 
 	// Assert.
 	require.NoError(t, err)

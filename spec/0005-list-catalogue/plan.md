@@ -85,8 +85,9 @@ Before executing the tasks in [TASKS.md](TASKS.md):
   [Describe Registry](../0003-describe-registry/plan.md) are in place** — the
   `storage` engine and typed `RegistriesStore` (including `FindByName(ctx, name)`),
   the three named `extension.Registry` transport adapters and their fx wiring, the
-  `source.FileSystem` port and its `Open()`/`List()` flow, the `presentation.Table`
-  renderer, the `usecase.Error{Type, Reason}` model with `TypeNotFound`/unreachable
+  `source.FileSystem` port and its `Open()`/`List()` flow, `internal/cmd`'s
+  `Table` renderer (the `view_table.go` file in `package cmd`), the
+  `usecase.Error{Type, Reason}` model with `TypeNotFound`/unreachable
   and the single `cmd/main.go` error site, the cobra root with its uberfx
   bootstrap, and the `test/e2e` godog harness all ship.
 - **No new dependency** — the feature composes existing adapters, the standard
@@ -100,15 +101,13 @@ Before executing the tasks in [TASKS.md](TASKS.md):
 
 ```mermaid
 graph TD
-  subgraph cmd["internal/cmd (cobra — thin)"]
+  subgraph cmd["internal/cmd (cobra handler + rendering · view_*.go)"]
     LC["list.go: List() group · catalogue.go: Catalogue() group + ListCatalogueSkill()/Agent()/Persona() builders<br/>one listCatalogue(kind, …) handler · &lt;registry&gt; · --search/--sort/--order + paging group (--page/--limit) · fx.Invoke(uc.Execute)"]
+    T["view_catalogue.go (cobra-free, package cmd)<br/>CataloguePagingLine(page,limit,count) · Table{Headers, Rows}.Render(w) — Table from 0002 (view_table.go, reused)"]
   end
   subgraph uc["internal/usecase (stateless)"]
-    UC["ListCatalogueUseCase.Execute(req)<br/>FindByName · not-found → runtime error · OpenRegistryAction · offset=(page−1)·limit · List(root,…) · render table + paging line"]
+    UC["ListCatalogueUseCase.Execute(ctx, in)<br/>FindByName · not-found → runtime error · OpenRegistryAction · offset=(page−1)·limit · List(root,…) → ListCatalogueResult{Entries, Page, Limit}"]
     OA["OpenRegistryAction.Execute(ctx, registry)<br/>resolve ${env:VAR} · select adapter · build opts · Open → source.FileSystem (open failure → unreachable)"]
-  end
-  subgraph pres["internal/presentation (shared)"]
-    T["Table{Headers, Rows}.Render(w) — from 0002 (reused)"]
   end
   subgraph store["internal/.../repository/storage"]
     RS["RegistriesStore.FindByName → *types.Registry"]
@@ -124,17 +123,20 @@ graph TD
   UC -->|compose| OA
   OA -->|select by transport| AD
   AD -->|live fetch| EXT["registry source (.skills/.agents/.personas over git/http/fs)"]
-  UC -->|render| T
-  T -->|writer| OUT["request.Out() → stdout"]
+  LC -->|render result| T
+  T -->|writer| OUT["stdout"]
   TYPES -.shared.-> UC
   SRC -.shared.-> AD
 ```
 
-The use case owns every catalogue decision — resolving the registry, classifying a
-miss, mapping the kind noun to its source root, translating page→offset, and
-emitting the paging line — while `OpenRegistryAction` owns the
-open-a-stored-registry step and the renderer stays a pure formatter that knows
-nothing of registries.
+The use case owns every catalogue *query* decision — resolving the registry,
+classifying a miss, mapping the kind noun to its source root, translating
+page→offset, and querying the source — while `OpenRegistryAction` owns the
+open-a-stored-registry step. It returns the entries with the applied page/limit;
+the cobra handler then builds the `NAME`/`KIND` or `NAME`/`MEMBERS` rows from the
+result (the `CatalogueEntry` type is the use case's, so it stays in the handler)
+and renders them with the `CataloguePagingLine` through its `view_catalogue.go`
+file (in `package cmd`), which stays a pure formatter that knows nothing of registries.
 
 ## 4. Runtime sequence
 
@@ -142,7 +144,7 @@ nothing of registries.
 User          cmd          UseCase         Store      OpenAction   Adapter/Source   Table
  │ list catalogue agent acme --page 1 --limit 20 (1)  │            │             │
  │────────────▶│            │                 │           │             │             │
- │             │ Execute(req)│                 │           │             │             │
+ │             │ Execute(ctx, in)              │           │             │             │
  │             │────────────▶│                 │           │             │             │
  │             │            │ FindByName(name) │           │             │             │
  │             │            │────────────────▶│           │             │             │
@@ -155,10 +157,10 @@ User          cmd          UseCase         Store      OpenAction   Adapter/Sourc
  │             │            │ offset=(page−1)·limit · List(".agents", search/sort/order/offset/limit)
  │             │            │──────────────────────────────────────────▶│            │
  │             │            ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │ []File (items only)
- │             │            │ rows (name, kind) + paging line · Render  │             │
- │             │            │──────────────────────────────────────────────────────▶│
- │             │            ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ table+line → Out()
- │             ◀─ ─ ─ ─ ─ ─│ stdout          │           │             │             │
+ │             ◀─ ─ ─ ─ ─ ─│ ListCatalogueResult{Entries, Page, Limit}  │             │
+ │             │ build rows (name, kind|members) + paging line · Render │             │
+ │             │──────────────────────────────────────────────────────▶│
+ │             ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ table+line → stdout
  ◀─ ─ ─ ─ ─ ─ │ exit 0      │                 │           │             │             │
 ```
 
@@ -197,12 +199,14 @@ func WithOrder(order string) Option // NEW
 type OpenRegistryAction struct{ /* named adapters, logger */ }
 func (a *OpenRegistryAction) Execute(ctx context.Context, registry types.Registry) (source.FileSystem, error)
 
-// internal/usecase — the list-catalogue use case.
+// internal/usecase — the list-catalogue use case: queries the source, returns
+// the entries with the applied page/limit, renders nothing. The query params
+// (search/sort/order/page/limit) are use-case input, not view options — each is
+// pushed to the source adapter.
 type ListCatalogueUseCase struct{ /* registries, open action, logger */ }
-func (uc *ListCatalogueUseCase) Execute(request *ListCatalogueRequest) error
+func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInput) (*ListCatalogueResult, error)
 
-type ListCatalogueRequest struct {
-    context.Context
+type ListCatalogueInput struct {
     Kind     CatalogueKind // skill | agent | persona — fixes the source root and the KIND column
     Registry string        // the registry to browse (required positional arg)
     Search   string        // FR-003 substring filter on the entry name (case-insensitive)
@@ -210,17 +214,30 @@ type ListCatalogueRequest struct {
     Order    string        // FR-004 {asc,desc}, default asc
     Page     int64         // FR-002 1-based page number, default 1
     Limit    int64         // FR-002 page size, default 20
-    // Out() io.Writer — the command's output writer
     // the use case computes offset = (Page−1)·Limit before calling List
+}
+
+type ListCatalogueResult struct {
+    Kind    CatalogueKind    // selects the NAME/KIND vs NAME/MEMBERS projection
+    Entries []CatalogueEntry // the page of catalogue entries (items only, no total)
+    Page    int64            // the applied page (echoes the input) — feeds the paging line
+    Limit   int64            // the applied limit (echoes the input) — feeds the paging line
+}
+
+type CatalogueEntry struct {
+    Name    string // entry filename with the manifest extension trimmed
+    Members string // persona membership summary; empty for skill/agent
 }
 ```
 
 The kind→root mapping is a use-case constant: `skill → ".skills"`, `agent →
 ".agents"`, `persona → ".personas"`, each holding `<name>.(yaml|yml)` manifest
-files; an entry's catalogue name is its filename with the extension trimmed.
-Projection is kind-specific: `skill`/`agent` → `NAME`/`KIND` (no content read);
-`persona` → `NAME`/`MEMBERS`, reading each listed persona manifest to summarize its
-declared `skills`/`agents`. The paging line reads
+files; an entry's catalogue name is its filename with the extension trimmed. The
+use case reads content only for `persona`, summarizing each listed manifest's
+declared `skills`/`agents` into the entry's `Members`; `skill`/`agent` need no
+content read. Column projection is the view's: `skill`/`agent` → `NAME`/`KIND`
+(the kind is constant per page), `persona` → `NAME`/`MEMBERS`. The handler renders
+the paging line from the result's `Page`/`Limit` —
 `showing <from>–<to> (page <p>, limit <l>)` (from = offset+1, to = offset+len), or
 `showing 0 results (page <p>, limit <l>)` for an empty page.
 
@@ -229,9 +246,9 @@ declared `skills`/`agents`. The paging line reads
 ### `internal/`
 | Path | Holds |
 |---|---|
-| `usecase/{action_open_registry.go, usecase_list_catalogue.go, api.go, fx.go}` (+ tests) | the shared `OpenRegistryAction`, the `ListCatalogueUseCase`/`ListCatalogueRequest`, the kind→root map, the `<name>.(yaml\|yml)` name trimming, the page→offset translation, and the paging line; provided through `NewFxOptions` |
+| `usecase/{action_open_registry.go, usecase_list_catalogue.go, api.go, fx.go}` (+ tests) | the shared `OpenRegistryAction`, the `ListCatalogueUseCase` with `ListCatalogueInput`/`ListCatalogueResult`/`CatalogueEntry`, the kind→root map, the `<name>.(yaml\|yml)` name trimming, and the page→offset translation; provided through `NewFxOptions` |
 | `usecase/usecase_add_registry.go` | refactored to compose `OpenRegistryAction` for its adapter-selection/credential-resolution step (behaviour unchanged) |
-| `cmd/{list.go, catalogue.go, helper_flags.go, root.go}` (+ tests) | the `Catalogue()` group under `List()`, the three `ListCatalogue{Skill,Agent,Persona}()` builders sharing one `listCatalogue(kind, …)` handler, the `--search/--sort/--order` flags and a shared **paging** flag-group (`--page` default 1 / `--limit` default 20) |
+| `cmd/{list.go, catalogue.go, view_catalogue.go, helper_flags.go, root.go}` (+ tests) | the `Catalogue()` group under `List()`, the three `ListCatalogue{Skill,Agent,Persona}()` builders sharing one `listCatalogue(kind, …)` handler (which renders the result through its `view_catalogue.go` file), the cobra-free `view_catalogue.go` `CataloguePagingLine` paging-line formatter — the `NAME`/`KIND` or `NAME`/`MEMBERS` rows are built by the `catalogue` handler and rendered through the reused `Table` (`view_table.go`), and the `CatalogueEntry` result type is the use case's so the rendering stays decoupled from it; a pure value type in `package cmd`, so no fx wiring — the `--search/--sort/--order` flags and a shared **paging** flag-group (`--page` default 1 / `--limit` default 20) |
 
 ### `pkg/`
 | Path | Holds |
@@ -271,16 +288,18 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    `source.FileSystem.List` — the same `Open()`/`List()` flow `AddRegistryUseCase`
    already uses to probe a source. No new adapter, store method, or fetch logic.
 2. **Reuse the `Table` renderer; columns vary by kind.** Catalogue output is the
-   column-aligned `presentation.Table` from
-   [0002](../0002-list-registries/plan.md), followed by a paging line. **`skill`
-   and `agent` render `NAME`/`KIND`** — name is the entry filename (extension
-   trimmed), `KIND` is the queried kind (constant per page), so no manifest content
-   is read. **`persona` renders `NAME`/`MEMBERS`** — the persona contract surfaces
-   the membership the persona declares, so the persona path reads each listed
-   persona manifest's content (`source.File.Read()`) and parses `PersonaSpec.Members`
-   into a `skills: …; agents: …` summary. Reading content is transport-agnostic
-   (it goes through `source.File`), and is bounded by the page size (`--limit`). No
-   new renderer.
+   column-aligned `Table` (`view_table.go`, `package cmd`) from
+   [0002](../0002-list-registries/plan.md), followed by a paging line, both
+   emitted by the handler through its catalogue view. **`skill` and `agent` render
+   `NAME`/`KIND`** — name is the entry filename (extension trimmed), `KIND` is the
+   queried kind (constant per page), so no manifest content is read. **`persona`
+   renders `NAME`/`MEMBERS`** — the persona contract surfaces the membership the
+   persona declares, so the use case reads each listed persona manifest's content
+   (`source.File.Read()`) and parses `PersonaSpec.Members` into a
+   `skills: …; agents: …` summary carried on the entry's `Members`, which the view
+   renders as the `MEMBERS` column. Reading content is transport-agnostic (it goes
+   through `source.File`), and is bounded by the page size (`--limit`). No new
+   table renderer.
 3. **Kind→root mapping and entry naming (decided).** A registry exposes its
    offerings under `.skills/`, `.agents/`, and `.personas/`, each holding
    `<name>.(yaml|yml)` manifest files; the catalogue name is the filename with its
@@ -316,11 +335,11 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    leaf command (`list catalogue skill|agent|persona`) under a `Catalogue()` group,
    but the three thin builders share one `listCatalogue(kind, …)` handler
    parameterized by the kind — the kind is the only difference between them.
-8. **The paging line is always printed (FR-002).** Unlike list-registries, which
-   writes nothing when empty, the catalogue always emits the paging line — the
-   applied-paging report FR-002 mandates. A populated page reads
-   `showing <from>–<to> (page <p>, limit <l>)`; an empty page (paged past the data)
-   reads `showing 0 results (page <p>, limit <l>)`.
+8. **The paging line is always printed (FR-002).** Unlike list-registries, whose
+   view writes nothing when empty, the catalogue view always emits the paging line
+   — the applied-paging report FR-002 mandates — from the result's `Page`/`Limit`.
+   A populated page reads `showing <from>–<to> (page <p>, limit <l>)`; an empty
+   page (paged past the data) reads `showing 0 results (page <p>, limit <l>)`.
 9. **e2e exercises the filesystem transport.** Catalogue scenarios seed a
    filesystem-backed registry (`.skills`/`.agents`/`.personas` of
    `<name>.(yaml|yml)`); transport selection across git/http is already covered by

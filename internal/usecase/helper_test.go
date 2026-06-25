@@ -11,70 +11,8 @@ import (
 // Shared test-data constants reused across the package's use-case tests (kept
 // here to satisfy goconst across files).
 const (
-	unknownField = "bogus"
 	invalidOrder = "sideways"
-	colFirst     = "first"
 )
-
-// TestSelectFields covers the empty-default, identity-first, dedupe, and
-// unknown-field paths of the shared field selector.
-func TestSelectFields(t *testing.T) {
-	known := map[string]struct{}{
-		fieldName:      {},
-		fieldTransport: {},
-		fieldURI:       {},
-	}
-	dflt := []string{fieldName, fieldTransport}
-
-	t.Run("empty request yields default", func(t *testing.T) {
-		got, err := selectFields(nil, known, dflt)
-		require.NoError(t, err)
-		assert.Equal(t, dflt, got)
-	})
-
-	t.Run("forces name present and first", func(t *testing.T) {
-		got, err := selectFields([]string{fieldURI}, known, dflt)
-		require.NoError(t, err)
-		assert.Equal(t, []string{fieldName, fieldURI}, got)
-	})
-
-	t.Run("dedupes repeated and name", func(t *testing.T) {
-		got, err := selectFields([]string{fieldName, fieldURI, fieldURI, fieldName}, known, dflt)
-		require.NoError(t, err)
-		assert.Equal(t, []string{fieldName, fieldURI}, got)
-	})
-
-	t.Run("unknown field yields usage error", func(t *testing.T) {
-		got, err := selectFields([]string{unknownField}, known, dflt)
-		assert.Nil(t, got)
-		ucErr := asHelperError(t, err)
-		assert.Equal(t, TypeUsage, ucErr.Type)
-	})
-}
-
-// TestProjectRows asserts the generic projector honours column order and applies
-// each column's projector to every item.
-func TestProjectRows(t *testing.T) {
-	type pair struct {
-		first  string
-		second string
-	}
-	items := []pair{{"a1", "b1"}, {"a2", "b2"}}
-	projectors := map[string]func(pair) string{
-		colFirst: func(p pair) string { return p.first },
-		"second": func(p pair) string { return p.second },
-	}
-
-	t.Run("column ordering and projection", func(t *testing.T) {
-		got := projectRows(items, []string{"second", colFirst}, projectors)
-		assert.Equal(t, [][]string{{"b1", "a1"}, {"b2", "a2"}}, got)
-	})
-
-	t.Run("empty items yields empty rows", func(t *testing.T) {
-		got := projectRows(nil, []string{colFirst}, projectors)
-		assert.Empty(t, got)
-	})
-}
 
 // TestDefaultSortOrder asserts the empty-value defaulting and pass-through.
 func TestDefaultSortOrder(t *testing.T) {
@@ -86,9 +24,9 @@ func TestDefaultSortOrder(t *testing.T) {
 		wantOrder string
 	}{
 		{name: "both empty", sort: "", order: "", wantSort: fieldName, wantOrder: orderAsc},
-		{name: "sort set", sort: fieldTransport, order: "", wantSort: fieldTransport, wantOrder: orderAsc},
+		{name: "sort set", sort: "transport", order: "", wantSort: "transport", wantOrder: orderAsc},
 		{name: "order set", sort: "", order: orderDesc, wantSort: fieldName, wantOrder: orderDesc},
-		{name: "both set", sort: fieldURI, order: orderDesc, wantSort: fieldURI, wantOrder: orderDesc},
+		{name: "both set", sort: "uri", order: orderDesc, wantSort: "uri", wantOrder: orderDesc},
 	}
 
 	for _, tt := range tests {
@@ -119,12 +57,26 @@ func TestIsValidOrder(t *testing.T) {
 	}
 }
 
-// asHelperError asserts err is a *Error and returns it.
-func asHelperError(t *testing.T, err error) *Error {
+// TestFilterBy asserts the generic predicate keeps only the accepted items.
+func TestFilterBy(t *testing.T) {
+	got := filterBy([]int{1, 2, 3, 4}, func(n int) bool { return n%2 == 0 })
+	assert.Equal(t, []int{2, 4}, got)
+}
+
+// asUseCaseError asserts err is a *Error with the expected Type and returns it.
+func asUseCaseError(t *testing.T, err error, want Type) *Error {
 	t.Helper()
 	require.Error(t, err)
+
 	var ucErr *Error
-	require.True(t, errors.As(err, &ucErr), "expected *Error, got %T", err)
+	require.True(t, errors.As(err, &ucErr), "want *Error, got %T", err)
+	assert.Equal(t, want, ucErr.Type)
 
 	return ucErr
+}
+
+// requireErrType asserts err is a *Error with the expected Type.
+func requireErrType(t *testing.T, err error, want Type) {
+	t.Helper()
+	_ = asUseCaseError(t, err, want)
 }

@@ -33,21 +33,24 @@ func ListRegistries() *cobra.Command {
 	return cmd
 }
 
-// listRegistries holds the cobra-free logic: it builds the request and lets the
-// fx graph invoke the use case, returning the classified failure to the caller.
+// listRegistries holds the cobra-free logic: it validates the view options,
+// invokes the use case through the fx graph, and renders the result to stdout.
 func listRegistries(ctx context.Context, flags *listingFlags, stdout io.Writer) error {
-	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListRegistriesUseCase) error {
-		return uc.Execute(newListRegistriesRequest(runCtx, flags, stdout))
-	})
-}
+	opts := RegistryListOptions{
+		Search: flags.Search,
+		Sort:   flags.Sort,
+		Order:  flags.Order,
+		Fields: flags.Fields,
+	}
+	if err := opts.Validate(); err != nil {
+		return usecase.NewUsageError(err.Error())
+	}
 
-// newListRegistriesRequest maps the parsed flags onto the use case's request,
-// binding it to ctx and the command's output writer.
-func newListRegistriesRequest(ctx context.Context, flags *listingFlags, stdout io.Writer) *usecase.ListRegistriesRequest {
-	request := usecase.NewListRegistriesRequest(ctx, stdout)
-	request.Search = flags.Search
-	request.Sort = flags.Sort
-	request.Order = flags.Order
-	request.Fields = flags.Fields
-	return request
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListRegistriesUseCase) error {
+		result, err := uc.Execute(runCtx, usecase.ListRegistriesInput{})
+		if err != nil {
+			return err
+		}
+		return RenderRegistryList(stdout, result.Registries, opts)
+	})
 }

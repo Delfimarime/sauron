@@ -77,11 +77,12 @@ Before executing the tasks in [TASKS.md](TASKS.md):
 
 ```mermaid
 graph TD
-  subgraph cmd["internal/cmd (cobra — thin)"]
+  subgraph cmd["internal/cmd (cobra handler + rendering · view_*.go)"]
     DC["delete.go: Delete() group · delete_registry.go: DeleteRegistry()/deleteRegistry()<br/>&lt;name&gt; --dry-run · fx.Invoke(uc.Execute)"]
+    GR["view_groups.go (cobra-free, package cmd)<br/>Group renderer: skills:/agents:/personas: -entries + summary line<br/>dry-run / nothing-deleted voice — from DeleteRegistryResult"]
   end
   subgraph uc["internal/usecase (stateless)"]
-    UC["DeleteRegistryUseCase.Execute(req)<br/>FindByName · absent → exit 0 · cascade(Action) · dry-run? · Remove · report"]
+    UC["DeleteRegistryUseCase.Execute(ctx, in)<br/>FindByName · absent → Existed=false · cascade(Action) · dry-run? skip Remove · Remove · returns DeleteRegistryResult"]
     AC["UninstallByRegistryAction.Execute(ctx, name) → *DeleteArtifactsByRegistryResponse<br/>NO-OP here: returns empty plan, nil — body owned by 0007"]
   end
   subgraph store["internal/.../repository/storage"]
@@ -95,17 +96,20 @@ graph TD
   UC -->|capability| RS
   RS --> ST
   ST -->|injected afero.Fs| HOME["~/.sauron/registries.yaml"]
-  UC -->|report| OUT["request.Out() → stdout"]
+  DC -->|render result| GR
+  GR -->|writer| OUT["stdout"]
   AC -.0007 fills body: track store + provider port.-> FUTURE["track.yaml · provider"]
   TYPES -.shared.-> UC
   TYPES -.shared.-> RS
 ```
 
 The use case owns every delete decision — resolving the target, classifying a
-miss, honoring `--dry-run`, and shaping the report. It calls the shared
-`UninstallByRegistryAction` for the cascade (a no-op today) and
-`RegistriesStore.Remove` for the registry document; the dashed edge is the
-foundation **0007** will supply behind the seam.
+miss, honoring `--dry-run`, and assembling the `DeleteRegistryResult`. It calls
+the shared `UninstallByRegistryAction` for the cascade (a no-op today) and
+`RegistriesStore.Remove` for the registry document, then returns the result; the
+cobra handler renders it through its `view_groups.go` Group renderer (in
+`package cmd`). The dashed edge is the foundation **0007** will supply behind the
+seam.
 
 ## 4. Runtime sequence
 
@@ -113,21 +117,21 @@ foundation **0007** will supply behind the seam.
 User            cmd            UseCase          Action(no-op)   Store
  │ delete registry acme (1)     │                  │              │
  │──────────────▶│              │                  │              │
- │               │ Execute(req) │                  │              │
+ │               │ Execute(ctx, in)                │              │
  │               │─────────────▶│                  │              │
  │               │              │ FindByName(name) │              │
  │               │              │────────────────────────────────▶│
  │               │              ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│ *Registry|nil
- │               │              │ nil → "nothing was deleted" → exit 0 (FR-005)
+ │               │              │ nil → Existed=false → return result → exit 0 (FR-005)
  │               │              │ cascade(name)    │              │
  │               │              │─────────────────▶│ (empty plan) │
  │               │              ◀─ ─ ─ ─ ─ ─ ─ ─ ─ │ *DeleteArtifactsByRegistryResponse │
- │               │              │ --dry-run → print plan, write nothing → exit 0 (FR-004)
+ │               │              │ --dry-run → skip Remove (FR-004) │
  │               │              │ Remove(name)     │              │
  │               │              │────────────────────────────────▶│ rewrite (atomic+lock)
  │               │              ◀─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
- │               │              │ report (FR-003)  │              │
- │               ◀─ ─ ─ ─ ─ ─ ─ │ stdout           │              │
+ │               ◀─ ─ ─ ─ ─ ─ ─ │ DeleteRegistryResult            │
+ │               │ render groups + summary/dry-run/nothing-deleted line (FR-003) → stdout
  ◀─ ─ ─ ─ ─ ─ ─ │ exit 0        │                  │              │
 ```
 
@@ -171,16 +175,33 @@ type RegistriesStore interface {
     Remove(ctx context.Context, name string) error                        // this feature
 }
 
-// internal/usecase
+// internal/usecase — performs the delete, returns the outcome, renders nothing.
 type DeleteRegistryUseCase struct{ /* registries, cascade, logger */ }
-func (uc *DeleteRegistryUseCase) Execute(request *DeleteRegistryRequest) error
+func (uc *DeleteRegistryUseCase) Execute(ctx context.Context, in DeleteRegistryInput) (*DeleteRegistryResult, error)
 
-type DeleteRegistryRequest struct {
-    context.Context
+type DeleteRegistryInput struct {
     Name   string // the registry to delete (required positional arg)
-    DryRun bool   // print the plan without changing state
-    // Out() io.Writer — the command's output writer
+    DryRun bool   // assemble the plan without changing state
 }
+
+type DeleteRegistryResult struct {
+    Name    string                             // the targeted registry
+    Existed bool                               // false → nothing was deleted (FR-005)
+    DryRun  bool                               // echoes the input; selects the report voice
+    Plan    *DeleteArtifactsByRegistryResponse // the grouped cascade plan (empty until 0007)
+}
+
+// internal/cmd (view_groups.go, package cmd) — the generic grouped-list renderer.
+// The handler builds one Group per kind from the DeleteRegistryResult and renders
+// the non-empty ones
+// (skills:/agents:/personas:), then writes the summary line itself in the
+// removed / would-be-removed / nothing-deleted voice (the user-facing wording is
+// the client's, not the use case's).
+type Group struct {
+    Heading string
+    Items   []string
+}
+func RenderGroups(w io.Writer, groups []Group) error // only non-empty groups print
 ```
 
 ## 6. Delivered file layout
@@ -189,9 +210,9 @@ type DeleteRegistryRequest struct {
 | Path | Holds |
 |---|---|
 | `usecase/{action_uninstall_by_registry.go, action_uninstall_by_registry_test.go}` | the shared `UninstallByRegistryAction` and `DeleteArtifactsByRegistryResponse`; the **no-op** body and the test asserting the empty-plan/`nil` contract; a `// 0007 owns the real body` note |
-| `usecase/{usecase_delete_registry.go, fx.go}` (+ test) | `DeleteRegistryUseCase` and `DeleteRegistryRequest`; the find → cascade → dry-run → remove → report orchestration; the grouped-report helper; the `usage`/`io`/not-found-as-success classification; provided through `NewFxOptions` |
+| `usecase/{usecase_delete_registry.go, fx.go}` (+ test) | `DeleteRegistryUseCase`, `DeleteRegistryInput`, and `DeleteRegistryResult`; the find → cascade → dry-run → remove orchestration; the `io`/not-found-as-success classification; provided through `NewFxOptions` |
 | `infrastructure/repository/storage/{store.go, registries_store.go, mock_based_registries_store.go}` (+ tests) | `Store.Remove` (rewrite, atomic + lock); `RegistriesStore.Remove`; the regenerated mock |
-| `cmd/{delete.go, delete_registry.go, root.go}` (+ tests) | the `Delete()` group, the `DeleteRegistry()` builder and `deleteRegistry()` handler, the `--dry-run` flag, and `root.AddCommand(Delete())` |
+| `cmd/{delete.go, delete_registry.go, view_groups.go, root.go}` (+ tests) | the `Delete()` group, the `DeleteRegistry()` builder and `deleteRegistry()` handler (which renders the result through its `view_groups.go` file), the cobra-free `view_groups.go` generic `Group` + `RenderGroups` grouped-list renderer (the `skills:`/`agents:`/`personas:` blocks) over the standard library — a pure value type in `package cmd`, so no fx wiring; the summary / dry-run / nothing-deleted line is composed by the `delete registry` handler — the `--dry-run` flag, and `root.AddCommand(Delete())` |
 
 ### Specification & governance
 | Path | State |
@@ -220,7 +241,7 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
 1. **The cascade is a shared, no-op Action — the seam, not the body.** Both
    `delete registry` and [`uninstall artifacts` (0007)](../0007-uninstall-artifacts/spec.md)
    remove the artifacts of a registry; that logic lives once, in
-   `UninstallByRegistryAction` (the [`Action[R,P]`](../contracts/architecture.md)
+   `UninstallByRegistryAction` (the [`Action[I, P]`](../contracts/architecture.md)
    pattern). In this feature the Action **returns an empty `DeleteArtifactsByRegistryResponse` and
    `nil`** — nothing more. 0004 owns the seam and its no-op body; 0007 replaces the
    body with the real track-store + provider removal. This is what keeps 0004
@@ -240,17 +261,18 @@ passes (these back the tasks in [TASKS.md](TASKS.md)):
    — the [idempotent-deletion boilerplate](../contracts/cli.md). This differs from
    [`describe registry` (0003)](../0003-describe-registry/spec.md), where a missing
    registry is a runtime error.
-5. **The report is shaped in the use case (FR-003).** A small grouped-report
-   helper prints only the **non-empty** kind groups (`skills:` / `agents:` /
-   `personas:`) followed by the summary count, per the
-   [CLI contract](../contracts/cli.md). While the cascade is a no-op every group
-   is empty, so only `registry "X" removed; 0 artifacts removed` prints — and
-   `--dry-run` prints the same groups in the conditional ("would be removed")
-   voice (`registry "X" would be removed; 0 artifacts would be removed`) while
-   writing nothing. The helper stays inline
-   (not in `internal/presentation`) until 0007 makes the groups non-empty; 0007
-   may then promote it to a shared report renderer. Classification stays in the
-   use case; `cmd/main.go` remains the single error site (usage → 2; io → 1).
+5. **The result is shaped in the use case; the report is rendered by the handler
+   (FR-003).** The use case returns a `DeleteRegistryResult` carrying the grouped
+   `Plan`, `Existed`, and `DryRun`; the cobra handler renders it through its
+   `view_groups.go` Group renderer (in `package cmd`) that prints only the
+   **non-empty** kind groups (`skills:` / `agents:` / `personas:`) followed by the
+   summary count, per
+   the [CLI contract](../contracts/cli.md). While the cascade is a no-op every
+   group is empty, so only `registry "X" removed; 0 artifacts removed` prints —
+   and `--dry-run` selects the conditional ("would be removed") voice
+   (`registry "X" would be removed; 0 artifacts would be removed`) while the use
+   case writes nothing to state. Classification stays in the use case;
+   `cmd/main.go` remains the single error site (usage → 2; io → 1).
 6. **The e2e suite runs; one scenario is commented out.** Every scenario this
    feature can arrange and verify — registry removal, the `0 artifacts removed`
    summary, FR-005 not-found, FR-004 `--dry-run`, FR-006 usage — is a live scenario

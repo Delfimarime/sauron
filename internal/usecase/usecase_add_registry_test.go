@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -91,30 +90,11 @@ func (f *fixture) stampAbsent() {
 		Return([]source.File{}, nil)
 }
 
-// asUseCaseError asserts err is a *Error with the expected Type and returns it.
-func asUseCaseError(t *testing.T, err error, want Type) *Error {
-	t.Helper()
-	require.Error(t, err)
-
-	var ucErr *Error
-	require.True(t, errors.As(err, &ucErr), "want *Error, got %T", err)
-	assert.Equal(t, want, ucErr.Type)
-
-	return ucErr
-}
-
-// requireErrType asserts err is a *Error with the expected Type.
-func requireErrType(t *testing.T, err error, want Type) {
-	t.Helper()
-	_ = asUseCaseError(t, err, want)
-}
-
 func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 	t.Run("bad name yields usage", func(t *testing.T) {
 		f := newFixture()
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        "Bad_Name", URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: "Bad_Name", URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUsage)
 		f.filesystem.AssertNotCalled(t, "Validate", mock.Anything)
@@ -122,9 +102,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 
 	t.Run("literal password yields usage", func(t *testing.T) {
 		f := newFixture()
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
 			Password: "literal-secret",
 		})
 		requireErrType(t, err, TypeUsage)
@@ -133,9 +112,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 
 	t.Run("unknown transport yields usage", func(t *testing.T) {
 		f := newFixture()
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: "x", Transport: "ftp",
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: "x", Transport: "ftp",
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -145,9 +123,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.http.On("Validate", mock.Anything).
 			Return(fmt.Errorf("%w: ref unsupported", api.ErrUsage))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testHTTPURI, Transport: transportHTTP, Ref: testRef,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testHTTPURI, Transport: transportHTTP, Ref: testRef,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -158,9 +135,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.store.On("FindByName", mock.Anything, testName).
 			Return(&types.Registry{}, nil)
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeConflict)
 	})
@@ -171,9 +147,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.store.On("FindByName", mock.Anything, testName).
 			Return(nil, errors.New("disk gone"))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeIO)
 	})
@@ -184,9 +159,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.store.On("FindByName", mock.Anything, testName).Return(nil, nil)
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
 			Username: "${env:ACME_USER}",
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
@@ -200,9 +174,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.http.On("Open", mock.Anything, mock.Anything).
 			Return(nil, fmt.Errorf("%w: dial tcp", api.ErrRuntime))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -214,9 +187,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.http.On("Open", mock.Anything, mock.Anything).
 			Return(nil, fmt.Errorf("%w: bad uri", api.ErrUsage))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -225,9 +197,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f := newFixture()
 		f.filesystem.On("Validate", mock.Anything).Return(errors.New("weird"))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -240,9 +211,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.fs.On("List", mock.Anything, ".skills", mock.Anything).
 			Return(nil, errors.New("io"))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -254,9 +224,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.filesystem.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.stampAbsent()
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
 		assert.Equal(t, "hosts no artifact", ucErr.Reason)
@@ -270,9 +239,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.stampPresent()
 		f.store.On("Add", mock.Anything, mock.Anything).Return(errors.New("full"))
 
-		err := f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
-			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
+		_, err := f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeIO)
 	})
@@ -306,17 +274,15 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 		}).
 		Return(nil)
 
-	out := &bytes.Buffer{}
-
 	// Act. Run inside a synctest bubble so time.Now() is a fixed, controllable
 	// instant; the use case stamps the audit timestamps from it.
+	var result *types.Registry
 	var err error
 	var want string
 	synctest.Test(t, func(*testing.T) {
 		want = time.Now().UTC().Format(time.RFC3339)
-		err = f.uc.Execute(&AddRegistryRequest{
-			baseRequest: baseRequest{Context: context.Background(), out: out},
-			Name:        testName, URI: "git@host:repo.git", Transport: transportGit, Ref: testRef,
+		result, err = f.uc.Execute(context.Background(), AddRegistryInput{
+			Name: testName, URI: "git@host:repo.git", Transport: transportGit, Ref: testRef,
 			Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}",
 			Timeout: 15 * time.Second,
 		})
@@ -324,6 +290,7 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 
 	// Assert.
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	assert.Equal(t, types.TransportGit, stored.Spec.Transport)
 	assert.Equal(t, "git@host:repo.git", stored.Spec.URI)
 	assert.Equal(t, testRef, stored.Spec.Ref)
@@ -337,7 +304,10 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	// Both audit timestamps are stamped with the current instant, equal on create.
 	assert.Equal(t, want, stored.Metadata.CreationTimestamp)
 	assert.Equal(t, want, stored.Metadata.LastUpdatedTimestamp)
-	assert.Equal(t, "registered registry \"acme\" (git)\n", out.String())
+	// The returned document is the persisted one.
+	assert.Equal(t, testName, result.Metadata.Name)
+	assert.Equal(t, types.TransportGit, result.Spec.Transport)
+	assert.Equal(t, want, result.Metadata.CreationTimestamp)
 }
 
 func TestAddRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
@@ -355,21 +325,19 @@ func TestAddRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 		}).
 		Return(nil)
 
-	out := &bytes.Buffer{}
-
 	// Act: Ref is supplied but must be dropped for a non-git transport.
-	err := f.uc.Execute(&AddRegistryRequest{
-		baseRequest: baseRequest{Context: context.Background(), out: out},
-		Name:        testName, URI: testHTTPURI, Transport: transportHTTP, Ref: "ignored",
+	result, err := f.uc.Execute(context.Background(), AddRegistryInput{
+		Name: testName, URI: testHTTPURI, Transport: transportHTTP, Ref: "ignored",
 		SkipTLSVerify: true, CACert: "/ca.pem",
 	})
 
 	// Assert.
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	assert.Empty(t, stored.Spec.Ref)
 	require.NotNil(t, stored.Spec.TLS)
 	assert.True(t, stored.Spec.TLS.SkipVerify)
 	assert.Equal(t, "/ca.pem", stored.Spec.TLS.CACert)
 	assert.Nil(t, stored.Spec.Auth)
-	assert.Equal(t, "registered registry \"acme\" (http)\n", out.String())
+	assert.Equal(t, types.TransportHTTP, result.Spec.Transport)
 }
