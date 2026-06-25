@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/delfimarime/sauron/internal/config"
+	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/internal/usecase"
 	"github.com/spf13/cobra"
@@ -64,6 +65,31 @@ func NewApp(ctx context.Context, opts ...fx.Option) *fx.App {
 		}),
 	)
 	return fx.New(append(base, opts...)...)
+}
+
+// runUseCase builds a minimal fx app on a cancellable run context, resolves the
+// use case U, runs exec against it, and tears the app down (cancel before Stop);
+// exec receives the run context so it can bind its request to the same lifecycle.
+func runUseCase[U any](ctx context.Context, exec func(context.Context, U) error, opts ...fx.Option) error {
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var execErr error
+	app := NewApp(runCtx, append([]fx.Option{
+		repository.NewFxOptions(),
+		usecase.NewFxOptions(),
+		fx.Invoke(func(uc U) { execErr = exec(runCtx, uc) }),
+	}, opts...)...)
+	if err := app.Err(); err != nil {
+		return fmt.Errorf("build application: %w", err)
+	}
+	if err := app.Start(runCtx); err != nil {
+		return fmt.Errorf("start application: %w", err)
+	}
+	cancel()
+	_ = app.Stop(context.WithoutCancel(ctx))
+
+	return execErr
 }
 
 // usageArgs wraps a cobra positional-args validator so a violation is classified

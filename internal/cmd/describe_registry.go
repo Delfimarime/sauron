@@ -6,9 +6,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 
-	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
@@ -43,29 +41,9 @@ func DescribeRegistry() *cobra.Command {
 // describeRegistry holds the cobra-free logic: it builds the request and lets the
 // fx graph invoke the use case, returning the classified failure to the caller.
 func describeRegistry(ctx context.Context, flags *describeRegistryFlags, args []string, stdout io.Writer) error {
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	request := newDescribeRegistryRequest(runCtx, flags, args, stdout)
-
-	var execErr error
-	app := NewApp(runCtx,
-		repository.NewFxOptions(),
-		usecase.NewFxOptions(),
-		fx.Invoke(func(uc *usecase.DescribeRegistryUseCase) {
-			execErr = uc.Execute(request)
-		}),
-	)
-	if err := app.Err(); err != nil {
-		return fmt.Errorf("build application: %w", err)
-	}
-	if err := app.Start(runCtx); err != nil {
-		return fmt.Errorf("start application: %w", err)
-	}
-	cancel()
-	_ = app.Stop(context.WithoutCancel(ctx))
-
-	return execErr
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.DescribeRegistryUseCase) error {
+		return uc.Execute(newDescribeRegistryRequest(runCtx, flags, args, stdout))
+	})
 }
 
 // newDescribeRegistryRequest maps the positional name and parsed flags onto the

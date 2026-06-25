@@ -1,4 +1,3 @@
-// Package cmd assembles Sauron's cobra command tree and its fx bootstrap.
 package cmd
 
 import (
@@ -27,10 +26,9 @@ func New(appName, appVersion, appHash string) (*cobra.Command, error) {
 		},
 	}
 	root.SetVersionTemplate(banner)
-	root.AddCommand(Add())
-	root.AddCommand(List())
-	root.AddCommand(Describe())
-	root.AddCommand(Delete())
+	root.AddCommand(
+		Add(), List(), Describe(), Delete(),
+	)
 	return root, nil
 }
 

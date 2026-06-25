@@ -100,7 +100,7 @@ func TestDescribeRegistryFlagSurface(t *testing.T) {
 	cmd := DescribeRegistry()
 
 	// Assert.
-	assert.NotNil(t, cmd.Flags().Lookup("fields"), "flag fields registered")
+	assert.NotNil(t, cmd.Flags().Lookup(fieldsName), "flag fields registered")
 	assert.NotNil(t, cmd.Args, "an argument validator is installed")
 }
 
@@ -113,7 +113,7 @@ func TestDescribeRegistryRejectsBadInput(t *testing.T) {
 		args []string
 	}{
 		{name: "rejects a missing name", args: nil},
-		{name: "rejects an extra argument", args: []string{acmeName, "extra"}},
+		{name: "rejects an extra argument", args: []string{acmeName, argExtra}},
 		{name: caseUnknown, args: []string{acmeName, flagUnknown}},
 	}
 
@@ -159,7 +159,7 @@ func TestDescribeRegistryEndToEnd(t *testing.T) {
 		{
 			name:         "unknown name is a not-found runtime error",
 			seed:         authRegistries,
-			args:         []string{"ghost"},
+			args:         []string{argGhost},
 			wantErr:      true,
 			wantNotFound: true,
 		},

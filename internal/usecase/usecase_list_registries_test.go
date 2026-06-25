@@ -176,7 +176,7 @@ func TestListRegistriesRendersEmptyCell(t *testing.T) {
 	f := newListFixture()
 	f.store.On("List", mock.Anything).
 		Return([]types.Registry{reg(testName, types.TransportHTTP, "https://a/")}, nil)
-	request := ListRegistriesRequest{Context: context.Background(), Fields: []string{"ref"}}
+	request := ListRegistriesRequest{baseRequest: baseRequest{Context: context.Background()}, Fields: []string{"ref"}}
 	var out bytes.Buffer
 
 	// Act.
@@ -194,9 +194,9 @@ func TestListRegistriesUsageErrors(t *testing.T) {
 		name    string
 		request ListRegistriesRequest
 	}{
-		{name: "unknown field", request: ListRegistriesRequest{Fields: []string{"bogus"}}},
+		{name: "unknown field", request: ListRegistriesRequest{Fields: []string{unknownField}}},
 		{name: "unknown sort", request: ListRegistriesRequest{Sort: "uri"}},
-		{name: "unknown order", request: ListRegistriesRequest{Order: "sideways"}},
+		{name: "unknown order", request: ListRegistriesRequest{Order: invalidOrder}},
 	}
 
 	for _, tt := range tests {
@@ -223,7 +223,7 @@ func TestListRegistriesIOError(t *testing.T) {
 	// Arrange.
 	f := newListFixture()
 	f.store.On("List", mock.Anything).Return(nil, errors.New("registries.yaml is unreadable"))
-	request := ListRegistriesRequest{Context: context.Background()}
+	request := ListRegistriesRequest{baseRequest: baseRequest{Context: context.Background()}}
 	var out bytes.Buffer
 
 	// Act.

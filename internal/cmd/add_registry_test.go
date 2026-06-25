@@ -166,13 +166,13 @@ func TestAddRegistryFlagDefaults(t *testing.T) {
 	cmd := AddRegistry()
 
 	// Assert: --kind defaults to http.
-	kind, err := cmd.Flags().GetString("kind")
+	kind, err := cmd.Flags().GetString(flagKind)
 	require.NoError(t, err)
 	assert.Equal(t, kindHTTP, kind)
 
 	// Assert: the full flag surface is present.
 	for _, name := range []string{
-		"kind", "ref", "timeout", "username", "password",
+		flagKind, "ref", "timeout", "username", "password",
 		"skip-tls-verify", "ca-cert", "client-cert", "client-key", "ssh-key",
 	} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)

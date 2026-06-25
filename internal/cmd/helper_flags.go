@@ -55,6 +55,25 @@ func bindListingFlags(cmd *cobra.Command, f *listingFlags) {
 	flags.StringSliceVar(&f.Fields, "fields", nil, "columns to display, in order")
 }
 
+// the default paging window shared by paginated listings.
+const (
+	defaultPage  = 1
+	defaultLimit = 20
+)
+
+// pagingFlags groups the 1-based page number and page size shared by paginated
+// listing commands.
+type pagingFlags struct {
+	Page  int64
+	Limit int64
+}
+
+func bindPagingFlags(cmd *cobra.Command, f *pagingFlags) {
+	flags := cmd.Flags()
+	flags.Int64Var(&f.Page, "page", defaultPage, "1-based page number")
+	flags.Int64Var(&f.Limit, "limit", defaultLimit, "page size")
+}
+
 // dryRunFlags groups the dry-run toggle shared by mutating commands.
 type dryRunFlags struct {
 	DryRun bool

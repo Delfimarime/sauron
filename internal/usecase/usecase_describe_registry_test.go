@@ -225,7 +225,7 @@ func TestDescribeRegistryFailure(t *testing.T) {
 		},
 		{
 			name:     "unknown field is usage",
-			fields:   []string{"bogus"},
+			fields:   []string{unknownField},
 			wantType: TypeUsage,
 		},
 	}

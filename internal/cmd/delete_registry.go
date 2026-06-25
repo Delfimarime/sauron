@@ -6,9 +6,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 
-	"github.com/delfimarime/sauron/internal/infrastructure/repository"
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
@@ -43,29 +41,9 @@ func DeleteRegistry() *cobra.Command {
 // deleteRegistry holds the cobra-free logic: it builds the request and lets the fx
 // graph invoke the use case, returning the classified failure to the caller.
 func deleteRegistry(ctx context.Context, flags *deleteRegistryFlags, args []string, stdout io.Writer) error {
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	request := newDeleteRegistryRequest(runCtx, flags, args, stdout)
-
-	var execErr error
-	app := NewApp(runCtx,
-		repository.NewFxOptions(),
-		usecase.NewFxOptions(),
-		fx.Invoke(func(uc *usecase.DeleteRegistryUseCase) {
-			execErr = uc.Execute(request)
-		}),
-	)
-	if err := app.Err(); err != nil {
-		return fmt.Errorf("build application: %w", err)
-	}
-	if err := app.Start(runCtx); err != nil {
-		return fmt.Errorf("start application: %w", err)
-	}
-	cancel()
-	_ = app.Stop(context.WithoutCancel(ctx))
-
-	return execErr
+	return runUseCase(ctx, func(runCtx context.Context, uc *usecase.DeleteRegistryUseCase) error {
+		return uc.Execute(newDeleteRegistryRequest(runCtx, flags, args, stdout))
+	})
 }
 
 // newDeleteRegistryRequest maps the parsed flags and positional argument onto the

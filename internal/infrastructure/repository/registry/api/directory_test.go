@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -12,9 +13,13 @@ import (
 )
 
 const (
-	fileAYAML = "a.yaml"
-	fileBYAML = "b.yaml"
-	dirSkills = ".skills"
+	fileAYAML      = "a.yaml"
+	fileBYAML      = "b.yaml"
+	fileCYAML      = "c.yaml"
+	fileCodeReview = "code-review.yaml"
+	fileGoStyle    = "go-style.yaml"
+	fileSQLReview  = "sql-review.yaml"
+	dirSkills      = ".skills"
 )
 
 // seed returns a memory filesystem holding a .skills directory with the given
@@ -49,8 +54,57 @@ func TestDirectory_List(t *testing.T) {
 			wantNames: []string{fileAYAML, fileBYAML},
 		},
 		{
+			name:      "ascending order lists entries by name",
+			entries:   map[string][]byte{fileBYAML: []byte("b"), fileAYAML: []byte("aa")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithOrder("asc")},
+			wantNames: []string{fileAYAML, fileBYAML},
+		},
+		{
+			name:      "descending order reverses entries before paging",
+			entries:   map[string][]byte{fileBYAML: []byte("b"), fileAYAML: []byte("aa")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithOrder("desc")},
+			wantNames: []string{fileBYAML, fileAYAML},
+		},
+		{
+			name:      "descending order applies before limit",
+			entries:   map[string][]byte{fileAYAML: []byte("a"), fileBYAML: []byte("b"), fileCYAML: []byte("c")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithOrder("desc"), source.WithLimit(1)},
+			wantNames: []string{fileCYAML},
+		},
+		{
+			name:      "search filters by case-insensitive substring",
+			entries:   map[string][]byte{fileCodeReview: []byte("a"), fileGoStyle: []byte("b"), fileSQLReview: []byte("c")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithSearch("REV")},
+			wantNames: []string{fileCodeReview, fileSQLReview},
+		},
+		{
+			name:      "search composes with order, offset and limit",
+			entries:   map[string][]byte{fileCodeReview: []byte("a"), fileGoStyle: []byte("b"), fileSQLReview: []byte("c")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithSearch("rev"), source.WithOrder("desc"), source.WithOffset(1), source.WithLimit(1)},
+			wantNames: []string{fileCodeReview},
+		},
+		{
+			name:      "empty search matches everything",
+			entries:   map[string][]byte{fileAYAML: []byte("a"), fileBYAML: []byte("b")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithSearch("")},
+			wantNames: []string{fileAYAML, fileBYAML},
+		},
+		{
+			name:      "search matching nothing yields empty",
+			entries:   map[string][]byte{fileAYAML: []byte("a")},
+			uri:       dirSkills,
+			opts:      []source.Option{source.WithSearch("zzz")},
+			wantNames: []string{},
+		},
+		{
 			name:      "limit caps results",
-			entries:   map[string][]byte{fileAYAML: []byte("a"), fileBYAML: []byte("b"), "c.yaml": []byte("c")},
+			entries:   map[string][]byte{fileAYAML: []byte("a"), fileBYAML: []byte("b"), fileCYAML: []byte("c")},
 			uri:       dirSkills,
 			opts:      []source.Option{source.WithLimit(1)},
 			wantNames: []string{fileAYAML},
@@ -139,20 +193,64 @@ func TestDirectory_DescribeAndGetAreNotImplemented(t *testing.T) {
 	assert.ErrorIs(t, getErr, source.ErrNotImplemented)
 }
 
-func TestDirectoryEntry_ReadIsNotImplemented(t *testing.T) {
+func TestDirectoryEntry_ReadReturnsContent(t *testing.T) {
 	t.Parallel()
 
 	// Arrange.
-	dir := NewDirectory(seed(t, map[string][]byte{fileAYAML: []byte("x")}))
+	want := []byte("hello world")
+	dir := NewDirectory(seed(t, map[string][]byte{fileAYAML: want}))
 	files, err := dir.List(context.Background(), dirSkills)
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 
 	// Act.
+	reader, readErr := files[0].Read(context.Background())
+
+	// Assert.
+	require.NoError(t, readErr)
+	body, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, want, body)
+	require.NoError(t, reader.Close())
+}
+
+func TestDirectoryEntry_ReadDirectoryErrors(t *testing.T) {
+	t.Parallel()
+
+	// Arrange.
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll(dirSkills+"/nested", 0o755))
+	dir := NewDirectory(fs)
+	files, err := dir.List(context.Background(), dirSkills)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.True(t, files[0].IsDirectory())
+
+	// Act.
 	_, readErr := files[0].Read(context.Background())
 
 	// Assert.
-	assert.ErrorIs(t, readErr, source.ErrNotImplemented)
+	require.Error(t, readErr)
+	assert.ErrorIs(t, readErr, ErrRuntime)
+}
+
+func TestDirectoryEntry_ReadMissingFileErrors(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: list, then remove the file before reading it.
+	fs := seed(t, map[string][]byte{fileAYAML: []byte("x")})
+	dir := NewDirectory(fs)
+	files, err := dir.List(context.Background(), dirSkills)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.NoError(t, fs.Remove(dirSkills+"/"+fileAYAML))
+
+	// Act.
+	_, readErr := files[0].Read(context.Background())
+
+	// Assert.
+	require.Error(t, readErr)
+	assert.ErrorIs(t, readErr, ErrRuntime)
 }
 
 // names projects the file names from a listing.

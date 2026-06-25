@@ -17,6 +17,12 @@ type UseCase[R Request] interface {
 	Execute(request R) error
 }
 
+// Action is a stateless, composable step a use case runs: executed with a
+// context and an input R, it returns a *P product or a classified *Error.
+type Action[R, P any] interface {
+	Execute(ctx context.Context, in R) (*P, error)
+}
+
 // Type classifies a use-case failure so callers can map it to an exit code or
 // presentation without inspecting the reason text.
 type Type string

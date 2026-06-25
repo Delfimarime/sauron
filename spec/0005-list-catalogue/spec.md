@@ -20,8 +20,9 @@ offline behavior.
 
 - FR-001: Sauron shall fetch, live from the named registry, the skills, agents, or
   personas it offers — as selected by the kind noun — and print them as a table.
-- FR-002: Sauron shall page results with `--offset` (leading results skipped,
-  default `0`) and `--limit` (maximum returned), reporting the applied paging.
+- FR-002: Sauron shall page results with `--page` (1-based page number, default
+  `1`) and `--limit` (page size, default `20`), computing the backend offset on the
+  client, and report the applied paging without a total count.
 
 ### Optional
 
@@ -45,3 +46,19 @@ offline behavior.
 - **Registry** — the source browsed; its connection is read from
   `registries.yaml` (see the
   [state data contract](../contracts/state.md)).
+
+## Notes
+
+- **On-source layout.** A registry exposes its offerings under three roots —
+  `.skills/`, `.agents/`, and `.personas/` — each holding one `<name>.(yaml|yml)`
+  manifest per artifact. The kind noun selects the root, and an entry's catalogue
+  name is its filename with the extension trimmed. (The `add registry` reachability
+  probe already treats `.skills`/`.agents` as proof a source hosts artifacts; this
+  feature is the first to enumerate `.personas`.)
+- **Projection by kind.** `skill` and `agent` list as `NAME`/`KIND`; `persona`
+  lists as `NAME`/`MEMBERS`, summarizing the `skills`/`agents` membership each
+  persona manifest declares.
+- **Paging.** `--page`/`--limit` are the CLI surface; the client computes the
+  backend offset as `(page−1)·limit`. The registry HTTP API returns items with no
+  total count (Zalando #254), so the paging line reports the applied window, never
+  an `of N` total.

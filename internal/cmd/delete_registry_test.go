@@ -123,11 +123,11 @@ func TestDeleteRegistryRejectsBadInput(t *testing.T) {
 // and the dry-run preview.
 func TestDeleteRegistryEndToEnd(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []string
-		wantOut     []string
-		wantState   []string // substrings the state must still contain
-		wantAbsent  []string // substrings the state must no longer contain
+		name       string
+		args       []string
+		wantOut    []string
+		wantState  []string // substrings the state must still contain
+		wantAbsent []string // substrings the state must no longer contain
 	}{
 		{
 			name:       "removes the named registry and reports the summary",
@@ -138,7 +138,7 @@ func TestDeleteRegistryEndToEnd(t *testing.T) {
 		},
 		{
 			name:      "unknown registry reports nothing was deleted and leaves state",
-			args:      []string{"ghost"},
+			args:      []string{argGhost},
 			wantOut:   []string{"nothing was deleted"},
 			wantState: []string{docNameAcme, "name: " + internalName},
 		},

@@ -29,6 +29,8 @@ const (
 	transportFilesystem = "filesystem"
 	transportHTTP       = "http"
 	transportGit        = "git"
+
+	testRef = "main"
 )
 
 // fixture bundles the use case and its mocked collaborators.
@@ -51,10 +53,18 @@ func newFixture() *fixture {
 		fs:         &source.MockBasedFileSystem{},
 	}
 
+	open := NewOpenRegistryAction(OpenRegistryActionParams{
+		Filesystem: f.filesystem,
+		Git:        f.git,
+		HTTP:       f.http,
+		Logger:     zap.NewNop(),
+	})
+
 	f.uc = NewAddRegistryUseCase(AddRegistryUseCaseParams{
 		Filesystem: f.filesystem,
 		Git:        f.git,
 		HTTP:       f.http,
+		Open:       open,
 		Registries: f.store,
 		Logger:     zap.NewNop(),
 	})
@@ -103,8 +113,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 	t.Run("bad name yields usage", func(t *testing.T) {
 		f := newFixture()
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: "Bad_Name", URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        "Bad_Name", URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUsage)
 		f.filesystem.AssertNotCalled(t, "Validate", mock.Anything)
@@ -113,8 +123,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 	t.Run("literal password yields usage", func(t *testing.T) {
 		f := newFixture()
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
 			Password: "literal-secret",
 		})
 		requireErrType(t, err, TypeUsage)
@@ -124,8 +134,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 	t.Run("unknown transport yields usage", func(t *testing.T) {
 		f := newFixture()
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: "x", Transport: "ftp",
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: "x", Transport: "ftp",
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -136,8 +146,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(fmt.Errorf("%w: ref unsupported", api.ErrUsage))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testHTTPURI, Transport: transportHTTP, Ref: "main",
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testHTTPURI, Transport: transportHTTP, Ref: testRef,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -149,8 +159,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(&types.Registry{}, nil)
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeConflict)
 	})
@@ -162,8 +172,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(nil, errors.New("disk gone"))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeIO)
 	})
@@ -175,8 +185,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.store.On("FindByName", mock.Anything, testName).Return(nil, nil)
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
 			Username: "${env:ACME_USER}",
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
@@ -191,8 +201,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(nil, fmt.Errorf("%w: dial tcp", api.ErrRuntime))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -205,8 +215,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(nil, fmt.Errorf("%w: bad uri", api.ErrUsage))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testHTTPURI, Transport: transportHTTP,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
@@ -216,8 +226,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.filesystem.On("Validate", mock.Anything).Return(errors.New("weird"))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -231,8 +241,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 			Return(nil, errors.New("io"))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
@@ -245,8 +255,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.stampAbsent()
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
 		assert.Equal(t, "hosts no artifact", ucErr.Reason)
@@ -261,8 +271,8 @@ func TestAddRegistryUseCase_Execute_Failures(t *testing.T) {
 		f.store.On("Add", mock.Anything, mock.Anything).Return(errors.New("full"))
 
 		err := f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: &bytes.Buffer{},
-			Name: testName, URI: testFSURI, Transport: transportFilesystem,
+			baseRequest: baseRequest{Context: context.Background(), out: &bytes.Buffer{}},
+			Name:        testName, URI: testFSURI, Transport: transportFilesystem,
 		})
 		requireErrType(t, err, TypeIO)
 	})
@@ -305,8 +315,8 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	synctest.Test(t, func(*testing.T) {
 		want = time.Now().UTC().Format(time.RFC3339)
 		err = f.uc.Execute(&AddRegistryRequest{
-			Context: context.Background(), out: out,
-			Name: testName, URI: "git@host:repo.git", Transport: transportGit, Ref: "main",
+			baseRequest: baseRequest{Context: context.Background(), out: out},
+			Name:        testName, URI: "git@host:repo.git", Transport: transportGit, Ref: testRef,
 			Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}",
 			Timeout: 15 * time.Second,
 		})
@@ -316,7 +326,7 @@ func TestAddRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, types.TransportGit, stored.Spec.Transport)
 	assert.Equal(t, "git@host:repo.git", stored.Spec.URI)
-	assert.Equal(t, "main", stored.Spec.Ref)
+	assert.Equal(t, testRef, stored.Spec.Ref)
 	assert.Equal(t, "15s", stored.Spec.Timeout)
 	require.NotNil(t, stored.Spec.Auth)
 	assert.Equal(t, "${env:GIT_USER}", stored.Spec.Auth.Username)
@@ -349,8 +359,8 @@ func TestAddRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 
 	// Act: Ref is supplied but must be dropped for a non-git transport.
 	err := f.uc.Execute(&AddRegistryRequest{
-		Context: context.Background(), out: out,
-		Name: testName, URI: testHTTPURI, Transport: transportHTTP, Ref: "ignored",
+		baseRequest: baseRequest{Context: context.Background(), out: out},
+		Name:        testName, URI: testHTTPURI, Transport: transportHTTP, Ref: "ignored",
 		SkipTLSVerify: true, CACert: "/ca.pem",
 	})
 

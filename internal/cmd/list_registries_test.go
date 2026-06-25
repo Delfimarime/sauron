@@ -69,7 +69,7 @@ func runListRegistries(t *testing.T, args ...string) (string, error) {
 func TestNewListRegistriesRequestMapsFlags(t *testing.T) {
 	// Arrange.
 	var stdout bytes.Buffer
-	flags := listingFlags{Search: acmeName, Sort: "transport", Order: "desc", Fields: []string{"name", colURI}}
+	flags := listingFlags{Search: acmeName, Sort: fieldTransport, Order: orderDesc, Fields: []string{sortName, colURI}}
 
 	// Act.
 	request := newListRegistriesRequest(context.Background(), &flags, &stdout)
@@ -77,9 +77,9 @@ func TestNewListRegistriesRequestMapsFlags(t *testing.T) {
 	// Assert.
 	require.NotNil(t, request)
 	assert.Equal(t, acmeName, request.Search)
-	assert.Equal(t, "transport", request.Sort)
-	assert.Equal(t, "desc", request.Order)
-	assert.Equal(t, []string{"name", colURI}, request.Fields)
+	assert.Equal(t, fieldTransport, request.Sort)
+	assert.Equal(t, orderDesc, request.Order)
+	assert.Equal(t, []string{sortName, colURI}, request.Fields)
 	assert.Same(t, &stdout, request.Out())
 }
 
@@ -109,10 +109,10 @@ func TestListRegistriesFlagSurface(t *testing.T) {
 	cmd := ListRegistries()
 
 	// Assert.
-	for _, name := range []string{"search", "sort", "order", "fields"} {
+	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
 	}
-	order, err := cmd.Flags().GetString("order")
+	order, err := cmd.Flags().GetString(flagOrder)
 	require.NoError(t, err)
 	assert.Equal(t, "asc", order)
 	assert.NotNil(t, cmd.Args, "an argument validator is installed")
@@ -125,7 +125,7 @@ func TestListRegistriesRejectsBadInput(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "rejects a positional argument", args: []string{"extra"}},
+		{name: "rejects a positional argument", args: []string{argExtra}},
 		{name: "rejects an unknown flag", args: []string{"--nope"}},
 	}
 
@@ -171,7 +171,7 @@ func TestListRegistriesEndToEnd(t *testing.T) {
 		{
 			name:      "sort by transport descending",
 			seed:      twoRegistries,
-			args:      []string{"--sort", "transport", "--order", "desc"},
+			args:      []string{"--sort", fieldTransport, "--order", orderDesc},
 			wantOrder: []string{"internal", acmeName},
 		},
 		{
