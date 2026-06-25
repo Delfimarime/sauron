@@ -12,9 +12,7 @@ const (
 	KindRegistry = "Registry"
 	KindSkill    = "Skill"
 	KindAgent    = "Agent"
-	KindPersona  = "Persona"
 	KindProvider = "Provider"
-	KindSchedule = "Schedule"
 )
 
 // TypeMeta is the apiVersion/kind envelope shared by every document. It is

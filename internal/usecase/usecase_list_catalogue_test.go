@@ -3,8 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,8 +15,8 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
-// catalogueReg is the registry name reused across the catalogue assertions.
-const catalogueReg = "acme"
+// catalogueURI is the registry URI reused across the catalogue assertions.
+const catalogueURI = "https://acme.example"
 
 // catalogueFixture bundles the use case and its mocked collaborators.
 type catalogueFixture struct {
@@ -49,19 +47,10 @@ func (f *catalogueFixture) run(in ListCatalogueInput) (*ListCatalogueResult, err
 	return f.uc.Execute(context.Background(), in)
 }
 
-// names projects a result's entries to their catalogue names.
-func names(result *ListCatalogueResult) []string {
-	out := make([]string, len(result.Entries))
-	for i, entry := range result.Entries {
-		out[i] = entry.Name
-	}
-	return out
-}
-
-// expectFound stubs FindByName to return the stored catalogue registry.
+// expectFound stubs Get to return the configured registry.
 func (f *catalogueFixture) expectFound() {
-	f.store.On("FindByName", mock.Anything, catalogueReg).
-		Return(&types.Registry{Metadata: types.Metadata{Name: catalogueReg}}, nil)
+	f.store.On("Get", mock.Anything).
+		Return(&types.Registry{Spec: types.RegistrySpec{URI: catalogueURI}}, nil)
 }
 
 // expectOpen stubs the open action to return the fixture's file system.
@@ -100,55 +89,39 @@ func dir(name string) *source.MockBasedFile {
 	return file
 }
 
-// personaFile builds a persona manifest stub whose Read returns content.
-func personaFile(name, content string) *source.MockBasedFile {
-	file := stat(name)
-	file.On("Read", mock.Anything).
-		Return(io.NopCloser(strings.NewReader(content)), nil)
-	return file
-}
-
-// catalogueInput builds a catalogue input with the page/limit defaults applied.
-func catalogueInput(kind CatalogueKind) ListCatalogueInput {
-	return ListCatalogueInput{
-		Kind:     kind,
-		Registry: catalogueReg,
-		Page:     1,
-		Limit:    20,
-	}
+// input builds a catalogue input with the sort/order/paging defaults the handler
+// boundary resolves before Execute.
+func input(kind CatalogueKind) ListCatalogueInput {
+	return ListCatalogueInput{Kind: kind, Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}
 }
 
 func TestListCatalogueSkillAndAgent(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		kind CatalogueKind
-		root string
 	}{
-		{name: "skill", kind: CatalogueSkill, root: rootSkills},
-		{name: "agent", kind: CatalogueAgent, root: rootAgents},
+		{name: "skill", kind: CatalogueSkill},
+		{name: "agent", kind: CatalogueAgent},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
 			f := newCatalogueFixture()
 			f.expectFound()
 			f.expectOpen()
-			f.expectList(tc.root, []source.File{
+			f.expectList(catalogueRoots[tc.kind], []source.File{
 				stat("review.yaml"),
 				dir("nested"),
 				stat("doc.yml"),
 			}, nil)
 
 			// Act.
-			result, err := f.run(catalogueInput(tc.kind))
+			result, err := f.run(input(tc.kind))
 
-			// Assert.
+			// Assert: directories are skipped and names trimmed; the kind is carried.
 			require.NoError(t, err)
-			assert.Equal(t, []string{"review", "doc"}, names(result))
-			for _, entry := range result.Entries {
-				assert.Empty(t, entry.Members)
-			}
-			assert.Equal(t, int64(1), result.Page)
-			assert.Equal(t, int64(20), result.Limit)
+			require.NotNil(t, result)
+			assert.Equal(t, tc.kind, result.Kind)
+			assert.Equal(t, []string{"review", "doc"}, result.Items)
 		})
 	}
 }
@@ -165,33 +138,11 @@ func TestListCatalogueNameTrimming(t *testing.T) {
 	}, nil)
 
 	// Act.
-	result, err := f.run(catalogueInput(CatalogueSkill))
+	result, err := f.run(input(CatalogueSkill))
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Equal(t, []string{"alpha", "beta", "gamma"}, names(result))
-}
-
-func TestListCataloguePersonaMembers(t *testing.T) {
-	// Arrange.
-	f := newCatalogueFixture()
-	f.expectFound()
-	f.expectOpen()
-	f.expectList(rootPersonas, []source.File{
-		personaFile("full.yaml", "spec:\n  members:\n    skills: [a, b]\n    agents: [c]\n"),
-		personaFile("skillsonly.yaml", "spec:\n  members:\n    skills: [x]\n"),
-		personaFile("empty.yaml", "spec:\n  members: {}\n"),
-	}, nil)
-
-	// Act.
-	result, err := f.run(catalogueInput(CataloguePersona))
-
-	// Assert.
-	require.NoError(t, err)
-	require.Len(t, result.Entries, 3)
-	assert.Equal(t, "skills: a, b; agents: c", result.Entries[0].Members)
-	assert.Equal(t, "skills: x", result.Entries[1].Members)
-	assert.Equal(t, "—", result.Entries[2].Members)
+	assert.Equal(t, []string{"alpha", "beta", "gamma"}, result.Items)
 }
 
 func TestListCatalogueListOptions(t *testing.T) {
@@ -202,9 +153,9 @@ func TestListCatalogueListOptions(t *testing.T) {
 	var captured source.Options
 	f.expectList(rootSkills, []source.File{stat("a.yaml")}, &captured)
 
-	in := catalogueInput(CatalogueSkill)
+	in := input(CatalogueSkill)
 	in.Search = "rev"
-	in.Order = orderDesc
+	in.Order = catOrderDesc
 	in.Page = 3
 	in.Limit = 5
 
@@ -216,9 +167,9 @@ func TestListCatalogueListOptions(t *testing.T) {
 	require.NotNil(t, captured.Search)
 	assert.Equal(t, "rev", *captured.Search)
 	require.NotNil(t, captured.Sort)
-	assert.Equal(t, "name", *captured.Sort)
+	assert.Equal(t, catSortName, *captured.Sort)
 	require.NotNil(t, captured.Order)
-	assert.Equal(t, "desc", *captured.Order)
+	assert.Equal(t, catOrderDesc, *captured.Order)
 	require.NotNil(t, captured.Offset)
 	assert.Equal(t, int64(10), *captured.Offset) // (3-1)*5
 	require.NotNil(t, captured.Limit)
@@ -234,37 +185,62 @@ func TestListCatalogueNoSearchOption(t *testing.T) {
 	f.expectList(rootAgents, []source.File{stat("a.yaml")}, &captured)
 
 	// Act.
-	_, err := f.run(catalogueInput(CatalogueAgent))
+	_, err := f.run(input(CatalogueAgent))
 
 	// Assert.
 	require.NoError(t, err)
 	assert.Nil(t, captured.Search)
 }
 
-func TestListCatalogueNotFound(t *testing.T) {
+func TestListCataloguePagingWindow(t *testing.T) {
 	// Arrange.
 	f := newCatalogueFixture()
-	f.store.On("FindByName", mock.Anything, catalogueReg).Return(nil, nil)
+	f.expectFound()
+	f.expectOpen()
+	f.expectList(rootSkills, []source.File{stat("b.yaml")}, nil)
+
+	in := input(CatalogueSkill)
+	in.Page = 2
+	in.Limit = 1
 
 	// Act.
-	_, err := f.run(catalogueInput(CatalogueSkill))
+	result, err := f.run(in)
+
+	// Assert: the result carries the paging window for the client to render.
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, int64(2), result.Page)
+	assert.Equal(t, int64(1), result.Limit)
+	assert.Equal(t, int64(1), result.Offset) // (2-1)*1
+}
+
+func TestListCatalogueNotConfigured(t *testing.T) {
+	// Arrange.
+	f := newCatalogueFixture()
+	f.store.On("Get", mock.Anything).Return(nil, nil)
+
+	// Act.
+	_, err := f.run(input(CatalogueSkill))
 
 	// Assert.
-	useErr := asUseCaseError(t, err, TypeNotFound)
-	assert.Contains(t, useErr.Reason, `registry "acme" does not exist`)
+	var useErr *Error
+	require.ErrorAs(t, err, &useErr)
+	assert.Equal(t, TypeNotFound, useErr.Type)
+	assert.Contains(t, useErr.Reason, "no registry is configured")
 }
 
 func TestListCatalogueReadError(t *testing.T) {
 	// Arrange.
 	f := newCatalogueFixture()
-	f.store.On("FindByName", mock.Anything, catalogueReg).
-		Return(nil, errors.New("boom"))
+	f.store.On("Get", mock.Anything).Return(nil, errors.New("boom"))
 
 	// Act.
-	_, err := f.run(catalogueInput(CatalogueSkill))
+	_, err := f.run(input(CatalogueSkill))
 
 	// Assert.
-	_ = asUseCaseError(t, err, TypeIO)
+	var useErr *Error
+	require.ErrorAs(t, err, &useErr)
+	assert.Equal(t, TypeIO, useErr.Type)
 }
 
 func TestListCatalogueUnreachable(t *testing.T) {
@@ -275,10 +251,12 @@ func TestListCatalogueUnreachable(t *testing.T) {
 		Return(nil, NewUnreachableError("source down"))
 
 	// Act.
-	_, err := f.run(catalogueInput(CatalogueSkill))
+	_, err := f.run(input(CatalogueSkill))
 
 	// Assert.
-	useErr := asUseCaseError(t, err, TypeUnreachable)
+	var useErr *Error
+	require.ErrorAs(t, err, &useErr)
+	assert.Equal(t, TypeUnreachable, useErr.Type)
 	assert.Equal(t, "source down", useErr.Reason)
 }
 
@@ -291,42 +269,12 @@ func TestListCatalogueListFailureUnreachable(t *testing.T) {
 		Return(nil, errors.New("connection reset"))
 
 	// Act.
-	_, err := f.run(catalogueInput(CatalogueSkill))
+	_, err := f.run(input(CatalogueSkill))
 
 	// Assert.
-	_ = asUseCaseError(t, err, TypeUnreachable)
-}
-
-func TestListCataloguePersonaReadError(t *testing.T) {
-	// Arrange.
-	f := newCatalogueFixture()
-	f.expectFound()
-	f.expectOpen()
-	bad := stat("broken.yaml")
-	bad.On("Read", mock.Anything).Return(nil, errors.New("io fault"))
-	f.expectList(rootPersonas, []source.File{bad}, nil)
-
-	// Act.
-	_, err := f.run(catalogueInput(CataloguePersona))
-
-	// Assert.
-	_ = asUseCaseError(t, err, TypeIO)
-}
-
-func TestListCataloguePersonaDecodeError(t *testing.T) {
-	// Arrange.
-	f := newCatalogueFixture()
-	f.expectFound()
-	f.expectOpen()
-	f.expectList(rootPersonas, []source.File{
-		personaFile("bad.yaml", "spec: : not yaml :"),
-	}, nil)
-
-	// Act.
-	_, err := f.run(catalogueInput(CataloguePersona))
-
-	// Assert.
-	_ = asUseCaseError(t, err, TypeIO)
+	var useErr *Error
+	require.ErrorAs(t, err, &useErr)
+	assert.Equal(t, TypeUnreachable, useErr.Type)
 }
 
 func TestListCatalogueUsageErrors(t *testing.T) {
@@ -336,45 +284,24 @@ func TestListCatalogueUsageErrors(t *testing.T) {
 		wantSub string
 	}{
 		{name: "unknown kind", mutate: func(in *ListCatalogueInput) { in.Kind = "widget" }, wantSub: "kind"},
-		{name: "unknown sort", mutate: func(in *ListCatalogueInput) { in.Sort = "size" }, wantSub: "sort"},
-		{name: "unknown order", mutate: func(in *ListCatalogueInput) { in.Order = invalidOrder }, wantSub: "order"},
 		{name: "page below one", mutate: func(in *ListCatalogueInput) { in.Page = 0 }, wantSub: "page"},
 		{name: "limit below one", mutate: func(in *ListCatalogueInput) { in.Limit = 0 }, wantSub: "limit"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
 			f := newCatalogueFixture()
-			in := catalogueInput(CatalogueSkill)
+			in := input(CatalogueSkill)
 			tc.mutate(&in)
 
 			// Act.
 			_, err := f.run(in)
 
 			// Assert.
-			useErr := asUseCaseError(t, err, TypeUsage)
+			var useErr *Error
+			require.ErrorAs(t, err, &useErr)
+			assert.Equal(t, TypeUsage, useErr.Type)
 			assert.Contains(t, useErr.Reason, tc.wantSub)
-			f.store.AssertNotCalled(t, "FindByName", mock.Anything, mock.Anything)
+			f.store.AssertNotCalled(t, "Get", mock.Anything)
 		})
 	}
-}
-
-func TestListCatalogueSortDefaults(t *testing.T) {
-	// Arrange — empty Sort/Order default to name/asc and pass validation.
-	f := newCatalogueFixture()
-	f.expectFound()
-	f.expectOpen()
-	var captured source.Options
-	f.expectList(rootSkills, []source.File{stat("a.yaml")}, &captured)
-
-	in := catalogueInput(CatalogueSkill)
-	in.Sort = ""
-	in.Order = ""
-
-	// Act.
-	_, err := f.run(in)
-
-	// Assert.
-	require.NoError(t, err)
-	require.NotNil(t, captured.Order)
-	assert.Equal(t, "asc", *captured.Order)
 }

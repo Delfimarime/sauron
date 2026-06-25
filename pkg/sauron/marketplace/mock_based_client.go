@@ -21,11 +21,6 @@ func (m *MockBasedClient) Agents() ArtifactClient {
 	return m.artifactClient(m.Called())
 }
 
-// Personas records the call and returns the configured artifact client.
-func (m *MockBasedClient) Personas() ArtifactClient {
-	return m.artifactClient(m.Called())
-}
-
 // artifactClient unwraps an ArtifactClient from recorded arguments.
 func (m *MockBasedClient) artifactClient(args mock.Arguments) ArtifactClient {
 	if v := args.Get(0); v != nil {

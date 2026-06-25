@@ -95,8 +95,6 @@ func (f *restFileSystem) collection(uri string) (marketplace.ArtifactClient, err
 		return f.client.Skills(), nil
 	case "agents":
 		return f.client.Agents(), nil
-	case "personas":
-		return f.client.Personas(), nil
 	default:
 		return nil, fmt.Errorf("%w: unknown collection %q", api.ErrUsage, uri)
 	}

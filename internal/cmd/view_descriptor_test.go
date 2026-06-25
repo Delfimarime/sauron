@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// descriptor-test literals, named to satisfy goconst across the package.
+// descriptor-view-test literals, named to satisfy goconst across the package.
 const (
-	viewLabelTransport = "transport"
-	viewLabelURI       = "uri"
-	viewLabelAuth      = "auth"
-	labelUsername  = "username"
-	valGit         = "git"
-	valUserRef     = "${env:ACME_USER}"
+	dLabelTransport = "transport"
+	dLabelURI       = "uri"
+	dLabelAuth      = "auth"
+	dLabelUsername  = "username"
+	dValGit         = "git"
+	dValUserRef     = "${env:ACME_USER}"
 )
 
 // TestDescriptorRender exercises the rendering rules: aligned leaf values, the
@@ -24,22 +24,22 @@ func TestDescriptorRender(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
-		// descriptor is the value under test.
-		descriptor Descriptor
+		// view is the value under test.
+		view descriptor
 		// want is the exact expected output.
 		want string
 	}{
 		{
-			name:       "no fields produce no output",
-			descriptor: Descriptor{},
-			want:       "",
+			name: "no fields produce no output",
+			view: descriptor{},
+			want: "",
 		},
 		{
 			name: "leaf values align to the widest label",
-			descriptor: Descriptor{Fields: []Field{
-				{Label: viewColName, Value: rowAcme},
-				{Label: viewLabelTransport, Value: valGit},
-				{Label: viewLabelURI, Value: acmeURI},
+			view: descriptor{Fields: []descriptorField{
+				{Label: tblColName, Value: tblRowAcme},
+				{Label: dLabelTransport, Value: dValGit},
+				{Label: dLabelURI, Value: vGitURI},
 			}},
 			want: "name:       acme\n" +
 				"transport:  git\n" +
@@ -47,14 +47,14 @@ func TestDescriptorRender(t *testing.T) {
 		},
 		{
 			name: "a section renders its children indented and aligned",
-			descriptor: Descriptor{Fields: []Field{
-				{Label: viewColName, Value: rowAcme},
-				{Label: viewLabelTransport, Value: valGit},
-				{Label: viewLabelAuth, Children: []Field{
-					{Label: labelUsername, Value: valUserRef},
+			view: descriptor{Fields: []descriptorField{
+				{Label: tblColName, Value: tblRowAcme},
+				{Label: dLabelTransport, Value: dValGit},
+				{Label: dLabelAuth, Children: []descriptorField{
+					{Label: dLabelUsername, Value: dValUserRef},
 					{Label: "password", Value: "${env:ACME_TOKEN}"},
 				}},
-				{Label: fieldTimeout, Value: "30s"},
+				{Label: describeFieldTimeout, Value: "30s"},
 			}},
 			want: "name:       acme\n" +
 				"transport:  git\n" +
@@ -71,7 +71,7 @@ func TestDescriptorRender(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Act.
-			err := tt.descriptor.Render(&buf)
+			err := tt.view.render(&buf)
 
 			// Assert.
 			require.NoError(t, err)
@@ -86,27 +86,27 @@ func TestDescriptorRenderWriteError(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
-		// descriptor is the value under test.
-		descriptor Descriptor
+		// view is the value under test.
+		view descriptor
 		// writeAfter is the number of successful writes before the failure.
 		writeAfter int
 	}{
 		{
 			name:       "leaf line write fails",
-			descriptor: Descriptor{Fields: []Field{{Label: "name", Value: "acme"}}},
+			view:       descriptor{Fields: []descriptorField{{Label: "name", Value: "acme"}}},
 			writeAfter: 0,
 		},
 		{
 			name: "section header write fails",
-			descriptor: Descriptor{Fields: []Field{
-				{Label: "auth", Children: []Field{{Label: labelUsername, Value: "u"}}},
+			view: descriptor{Fields: []descriptorField{
+				{Label: "auth", Children: []descriptorField{{Label: dLabelUsername, Value: "u"}}},
 			}},
 			writeAfter: 0,
 		},
 		{
 			name: "section child write fails",
-			descriptor: Descriptor{Fields: []Field{
-				{Label: "auth", Children: []Field{{Label: labelUsername, Value: "u"}}},
+			view: descriptor{Fields: []descriptorField{
+				{Label: "auth", Children: []descriptorField{{Label: dLabelUsername, Value: "u"}}},
 			}},
 			writeAfter: 1,
 		},
@@ -115,7 +115,7 @@ func TestDescriptorRenderWriteError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act.
-			err := tt.descriptor.Render(&failingWriter{writeAfter: tt.writeAfter})
+			err := tt.view.render(&failingWriter{writeAfter: tt.writeAfter})
 
 			// Assert.
 			require.Error(t, err)

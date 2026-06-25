@@ -10,22 +10,22 @@ import (
 // emptyCell is the placeholder rendered for an absent optional value.
 const emptyCell = "—"
 
-// Table is an aligned, uppercase-headed table of string cells. A zero-row table
+// table is an aligned, uppercase-headed table of string cells. A zero-row table
 // renders nothing at all — not even its header.
-type Table struct {
+type table struct {
 	Headers []string
 	Rows    [][]string
 }
 
-// Render writes the table to w with aligned columns and uppercase headers,
+// render writes the table to w with aligned columns and uppercase headers,
 // substituting "—" for an empty cell. A table with no rows produces no output.
-func (t Table) Render(w io.Writer) error {
+func (t table) render(w io.Writer) error {
 	if len(t.Rows) == 0 {
 		return nil
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if err := writeRow(tw, header(t.Headers)); err != nil {
+	if err := writeRow(tw, upperHeader(t.Headers)); err != nil {
 		return err
 	}
 	for _, row := range t.Rows {
@@ -37,8 +37,8 @@ func (t Table) Render(w io.Writer) error {
 	return tw.Flush()
 }
 
-// header upper-cases every column title.
-func header(headers []string) []string {
+// upperHeader upper-cases every column title.
+func upperHeader(headers []string) []string {
 	out := make([]string, len(headers))
 	for i, h := range headers {
 		out[i] = strings.ToUpper(h)

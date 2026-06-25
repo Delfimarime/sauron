@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,9 +19,27 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
-// subcmdRegistry is the shared `registry` sub-command name asserted across the
-// add/describe/delete command tests, named to satisfy goconst across the package.
-const subcmdRegistry = "registry"
+// shared `registry` command-test literals, named to satisfy goconst across the
+// package's set/describe/unset/catalogue command tests.
+const (
+	subcmdRegistry    = "registry"
+	acmeName          = "acme"
+	settingsFile      = "settings.yaml"
+	caseUnexpectedArg = "rejects an unexpected argument"
+)
+
+// seedRegistries pins SAURON_HOME to a fresh temp dir and writes stream as the
+// settings.yaml state, so the registry-reading commands resolve it without
+// touching anything durable. An empty stream leaves no registry configured.
+func seedRegistries(t *testing.T, stream string) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("SAURON_HOME", home)
+	if stream == "" {
+		return
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
+}
 
 // TestNewApp asserts the transversal fx graph wires and validates cleanly — the
 // stubs satisfy the container without panicking — and that the caller's opts are
@@ -94,13 +114,13 @@ func TestNewAppLifecycle(t *testing.T) {
 	assert.NoError(t, app.Stop(stopCtx))
 }
 
-// TestNewAppCommandGraph asserts the add-registry use case resolves when its
+// TestNewAppCommandGraph asserts the set-registry use case resolves when its
 // command-owned opts (repository + usecase) are appended to the transversal
 // graph — the wiring the command itself performs.
 func TestNewAppCommandGraph(t *testing.T) {
 	// Arrange.
 	t.Setenv("SAURON_HOME", t.TempDir())
-	var uc *usecase.AddRegistryUseCase
+	var uc *usecase.SetRegistryUseCase
 	app := NewApp(context.Background(),
 		repository.NewFxOptions(),
 		usecase.NewFxOptions(),
@@ -179,11 +199,11 @@ func TestRunUseCase(t *testing.T) {
 		provide := fx.Provide(func() *fakeUseCase { return &fakeUseCase{} })
 
 		// Act.
-		err := runUseCase(context.Background(),
-			func(runCtx context.Context, uc *fakeUseCase) error {
+		_, err := runUseCase(context.Background(),
+			func(runCtx context.Context, uc *fakeUseCase) (*fakeUseCase, error) {
 				resolved = uc != nil
 				liveAtExec = runCtx.Err() == nil
-				return wantErr
+				return nil, wantErr
 			},
 			provide,
 		)
@@ -200,10 +220,10 @@ func TestRunUseCase(t *testing.T) {
 		var ran bool
 
 		// Act: runUseCase appends repository+usecase, but *fakeUseCase is unprovided.
-		err := runUseCase(context.Background(),
-			func(context.Context, *fakeUseCase) error {
+		_, err := runUseCase(context.Background(),
+			func(context.Context, *fakeUseCase) (*fakeUseCase, error) {
 				ran = true
-				return nil
+				return nil, nil
 			},
 		)
 

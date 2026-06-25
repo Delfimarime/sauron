@@ -16,31 +16,39 @@ import (
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
-// registriesFile is the state document the registry assertions read,
-// relative to $SAURON_HOME (the runtime resolves it per backend).
-const registriesFile = "registries.yaml"
+const (
+	// settingsFile holds the single Registry document (alongside the Provider),
+	// relative to $SAURON_HOME (the runtime resolves it per backend).
+	settingsFile = "settings.yaml"
+	// trackFile holds the installed Skill and Agent documents.
+	trackFile = "track.yaml"
+)
 
-// stateController owns the file-based Then steps: it reads the persisted
-// state through the runtime, decodes it into the public pkg/sauron/types
-// (graybox — no internal/), and asserts on the result.
+// stateController owns the file-based Then steps: it reads the persisted state
+// through the runtime, decodes it into the public pkg/sauron/types (graybox — no
+// internal/), and asserts on the result. There is a single, nameless registry, so
+// the registry assertions read "the registry" rather than naming one.
 type stateController struct {
 	rt runtime.Runtime
 }
 
 func (c *stateController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^there is exactly one registry$`, c.exactlyOneRegistry)
-	sc.Step(`^there are (\d+) registries$`, c.registryCount)
-	sc.Step(`^a registry named (\S+) exists$`, c.registryExists)
-	sc.Step(`^the registry (\S+) has transport (\S+)$`, c.registryTransport)
-	sc.Step(`^the registry (\S+) has label (\S+) with value (\S+)$`, c.registryLabel)
-	sc.Step(`^the registry (\S+) is described by:$`, c.registryDescribedBy)
-	sc.Step(`^the registry (\S+) stores password as the reference (\S+)$`, c.registryPasswordRef)
-	sc.Step(`^the registry (\S+) has a creation timestamp$`, c.registryHasCreationTimestamp)
+	sc.Step(`^there is no registry$`, c.noRegistry)
+	sc.Step(`^the registry has transport (\S+)$`, c.registryTransport)
+	sc.Step(`^the registry is described by:$`, c.registryDescribedBy)
+	sc.Step(`^the registry stores password as the reference (\S+)$`, c.registryPasswordRef)
+	sc.Step(`^the registry has a creation timestamp$`, c.registryHasCreationTimestamp)
 	sc.Step(`^the stored state does not contain (.+)$`, c.configDoesNotContain)
+	sc.Step(`^the skill (\S+) is still tracked$`, c.skillStillTracked)
 }
 
 func (c *stateController) exactlyOneRegistry(ctx context.Context) error {
 	return c.registryCount(ctx, 1)
+}
+
+func (c *stateController) noRegistry(ctx context.Context) error {
+	return c.registryCount(ctx, 0)
 }
 
 func (c *stateController) registryCount(ctx context.Context, want int) error {
@@ -51,33 +59,16 @@ func (c *stateController) registryCount(ctx context.Context, want int) error {
 	return assertExpected("registry count", want, len(regs))
 }
 
-func (c *stateController) registryExists(ctx context.Context, name string) error {
-	_, err := c.findRegistry(ctx, name)
-	return err
-}
-
-func (c *stateController) registryTransport(ctx context.Context, name, transport string) error {
-	reg, err := c.findRegistry(ctx, name)
+func (c *stateController) registryTransport(ctx context.Context, transport string) error {
+	reg, err := c.oneRegistry(ctx)
 	if err != nil {
 		return err
 	}
-	return assertExpected("transport of "+name, transport, string(reg.Spec.Transport))
+	return assertExpected("registry transport", transport, string(reg.Spec.Transport))
 }
 
-func (c *stateController) registryLabel(ctx context.Context, name, key, value string) error {
-	reg, err := c.findRegistry(ctx, name)
-	if err != nil {
-		return err
-	}
-	got, ok := reg.Metadata.Labels[key]
-	if !ok {
-		return fmt.Errorf("registry %q has no label %q", name, key)
-	}
-	return assertExpected("label "+key+" of "+name, value, got)
-}
-
-func (c *stateController) registryDescribedBy(ctx context.Context, name string, table *godog.Table) error {
-	reg, err := c.findRegistry(ctx, name)
+func (c *stateController) registryDescribedBy(ctx context.Context, table *godog.Table) error {
+	reg, err := c.oneRegistry(ctx)
 	if err != nil {
 		return err
 	}
@@ -90,52 +81,52 @@ func (c *stateController) registryDescribedBy(ctx context.Context, name string, 
 		if err != nil {
 			return err
 		}
-		if err := assertExpected(field+" of "+name, want, got); err != nil {
+		if err := assertExpected(field, want, got); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *stateController) registryPasswordRef(ctx context.Context, name, ref string) error {
-	reg, err := c.findRegistry(ctx, name)
+func (c *stateController) registryPasswordRef(ctx context.Context, ref string) error {
+	reg, err := c.oneRegistry(ctx)
 	if err != nil {
 		return err
 	}
 	if reg.Spec.Auth == nil {
-		return fmt.Errorf("registry %q has no auth block", name)
+		return fmt.Errorf("the registry has no auth block")
 	}
-	return assertExpected("password reference of "+name, ref, reg.Spec.Auth.Password)
+	return assertExpected("password reference", ref, reg.Spec.Auth.Password)
 }
 
-// registryHasCreationTimestamp proves add stamps the audit timestamps: both are
+// registryHasCreationTimestamp proves set stamps the audit timestamps: both are
 // present, parse as RFC3339, and are equal on create. The instant itself is not
 // asserted — time is the real wall clock here, so only presence and format are
 // checked.
-func (c *stateController) registryHasCreationTimestamp(ctx context.Context, name string) error {
-	reg, err := c.findRegistry(ctx, name)
+func (c *stateController) registryHasCreationTimestamp(ctx context.Context) error {
+	reg, err := c.oneRegistry(ctx)
 	if err != nil {
 		return err
 	}
 	created := reg.Metadata.CreationTimestamp
 	updated := reg.Metadata.LastUpdatedTimestamp
 	if created == "" {
-		return fmt.Errorf("registry %q has no creationTimestamp", name)
+		return fmt.Errorf("the registry has no creationTimestamp")
 	}
 	if _, err := time.Parse(time.RFC3339, created); err != nil {
-		return fmt.Errorf("registry %q creationTimestamp %q is not RFC3339: %w", name, created, err)
+		return fmt.Errorf("registry creationTimestamp %q is not RFC3339: %w", created, err)
 	}
 	if _, err := time.Parse(time.RFC3339, updated); err != nil {
-		return fmt.Errorf("registry %q lastUpdatedTimestamp %q is not RFC3339: %w", name, updated, err)
+		return fmt.Errorf("registry lastUpdatedTimestamp %q is not RFC3339: %w", updated, err)
 	}
-	return assertExpected("audit timestamps of "+name+" equal on create", created, updated)
+	return assertExpected("audit timestamps equal on create", created, updated)
 }
 
 // configDoesNotContain proves a resolved secret is never persisted: it reads the
-// raw bytes of registries.yaml under $SAURON_HOME and asserts the substring is
-// absent (the stored credentials must be ${env:VAR} references, not values).
+// raw bytes of settings.yaml under $SAURON_HOME and asserts the substring is absent
+// (the stored credentials must be ${env:VAR} references, not values).
 func (c *stateController) configDoesNotContain(ctx context.Context, secret string) error {
-	data, err := c.rt.ReadFile(ctx, registriesFile)
+	data, err := c.rt.ReadFile(ctx, settingsFile)
 	if err != nil {
 		return err
 	}
@@ -145,25 +136,49 @@ func (c *stateController) configDoesNotContain(ctx context.Context, secret strin
 	return nil
 }
 
-// readRegistries reads and decodes registries.yaml through the runtime.
+// skillStillTracked proves unset preserves installed artifacts: it reads track.yaml
+// and asserts the named Skill is still present (unset removes the registry but never
+// the track file).
+func (c *stateController) skillStillTracked(ctx context.Context, name string) error {
+	data, err := c.rt.ReadFile(ctx, trackFile)
+	if err != nil {
+		return err
+	}
+	skills, err := decodeSkills(data)
+	if err != nil {
+		return err
+	}
+	for _, skill := range skills {
+		if skill.Metadata.Name == name {
+			return nil
+		}
+	}
+	return fmt.Errorf("skill %q is no longer tracked (have %d skills)", name, len(skills))
+}
+
+// readRegistries reads and decodes the Registry documents in settings.yaml through
+// the runtime.
 func (c *stateController) readRegistries(ctx context.Context) ([]types.Registry, error) {
-	data, err := c.rt.ReadFile(ctx, registriesFile)
+	data, err := c.rt.ReadFile(ctx, settingsFile)
 	if err != nil {
 		return nil, err
 	}
 	return decodeRegistries(data)
 }
 
-func (c *stateController) findRegistry(ctx context.Context, name string) (types.Registry, error) {
+// oneRegistry reads the single configured registry, erroring unless exactly one is
+// present.
+func (c *stateController) oneRegistry(ctx context.Context) (types.Registry, error) {
 	regs, err := c.readRegistries(ctx)
 	if err != nil {
 		return types.Registry{}, err
 	}
-	return findRegistry(regs, name)
+	return oneRegistry(regs)
 }
 
 // decodeRegistries decodes a multi-document YAML stream and keeps the Registry
-// documents. Pure (bytes in, values out) so it is unit-tested without the fs.
+// documents (skipping the Provider that shares settings.yaml). Pure (bytes in,
+// values out) so it is unit-tested without the fs.
 func decodeRegistries(data []byte) ([]types.Registry, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	var out []types.Registry
@@ -174,24 +189,49 @@ func decodeRegistries(data []byte) ([]types.Registry, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decode %s: %w", registriesFile, err)
+			return nil, fmt.Errorf("decode %s: %w", settingsFile, err)
 		}
 		if doc.Kind != types.KindRegistry {
-			continue // skip empty documents and other kinds
+			continue // skip empty documents and the Provider
 		}
 		out = append(out, doc)
 	}
 	return out, nil
 }
 
-// findRegistry returns the registry with the given metadata.name.
-func findRegistry(regs []types.Registry, name string) (types.Registry, error) {
-	for _, reg := range regs {
-		if reg.Metadata.Name == name {
-			return reg, nil
+// decodeSkills decodes a multi-document YAML stream and keeps the Skill documents
+// (skipping the Agents that share track.yaml). Pure so it is unit-tested without the
+// fs.
+func decodeSkills(data []byte) ([]types.Skill, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	var out []types.Skill
+	for {
+		var doc types.Skill
+		err := dec.Decode(&doc)
+		if errors.Is(err, io.EOF) {
+			break
 		}
+		if err != nil {
+			return nil, fmt.Errorf("decode %s: %w", trackFile, err)
+		}
+		if doc.Kind != types.KindSkill {
+			continue
+		}
+		out = append(out, doc)
 	}
-	return types.Registry{}, fmt.Errorf("no registry named %q (have %d registries)", name, len(regs))
+	return out, nil
+}
+
+// oneRegistry returns the single registry, erroring unless exactly one is present.
+func oneRegistry(regs []types.Registry) (types.Registry, error) {
+	switch len(regs) {
+	case 1:
+		return regs[0], nil
+	case 0:
+		return types.Registry{}, fmt.Errorf("no registry is configured")
+	default:
+		return types.Registry{}, fmt.Errorf("expected exactly one registry, found %d", len(regs))
+	}
 }
 
 // registryField reads a described-by table field off a registry by its dotted name.
@@ -201,8 +241,6 @@ func registryField(reg types.Registry, field string) (string, error) {
 		return reg.Kind, nil
 	case "apiVersion":
 		return reg.APIVersion, nil
-	case "name", "metadata.name":
-		return reg.Metadata.Name, nil
 	case "spec.transport":
 		return string(reg.Spec.Transport), nil
 	case "spec.uri":

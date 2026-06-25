@@ -45,7 +45,7 @@ tag-selected backend; both backends implement the **same wide interface**.
    ├─ Execute / ReadFile / CopyTo
    ├─ Folder(alias)    → Source { Path() }
    ├─ Webserver(alias) → Source { URL()  }
-   ├─ Git(alias)       → Source { URL()  }     (deferred: errors)
+   ├─ Git(alias)       → Source { URL()  }     (docker: sshd git sidecar; host: errors)
    └─ Start / Stop / IsReadOnly
 
    interface Source ── a declared, resource-loaded exposure of provider content
@@ -66,7 +66,7 @@ a gap is an honest error, surfaced exactly where a scenario needs the address.
    CopyTo             │  ✅ (per-scenario temp dir)  │  ✅ (into "main")        │
    Folder(…).Path()   │  ✅ owns a local temp dir    │  ✅ path inside "main"   │
    Webserver(…).URL() │  ❌ error "not on @no-sandbox"│ ✅ nginx sidecar        │
-   Git(…).URL()       │  ❌ error (deferred)         │  ❌ error (deferred)     │
+   Git(…).URL()       │  ❌ error "not on @no-sandbox"│ ✅ gitea sshd sidecar   │
                       └─────────────────────────────┴──────────────────────────┘
                             IsReadOnly() = true            IsReadOnly() = false
 ```
@@ -155,9 +155,9 @@ all `Given`s before the first `When`, so this is natural.
     └─────────────────────────────────────────────────────┘
        ❗ no new source may be declared after this point
        ▼
-  WHEN  the user adds the registry from #{.webserver.default.url}
+  WHEN  the user sets the registry from #{.webserver.default.url}
        ▼
-  THEN  ReadFile registries.yaml → decode pkg/sauron/types → assert
+  THEN  ReadFile settings.yaml → decode pkg/sauron/types → assert
 ```
 
 ## One content set, three exposures
@@ -179,8 +179,8 @@ dependence on the Docker daemon seeing a host path.
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
    Folder source   Webserver source   Git source
-   #{.folder.path} #{.webserver.url}  #{.git.url}  (deferred → error)
-   host ✅ docker ✅  host ❌ docker ✅   host ❌ docker ❌
+   #{.folder.path} #{.webserver.url}  #{.git.url}
+   host ✅ docker ✅  host ❌ docker ✅   host ❌ docker ✅
 ```
 
 ## Arrange / Act / Assert and reuse
@@ -224,9 +224,9 @@ the same `Then` inspects, however the source was reached.
 
 `@no-sandbox` selects the host runtime (`Execute` + `Folder` only — requesting a
 `Webserver` or `Git` errors, so http/git scenarios must not carry it); the
-default selects the docker runtime. `@git` scenarios are filtered from the gate
-with `~@git` so the deferred ssh stub never fires in CI. The deferral principle
-is the root Constitution IV.2 / III.7.
+default selects the docker runtime. `@git` scenarios need the docker runtime's
+sshd git sidecar, so they must not carry `@no-sandbox`; they run in the gate like
+any other scenario — git is first-class (root Constitution IV.2).
 
 ## The integration gate
 

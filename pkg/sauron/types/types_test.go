@@ -13,7 +13,6 @@ import (
 
 const (
 	registryAcme = "acme"
-	personaName  = "backend-dev"
 	timestamp    = "2026-06-15T10:00:00Z"
 )
 
@@ -78,25 +77,14 @@ func TestRoundTrip(t *testing.T) {
 			into: &types.Provider{},
 		},
 		{
-			name: "schedule",
-			doc: &types.Schedule{
-				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindSchedule},
-				Metadata: types.Metadata{Name: types.ScheduleSync},
-				Spec:     types.ScheduleSpec{Cron: "0 */6 * * *"},
-			},
-			into: &types.Schedule{},
-		},
-		{
 			name: "skill",
 			doc: &types.Skill{
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindSkill},
 				Metadata: types.Metadata{Name: "go-style", Labels: map[string]string{"team": "backend"}},
 				Spec: types.ArtifactSpec{
-					Registry:    registryAcme,
 					Version:     "v1.4.0",
 					Digest:      "sha256:abc",
-					Path:        "skills/sauron-acme-go-style",
-					Provenance:  types.Provenance{Direct: true, Personas: []string{personaName}},
+					Path:        "sauron-go-style",
 					InstalledAt: timestamp,
 					UpdatedAt:   timestamp,
 				},
@@ -109,31 +97,13 @@ func TestRoundTrip(t *testing.T) {
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindAgent},
 				Metadata: types.Metadata{Name: "code-reviewer"},
 				Spec: types.ArtifactSpec{
-					Registry:    registryAcme,
 					Digest:      "sha256:def",
-					Path:        "agents/sauron-acme-code-reviewer",
-					Provenance:  types.Provenance{Direct: false, Personas: []string{personaName}},
+					Path:        "sauron-code-reviewer",
 					InstalledAt: timestamp,
 					UpdatedAt:   timestamp,
 				},
 			},
 			into: &types.Agent{},
-		},
-		{
-			name: "persona",
-			doc: &types.Persona{
-				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindPersona},
-				Metadata: types.Metadata{Name: personaName},
-				Spec: types.PersonaSpec{
-					Registry:    registryAcme,
-					Version:     "9f4d2a1",
-					Digest:      "sha256:ghi",
-					Members:     types.PersonaMembers{Skills: []string{"go-style", "sql-review"}, Agents: []string{"code-reviewer"}},
-					InstalledAt: timestamp,
-					UpdatedAt:   timestamp,
-				},
-			},
-			into: &types.Persona{},
 		},
 	}
 

@@ -16,28 +16,36 @@ import (
 
 // describe-test literals, named to satisfy goconst across the package.
 const (
-	describeName = "acme"
-	userRef      = "${env:ACME_USER}"
-	tokenRef     = "${env:ACME_TOKEN}"
-	gitURI       = "git@github.com:acme/artifacts.git"
+	userRef  = "${env:ACME_USER}"
+	tokenRef = "${env:ACME_TOKEN}"
+	gitURI   = "git@github.com:acme/artifacts.git"
 
 	createdStamp = "2026-06-21T07:30:00Z"
 	updatedStamp = "2026-06-22T08:00:00Z"
 )
 
-// newDescribeUseCase wires a describe use case over a fresh store mock.
-func newDescribeUseCase(store storage.RegistriesStore) *DescribeRegistryUseCase {
-	return NewDescribeRegistryUseCase(DescribeRegistryUseCaseParams{
-		Registries: store,
-		Logger:     zap.NewNop(),
-	})
+// describeFixture bundles the describe use case and its mocked store.
+type describeFixture struct {
+	uc    *DescribeRegistryUseCase
+	store *storage.MockBasedRegistriesStore
+}
+
+// newDescribeFixture wires a describe use case over a fresh store mock.
+func newDescribeFixture() *describeFixture {
+	store := &storage.MockBasedRegistriesStore{}
+	return &describeFixture{
+		store: store,
+		uc: NewDescribeRegistryUseCase(DescribeRegistryUseCaseParams{
+			Registries: store,
+			Logger:     zap.NewNop(),
+		}),
+	}
 }
 
 // fullRegistry is a registry populated across every describable field.
 func fullRegistry() *types.Registry {
 	return &types.Registry{
 		Metadata: types.Metadata{
-			Name:                 describeName,
 			CreationTimestamp:    createdStamp,
 			LastUpdatedTimestamp: updatedStamp,
 		},
@@ -54,21 +62,20 @@ func fullRegistry() *types.Registry {
 	}
 }
 
-// TestDescribeRegistrySuccess asserts the found registry is returned verbatim;
-// field selection and rendering are view concerns of the client.
+// TestDescribeRegistrySuccess asserts the get pipeline returns the configured
+// registry for the client to project; field selection is a presentation concern.
 func TestDescribeRegistrySuccess(t *testing.T) {
 	// Arrange.
-	store := &storage.MockBasedRegistriesStore{}
-	store.On("FindByName", mock.Anything, describeName).Return(fullRegistry(), nil)
-	uc := newDescribeUseCase(store)
+	f := newDescribeFixture()
+	f.store.On("Get", mock.Anything).Return(fullRegistry(), nil)
 
 	// Act.
-	result, err := uc.Execute(context.Background(), DescribeRegistryInput{Name: describeName})
+	registry, err := f.uc.Execute(context.Background(), DescribeRegistryInput{})
 
 	// Assert.
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, fullRegistry(), result)
+	require.NotNil(t, registry)
+	assert.Equal(t, gitURI, registry.Spec.URI)
 }
 
 // TestDescribeRegistryFailure covers the not-found and io classifications.
@@ -76,20 +83,20 @@ func TestDescribeRegistryFailure(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
-		// found is the record FindByName returns.
+		// found is the record Get returns.
 		found *types.Registry
-		// findErr is the error FindByName returns.
-		findErr error
+		// getErr is the error Get returns.
+		getErr error
 		// wantType is the expected error classification.
 		wantType Type
 	}{
 		{
-			name:     "unknown name is not found",
+			name:     "no registry configured is not found",
 			wantType: TypeNotFound,
 		},
 		{
 			name:     "store failure is io",
-			findErr:  errors.New("disk gone"),
+			getErr:   errors.New("disk gone"),
 			wantType: TypeIO,
 		},
 	}
@@ -97,16 +104,16 @@ func TestDescribeRegistryFailure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			store := &storage.MockBasedRegistriesStore{}
-			store.On("FindByName", mock.Anything, describeName).Return(tt.found, tt.findErr)
-			uc := newDescribeUseCase(store)
+			f := newDescribeFixture()
+			f.store.On("Get", mock.Anything).Return(tt.found, tt.getErr)
 
 			// Act.
-			result, err := uc.Execute(context.Background(), DescribeRegistryInput{Name: describeName})
+			_, err := f.uc.Execute(context.Background(), DescribeRegistryInput{})
 
 			// Assert.
-			assert.Nil(t, result)
-			_ = asUseCaseError(t, err, tt.wantType)
+			var ucErr *Error
+			require.ErrorAs(t, err, &ucErr)
+			assert.Equal(t, tt.wantType, ucErr.Type)
 		})
 	}
 }

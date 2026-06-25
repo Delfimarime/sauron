@@ -1,4 +1,0 @@
-apiVersion: sauron.raitonbl.com/v1
-kind: Persona
-metadata:
-  name: architect

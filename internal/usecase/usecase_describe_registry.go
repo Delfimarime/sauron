@@ -19,7 +19,8 @@ type DescribeRegistryUseCaseParams struct {
 	Logger     *zap.Logger
 }
 
-// DescribeRegistryUseCase reads one registry by name.
+// DescribeRegistryUseCase reads the configured registry and returns its detail;
+// field selection is a presentation concern resolved by the caller.
 type DescribeRegistryUseCase struct {
 	registries storage.RegistriesStore
 	logger     *zap.Logger
@@ -33,25 +34,25 @@ func NewDescribeRegistryUseCase(params DescribeRegistryUseCaseParams) *DescribeR
 	}
 }
 
-// DescribeRegistryInput is the input for describing one registry.
-type DescribeRegistryInput struct {
-	Name string
-}
-
-// Execute reads the named registry, returning an io *Error when the state cannot
-// be read and a not-found *Error when no registry carries the name.
-func (uc *DescribeRegistryUseCase) Execute(ctx context.Context, in DescribeRegistryInput) (*types.Registry, error) {
-	registry, err := uc.registries.FindByName(ctx, in.Name)
+// Execute runs the get → not-found pipeline, returning a classified *Error on the
+// first failing step and otherwise the configured registry.
+func (uc *DescribeRegistryUseCase) Execute(ctx context.Context, _ DescribeRegistryInput) (*types.Registry, error) {
+	registry, err := uc.registries.Get(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read registry %q: %v", in.Name, err))
+		return nil, NewIOError(fmt.Sprintf("read registry: %v", err))
 	}
 	if registry == nil {
-		return nil, NewNotFoundError(fmt.Sprintf("registry %q does not exist", in.Name))
+		return nil, NewNotFoundError("no registry is configured")
 	}
 
 	uc.logger.Debug("registry described",
-		zap.String(telemetry.FieldRegistryName, registry.Metadata.Name),
+		zap.String(telemetry.FieldRegistryURI, registry.Spec.URI),
 	)
 
 	return registry, nil
 }
+
+// DescribeRegistryInput is the per-invocation input for describing the registry.
+// Describing the single configured registry takes no business input; field
+// selection is a presentation concern resolved by the caller.
+type DescribeRegistryInput struct{}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/testcontainers/testcontainers-go/log"
@@ -23,6 +24,10 @@ const (
 	sauronHome  = "/root/.sauron/"
 	sauronPath  = "/opt/bin/sauron"
 )
+
+// webserverStartupTimeout bounds the wait for an nginx sidecar to announce its
+// workers, so a sidecar that never readies fails fast instead of hanging.
+const webserverStartupTimeout = 30 * time.Second
 
 type dockerRuntime struct {
 	bin        string
@@ -117,6 +122,16 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	// is listening, otherwise an early clone races it and is refused.
 	for _, alias := range sortedKeys(c.gits) {
 		stack = stack.WaitForService(gitService(alias), wait.ForLog("Server listening on"))
+	}
+	// The nginx sidecar binds port 80 only after its entrypoint finishes; wait
+	// until nginx announces its workers are up, otherwise the binary's validation
+	// probe races the bind and is refused. A log wait (not ForListeningPort) is
+	// used because compose services publish no host port to poll; the explicit
+	// startup timeout bounds the wait so a sidecar that never readies fails the
+	// scenario rather than hanging.
+	for _, alias := range sortedKeys(c.webservers) {
+		stack = stack.WaitForService(webserverService(alias),
+			wait.ForLog("start worker processes").WithStartupTimeout(webserverStartupTimeout))
 	}
 	c.stack = stack
 

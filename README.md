@@ -3,12 +3,14 @@
 Distribute skills and agents to any AI coding assistant — across provider
 boundaries — and keep them in sync.
 
-sauron is a spec-driven CLI that delivers skills and agents from remote
-registries (git, HTTP, or filesystem) to the assistant you use (Claude,
-Zencoder, …). It groups them into shareable personas and reconciles your
-provider to a desired set with a reviewable plan, manually or on a schedule.
+sauron is a spec-driven CLI that delivers skills and agents from a single
+remote registry (git, HTTP, or filesystem) to the assistant you use (Claude,
+Zencoder, …). It reconciles your provider to a desired set with a reviewable
+plan, manually or on a schedule you wire into your OS scheduler. Grouping
+artifacts into shareable personas is a planned concept, deferred past v1 — see
+[ADR-0003](spec/architecture/ADR-0003-persona-deferred.md).
 
-Registry management (`add` / `list` / `describe` / `delete registry`) ships today;
+Registry management (`set` / `unset` / `describe registry`) ships today;
 the remaining commands are specified and being built — see the
 [feature status index](spec/README.md#specifications).
 
@@ -19,8 +21,8 @@ schedule it.
 
 ```
    ┌──────────────────────┐                          ┌──────────────────────┐
-   │      Registries      │                          │         User         │
-   │   artifact sources   │                          │  a developer using   │
+   │       Registry       │                          │         User         │
+   │   artifact source    │                          │  a developer using   │
    │   git · http · fs    │                          │   an AI assistant    │
    └──────────┬───────────┘                          └──────────┬───────────┘
               ▲                                                  │
@@ -42,15 +44,17 @@ schedule it.
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Registries are external artifact sources; the CLI, the optional crontab entry,
+The registry is an external artifact source; the CLI, the optional crontab entry,
 and the provider's artifact directories all live in your environment. You
-register sources, sauron validates them, and then it installs the skills and
-agents you ask for and keeps them current — touching only artifacts it installed.
-State lives in files under `~/.sauron/`, including the **track file** that records
-exactly what sauron installed and where it came from — the source of truth that
-keeps `uninstall`, `sync`, and `upgrade` safe.
+configure the registry, sauron validates it, and then it installs the skills and
+agents you ask for and keeps them current — touching only artifacts it installed,
+namespaced `sauron-<name>` under the provider's directories. State lives in two
+files under `~/.sauron/` — `track.yaml`, which records exactly what sauron
+installed and where it came from, and `settings.yaml`, which holds the configured
+registry and provider. The track file is the source of truth that keeps
+`uninstall`, `sync`, and `upgrade` safe.
 
-The full model — registries, personas, providers, the sync plan, and state — is
+The full model — the registry, providers, the sync plan, and state — is
 in the **[domain documentation](spec/README.md)**.
 
 ## Who this is for

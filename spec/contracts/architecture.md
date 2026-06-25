@@ -36,12 +36,12 @@ cmd/
   main.go                  binary entrypoint; AppName/AppVersion (from package.json) and AppHash (git worktree hash) set via ldflags
 internal/
   cmd/
-    root.go                root cobra command
+    cmd_root.go            root cobra command
     helper.go              NewApp() builder and shared command helpers
     helper_flags.go        shared flag-group structs and their bind functions
-    <verb>.go              a command group (e.g. add.go, list.go)
-    <verb>_<noun>.go       a command in that group (e.g. add_registry.go, list_registries.go)
-    view_<name>.go         rendering: turns a use case's domain result + view options (selected fields, sort, search) into the table/descriptor and its bytes (stdlib text/tabwriter); cobra-free, pure value types, no fx — the command layer's view, not a separate package
+    cmd_<verb>.go          a command group (e.g. cmd_set.go, cmd_list.go)
+    cmd_<verb>_<noun>.go   a command in that group (e.g. cmd_set_registry.go)
+    view_<name>.go         rendering for the paired cmd_<name>.go: turns a use case's domain result + view options (selected fields, sort, search) into the table/descriptor and its bytes (stdlib text/tabwriter); cobra-free, pure value types, no fx — the command layer's view, not a separate package
   config/
     fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
@@ -142,7 +142,7 @@ since the command layer is its only consumer (see
 
 ## Root command
 
-`internal/cmd/root.go` exposes
+`internal/cmd/cmd_root.go` exposes
 `func New(appName, appVersion, appHash string) (*cobra.Command, error)`, which
 builds the root cobra command. `cmd/main.go` owns the ldflags build variables
 (`AppName`, `AppVersion`, `AppHash`) and passes them in, so the root command is
@@ -197,6 +197,11 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   (`--fields`, `--sort`) are validated at this boundary, yielding a usage error
   before the use case runs. `Serve()`/`serve()` names apply only to a server's
   `serve` command, never to an action command.
+- **One file per command, named `cmd_<name>.go`.** A command's builder and handler
+  live together in `cmd_<name>.go`, where `<name>` is the command path — `cmd_set.go`
+  for the `set` group, `cmd_set_registry.go` for `set registry`, `cmd_root.go` for the
+  root command. The `cmd_` prefix pairs the file with — and visually separates it from
+  — the `view_<name>.go` that renders that command's result.
 - **Flags are bound into structs** in `internal/cmd`; command logic never reads
   flags off the `*cobra.Command`. Flags shared across commands are defined once as
   small, concern-grouped structs (listing, paging, dry-run, timeout) in
@@ -248,6 +253,13 @@ type Action[I, P any] interface {
   per-invocation context is the explicit first parameter, and call-scoped
   *business* input is `in`. *View* options (field selection, sort, search) are
   **not** use-case input — they belong to the client.
+- **Resource-acquiring actions may return a port.** The shared `(*P, error)` shape
+  has one sanctioned exception: an internal `Action` whose role is to *open* a
+  resource returns the live `pkg/` port it acquires rather than a `*P` product —
+  e.g. `OpenRegistry` returns a `source.FileSystem`. Such a seam is composed only by
+  other use cases, never resolved by a handler and never rendered, so wrapping the
+  handle in a `*P` would be ceremony with no benefit. It remains stateless and
+  takes `context` first.
 - **`UseCase` is stateless.** Its collaborators — the `pkg/` ports
   (`pkg/sauron/extension`), the [`storage`](#state-storage) stores, and the zap
   logger — are injected by uberfx; everything call-scoped arrives as `ctx`/`in`,
@@ -267,9 +279,11 @@ through which use cases and actions are provided with their `pkg/` ports, the
 
 The cobra **handler** that drives a use case — its naming and the builder/handler
 split — is fixed under [Command structure](#command-structure). It maps the flag
-struct and positional arguments into the use-case input, resolves the use case
-from the container with `fx.Populate`, calls `Execute`, and renders the returned
-`*P` result to the command's stdout through the `view_<name>.go` rendering.
+struct and positional arguments into the use-case input, resolves and runs the use
+case from the container with `fx.Invoke` — which calls `Execute` inside the started
+fx lifecycle on the run context (resolving with `fx.Populate` and then calling
+`Execute` is equally acceptable) — and renders the returned `*P` result to the
+command's stdout through the `view_<name>.go` rendering.
 
 ## State storage
 

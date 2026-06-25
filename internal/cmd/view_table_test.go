@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// repeated test literals, named to satisfy goconst.
+// repeated view-test literals, named to satisfy goconst.
 const (
-	viewColName = "name"
-	rowAcme = "acme"
+	tblColName = "name"
+	tblRowAcme = "acme"
 )
 
 // TestTableRender exercises the rendering rules: uppercase headers, aligned
@@ -21,23 +21,23 @@ func TestTableRender(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
-		// table is the value under test.
-		table Table
+		// view is the value under test.
+		view table
 		// want is the exact expected output.
 		want string
 	}{
 		{
-			name:  "zero rows produce no output",
-			table: Table{Headers: []string{viewColName, "uri"}},
-			want:  "",
+			name: "zero rows produce no output",
+			view: table{Headers: []string{tblColName, "uri"}},
+			want: "",
 		},
 		{
 			name: "headers upper-cased and columns aligned",
-			table: Table{
-				Headers: []string{viewColName, "transport", "uri"},
+			view: table{
+				Headers: []string{tblColName, "transport", "uri"},
 				Rows: [][]string{
-					{rowAcme, "git", acmeURI},
-					{internal, "http", "https://reg.example.com/"},
+					{tblRowAcme, "git", vGitURI},
+					{"internal", "http", "https://reg.example.com/"},
 				},
 			},
 			want: "NAME      TRANSPORT  URI\n" +
@@ -46,9 +46,9 @@ func TestTableRender(t *testing.T) {
 		},
 		{
 			name: "empty cell renders the placeholder",
-			table: Table{
-				Headers: []string{viewColName, "ref"},
-				Rows:    [][]string{{rowAcme, ""}},
+			view: table{
+				Headers: []string{tblColName, "ref"},
+				Rows:    [][]string{{tblRowAcme, ""}},
 			},
 			want: "NAME  REF\n" +
 				"acme  —\n",
@@ -61,7 +61,7 @@ func TestTableRender(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Act.
-			err := tt.table.Render(&buf)
+			err := tt.view.render(&buf)
 
 			// Assert.
 			require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestTableRender(t *testing.T) {
 }
 
 // failingWriter fails after allowing writeAfter successful writes, so the error
-// paths of Render are reachable.
+// paths of render are reachable.
 type failingWriter struct {
 	writeAfter int
 	writes     int
@@ -100,13 +100,13 @@ func TestTableRenderWriteError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			table := Table{
-				Headers: []string{viewColName},
-				Rows:    [][]string{{rowAcme}, {"beta"}},
+			view := table{
+				Headers: []string{tblColName},
+				Rows:    [][]string{{tblRowAcme}, {"beta"}},
 			}
 
 			// Act.
-			err := table.Render(&failingWriter{writeAfter: tt.writeAfter})
+			err := view.render(&failingWriter{writeAfter: tt.writeAfter})
 
 			// Assert.
 			require.Error(t, err)

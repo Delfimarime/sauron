@@ -3,17 +3,14 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 
 	"github.com/delfimarime/sauron/internal/infrastructure/repository/storage"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/pkg/sauron/source"
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 // CatalogueKind is the kind of artifact a catalogue listing browses; it fixes
@@ -22,26 +19,22 @@ type CatalogueKind string
 
 // The kinds a catalogue listing can browse.
 const (
-	// CatalogueSkill browses the skills a registry offers under .skills.
+	// CatalogueSkill browses the skills the registry offers under .skills.
 	CatalogueSkill CatalogueKind = "skill"
-	// CatalogueAgent browses the agents a registry offers under .agents.
+	// CatalogueAgent browses the agents the registry offers under .agents.
 	CatalogueAgent CatalogueKind = "agent"
-	// CataloguePersona browses the personas a registry offers under .personas.
-	CataloguePersona CatalogueKind = "persona"
 )
 
 // the source roots holding each artifact kind's manifests.
 const (
-	rootSkills   = ".skills"
-	rootAgents   = ".agents"
-	rootPersonas = ".personas"
+	rootSkills = ".skills"
+	rootAgents = ".agents"
 )
 
 // catalogueRoots maps each kind to the source root holding its manifests.
 var catalogueRoots = map[CatalogueKind]string{
-	CatalogueSkill:   rootSkills,
-	CatalogueAgent:   rootAgents,
-	CataloguePersona: rootPersonas,
+	CatalogueSkill: rootSkills,
+	CatalogueAgent: rootAgents,
 }
 
 // ListCatalogueUseCaseParams injects the collaborators the use case composes.
@@ -52,8 +45,8 @@ type ListCatalogueUseCaseParams struct {
 	Logger     *zap.Logger
 }
 
-// ListCatalogueUseCase resolves a registry, opens its source live, and returns
-// the artifacts of the selected kind.
+// ListCatalogueUseCase resolves the single registry, opens its source live, and
+// returns the artifact names of the selected kind with the paging window.
 type ListCatalogueUseCase struct {
 	registries storage.RegistriesStore
 	open       OpenRegistry
@@ -69,51 +62,20 @@ func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListCatalogueUs
 	}
 }
 
-// ListCatalogueInput is the input for browsing a registry's catalogue of one kind.
-type ListCatalogueInput struct {
-	Kind     CatalogueKind
-	Registry string
-	Search   string
-	Sort     string
-	Order    string
-	Page     int64
-	Limit    int64
-}
-
-// offset translates the 1-based page and page size to a source offset.
-func (in ListCatalogueInput) offset() int64 {
-	return (in.Page - 1) * in.Limit
-}
-
-// CatalogueEntry is one listed artifact: its catalogue name and, for personas,
-// a membership summary (empty for skills and agents).
-type CatalogueEntry struct {
-	Name    string
-	Members string
-}
-
-// ListCatalogueResult carries the listed entries and the applied paging window.
-type ListCatalogueResult struct {
-	Kind    CatalogueKind
-	Entries []CatalogueEntry
-	Page    int64
-	Limit   int64
-}
-
-// Execute runs the validate → find → open → list → build pipeline, returning a
-// classified *Error on the first failing step.
+// Execute runs the validate → get → open → list → collect pipeline, returning a
+// classified *Error on the first failing step and otherwise the artifact names
+// with their paging window.
 func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInput) (*ListCatalogueResult, error) {
-	in.Sort, in.Order = defaultSortOrder(in.Sort, in.Order)
 	if err := uc.validate(in); err != nil {
 		return nil, err
 	}
 
-	registry, err := uc.registries.FindByName(ctx, in.Registry)
+	registry, err := uc.registries.Get(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read registry %q: %v", in.Registry, err))
+		return nil, NewIOError(fmt.Sprintf("read registry: %v", err))
 	}
 	if registry == nil {
-		return nil, NewNotFoundError(fmt.Sprintf("registry %q does not exist", in.Registry))
+		return nil, NewNotFoundError("no registry is configured")
 	}
 
 	fs, err := uc.open.Execute(ctx, *registry)
@@ -126,30 +88,27 @@ func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInp
 		return nil, err
 	}
 
-	entries, err := uc.entries(ctx, in, files)
-	if err != nil {
-		return nil, err
-	}
-
+	items := uc.items(files)
 	uc.logger.Info("catalogue listed",
-		zap.String(telemetry.FieldRegistryName, in.Registry),
-		zap.Int(telemetry.FieldArtifactCount, len(entries)),
+		zap.String(telemetry.FieldRegistryURI, registry.Spec.URI),
+		zap.Int(telemetry.FieldArtifactCount, len(items)),
 	)
 
-	return &ListCatalogueResult{Kind: in.Kind, Entries: entries, Page: in.Page, Limit: in.Limit}, nil
+	return &ListCatalogueResult{
+		Kind:   in.Kind,
+		Items:  items,
+		Page:   in.Page,
+		Limit:  in.Limit,
+		Offset: in.offset(),
+	}, nil
 }
 
 // validate checks the inputs, returning a usage *Error for any out-of-range
-// value. Sort and Order are already defaulted to name and asc by the caller.
+// value. Sort and Order are validated by the handler boundary before Execute,
+// so the use case trusts them here.
 func (uc *ListCatalogueUseCase) validate(in ListCatalogueInput) error {
 	if _, ok := catalogueRoots[in.Kind]; !ok {
 		return NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
-	}
-	if in.Sort != fieldName {
-		return NewUsageError(fmt.Sprintf("unknown sort field %q", in.Sort))
-	}
-	if !isValidOrder(in.Order) {
-		return NewUsageError(fmt.Sprintf("unknown order %q", in.Order))
 	}
 	if in.Page < 1 {
 		return NewUsageError(fmt.Sprintf("page must be at least 1, got %d", in.Page))
@@ -165,7 +124,7 @@ func (uc *ListCatalogueUseCase) validate(in ListCatalogueInput) error {
 // source with the computed offset.
 func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueInput, fs source.FileSystem) ([]source.File, error) {
 	opts := []source.Option{
-		source.WithSort(fieldName),
+		source.WithSort(in.Sort),
 		source.WithOrder(in.Order),
 		source.WithOffset(in.offset()),
 		source.WithLimit(in.Limit),
@@ -182,49 +141,16 @@ func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueInput,
 	return files, nil
 }
 
-// entries projects the listed files into catalogue entries, skipping directory
-// entries. Personas read each manifest to summarize membership; skills and
-// agents carry the name alone.
-func (uc *ListCatalogueUseCase) entries(ctx context.Context, in ListCatalogueInput, files []source.File) ([]CatalogueEntry, error) {
-	entries := make([]CatalogueEntry, 0, len(files))
-	for _, file := range files {
-		if file.IsDirectory() {
-			continue
-		}
-		entry := CatalogueEntry{Name: catalogueName(file.Name())}
-		if in.Kind == CataloguePersona {
-			members, err := uc.readMembers(ctx, file)
-			if err != nil {
-				return nil, err
-			}
-			entry.Members = members
-		}
-		entries = append(entries, entry)
+// items collects the catalogue names of the manifest entries, skipping directory
+// entries; no manifest content is read.
+func (uc *ListCatalogueUseCase) items(files []source.File) []string {
+	manifests := filterBy(files, func(f source.File) bool { return !f.IsDirectory() })
+	names := make([]string, len(manifests))
+	for i, f := range manifests {
+		names[i] = catalogueName(f.Name())
 	}
 
-	return entries, nil
-}
-
-// readMembers reads and decodes a persona manifest, summarizing its declared
-// skills and agents.
-func (uc *ListCatalogueUseCase) readMembers(ctx context.Context, file source.File) (string, error) {
-	reader, err := file.Read(ctx)
-	if err != nil {
-		return "", NewIOError(fmt.Sprintf("read persona %q: %v", file.Name(), err))
-	}
-	defer func() { _ = reader.Close() }()
-
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return "", NewIOError(fmt.Sprintf("read persona %q: %v", file.Name(), err))
-	}
-
-	var persona types.Persona
-	if err := yaml.Unmarshal(content, &persona); err != nil {
-		return "", NewIOError(fmt.Sprintf("decode persona %q: %v", file.Name(), err))
-	}
-
-	return summarizeMembers(persona.Spec.Members), nil
+	return names
 }
 
 // catalogueName trims a manifest's .yaml or .yml extension to its catalogue name.
@@ -238,19 +164,28 @@ func catalogueName(filename string) string {
 	return filename
 }
 
-// summarizeMembers renders a persona's membership as "skills: a, b; agents: c",
-// omitting an empty group and rendering an em dash when both are empty.
-func summarizeMembers(members types.PersonaMembers) string {
-	var groups []string
-	if len(members.Skills) > 0 {
-		groups = append(groups, "skills: "+strings.Join(members.Skills, ", "))
-	}
-	if len(members.Agents) > 0 {
-		groups = append(groups, "agents: "+strings.Join(members.Agents, ", "))
-	}
-	if len(groups) == 0 {
-		return "—"
-	}
+// ListCatalogueResult is the presentation-agnostic outcome of browsing the
+// catalogue: the artifact names of the kind and the paging window applied.
+type ListCatalogueResult struct {
+	Kind   CatalogueKind
+	Items  []string
+	Page   int64
+	Limit  int64
+	Offset int64
+}
 
-	return strings.Join(groups, "; ")
+// ListCatalogueInput is the per-invocation input for browsing the registry's
+// catalogue of one kind.
+type ListCatalogueInput struct {
+	Kind   CatalogueKind
+	Search string
+	Sort   string
+	Order  string
+	Page   int64
+	Limit  int64
+}
+
+// offset translates the 1-based page and page size to a source offset.
+func (in ListCatalogueInput) offset() int64 {
+	return (in.Page - 1) * in.Limit
 }

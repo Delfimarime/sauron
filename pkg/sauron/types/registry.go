@@ -11,7 +11,7 @@ const (
 	TransportFilesystem Transport = "filesystem"
 )
 
-// Registry is a registered source of artifacts, persisted in registries.yaml.
+// Registry is the single registered source of artifacts, persisted in settings.yaml.
 type Registry struct {
 	TypeMeta `json:",inline" yaml:",inline"`
 	Metadata Metadata     `json:"metadata" yaml:"metadata"`
