@@ -17,23 +17,28 @@ document is a runtime error.
 This contract therefore does **not** restate field-level constraints — that would
 duplicate the schemas and invite drift. It documents only what the schemas cannot:
 which file holds which kind, the shared envelope, the write guarantees, identity
-and uniqueness, and the cross-document rules (`provenance`, `members`, removal).
-For a field's exact shape, read its schema.
+and uniqueness, and the removal rule. For a field's exact shape, read its schema.
 
 ## Home and files
 
 Sauron persists its state under a single home directory: `$SAURON_HOME` when set,
-the platform default `~/.sauron` otherwise. The home holds three files, each a
+the platform default `~/.sauron` otherwise. The home holds two files, each a
 multi-document YAML stream:
 
 | File | Documents (`kind`) | Schema |
 |---|---|---|
-| `registries.yaml` | `Registry` | [Registry](schemas/Registry.schema.json) |
-| `track.yaml` | `Skill`, `Agent`, `Persona` | [Skill](schemas/Skill.schema.json) · [Agent](schemas/Agent.schema.json) · [Persona](schemas/Persona.schema.json) |
-| `settings.yaml` | `Provider`, `Schedule` | [Provider](schemas/Provider.schema.json) · [Schedule](schemas/Schedule.schema.json) |
+| `track.yaml` | `Skill`, `Agent` | [Skill](schemas/Skill.schema.json) · [Agent](schemas/Agent.schema.json) |
+| `settings.yaml` | `Registry`, `Provider` | [Registry](schemas/Registry.schema.json) · [Provider](schemas/Provider.schema.json) |
 
-The **catalogue** is not persisted — what a registry offers is fetched live at
+The **catalogue** is not persisted — what the registry offers is fetched live at
 command time — so it has no file and no schema.
+
+The [`Persona`](schemas/Persona.schema.json) and
+[`Schedule`](schemas/Schedule.schema.json) schemas are retained under `schemas/`
+as reference for their deferred features (see
+[ADR-0003](../architecture/ADR-0003-persona-deferred.md) and
+[ADR-0004](../architecture/ADR-0004-schedule-deferred.md)); no v1 document uses
+them, and neither kind is written to any file.
 
 ## Manifest envelope
 
@@ -42,7 +47,7 @@ and a kind-specific `spec`.
 
 ```yaml
 apiVersion: sauron.raitonbl.com/v1
-kind: <Registry|Skill|Agent|Persona|Provider|Schedule>
+kind: <Registry|Skill|Agent|Provider>
 metadata:
   name: <identity>
   labels: {}                                # optional, free-form, on every kind
@@ -73,10 +78,10 @@ spec:
   (`${env:VAR}`) only; resolved secret values are never written to any file. The
   track file holds no credentials at all.
 - **Owner-only permissions.** The home directory (`$SAURON_HOME`, or `~/.sauron/`)
-  is created with mode `0700` and each state file (`registries.yaml`, `track.yaml`,
-  `settings.yaml`) is written with mode `0600` — owner read/write only. Although no
-  secret is stored at rest, the files reveal which registries and artifacts a
-  developer uses, so they are not world- or group-readable.
+  is created with mode `0700` and each state file (`track.yaml`, `settings.yaml`)
+  is written with mode `0600` — owner read/write only. Although no secret is stored
+  at rest, the files reveal which registry and artifacts a developer uses, so they
+  are not world- or group-readable.
 - **Audit timestamps are writer-stamped.** Whenever Sauron writes a document it
   stamps `metadata.creationTimestamp` (on first create) and
   `metadata.lastUpdatedTimestamp` (on every write) from an injected clock as
@@ -91,11 +96,13 @@ spec:
 Structure is in each kind's schema (linked above); the rules below are the
 meaning layered on top.
 
-### `Registry` — `registries.yaml`
+### `Registry` — `settings.yaml`
 
-- `metadata.name` is unique and path-safe — it is the namespacing segment in
-  `sauron-<registry>-<name>` and the value each tracked artifact references. There
-  is no rename; a name change is a delete plus a re-add.
+- There is exactly one `Registry` document — Sauron has a single registry
+  (supporting more is deferred, see
+  [ADR-0002](../architecture/ADR-0002-single-registry.md)). It carries no
+  user-given name; `metadata.name` is unused, and `spec.uri` is its identity.
+  Setting a registry replaces the one already present.
 - `spec.transport` is the registry's transport; at the CLI it is selected by
   `--kind` (the `--kind` → `spec.transport` mapping is intentional).
 - `spec.ref` is the optional git ref (branch, tag, or commit) the registry is
@@ -108,28 +115,18 @@ meaning layered on top.
 
 `Skill` and `Agent` share one spec shape; they differ only by `kind`.
 
-- The unique key for any artifact is the triple `(kind, registry, name)`; the same
-  name may appear across registries and across kinds.
+- The unique key for any artifact is the pair `(kind, name)`; the same name may
+  appear across kinds. There is one registry, so the source is implicit and is not
+  recorded per artifact.
 - `spec.digest` is the content identity `sync`/`upgrade` compare to detect upstream
   change and local drift; it is always present.
 - `spec.version` is the optional human-meaningful label — derived for `git`,
   declared-only for `http`/`filesystem`.
-- `spec.path` is the exact installed location, so removal and provider migration
-  are precise and independent of recomputing the naming scheme.
-- `spec.provenance` is the authoritative record of why the artifact is installed:
-  `direct` (installed explicitly) and `personas` (the personas that bring it in).
-  An artifact is removed only when `direct` is false and `personas` is empty.
+- `spec.path` is the exact installed location (`sauron-<name>` under the provider's
+  directory for the kind), so removal and provider migration are precise and
+  independent of recomputing the naming scheme.
 
-### `Persona` — `track.yaml`
-
-- `spec.members` is the snapshot of the last-resolved membership; `sync`/`upgrade`
-  diff the freshly-resolved definition against it. It is distinct from each
-  member's `provenance`, which records why that member is installed.
-- `spec.digest` is the content identity of the persona definition itself.
-
-### `Provider` / `Schedule` — `settings.yaml`
+### `Provider` — `settings.yaml`
 
 - There is exactly one `Provider` document; its identity is its `metadata.name`
   (`claude` | `zencoder`).
-- There is at most one `Schedule` document per operation (`sync`, `upgrade`);
-  `spec.cron` is the expression registered in the OS crontab.

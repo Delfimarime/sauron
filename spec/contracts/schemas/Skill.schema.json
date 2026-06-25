@@ -34,12 +34,8 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["registry", "digest", "path", "provenance", "installedAt", "updatedAt"],
+      "required": ["digest", "path", "installedAt", "updatedAt"],
       "properties": {
-        "registry": {
-          "type": "string",
-          "description": "Name of the source registry; with kind and name, the unique key."
-        },
         "version": {
           "type": "string",
           "description": "Optional human-meaningful version; derivable for git, declared-only otherwise."
@@ -52,23 +48,7 @@
         "path": {
           "type": "string",
           "minLength": 1,
-          "description": "Exact installed location relative to the provider root (sauron-<registry>-<name>)."
-        },
-        "provenance": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["direct"],
-          "properties": {
-            "direct": {
-              "type": "boolean",
-              "description": "True when the user installed this artifact explicitly."
-            },
-            "personas": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Personas that also bring this artifact in."
-            }
-          }
+          "description": "Exact installed location relative to the provider root (sauron-<name>)."
         },
         "installedAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }

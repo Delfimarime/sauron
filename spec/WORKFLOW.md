@@ -11,7 +11,7 @@ the repository who need the lifecycle in one place.
 
 The lifecycle is a **loop, not a line** — the four stages below map to the
 SpecDriven flywheel phases **Discover → Design → Deliver → Distill**, and
-Distill feeds the next Discover. The [add registry](0001-add-registry/spec.md)
+Distill feeds the next Discover. The [set registry](0001-set-registry/spec.md)
 feature (the first built feature) is the running example.
 
 ## 1. Discover
@@ -26,7 +26,7 @@ feature (the first built feature) is the running example.
 - The proposal carries no implementation. It is the seed an approved spec grows
   from.
 
-For add registry, the seed was "a developer must tell Sauron where artifacts
+For set registry, the seed was "a developer must tell Sauron where artifacts
 come from before anything can be installed" — which became FR-001 onward.
 
 ## 2. Design
@@ -40,10 +40,10 @@ Author, in this order, omitting what the feature does not touch:
 
 | Artifact | When | Owns |
 |---|---|---|
-| [`spec.md`](0001-add-registry/spec.md) | always | overview, EARS `FR-NNN` requirements, key entities; **`Status:` Specified** |
-| [`contracts/<verb>-<noun>.md`](0001-add-registry/contracts/add-registry.md) | per owned command | synopsis, args, flags, output, exit codes — conforms to the [CLI contract](contracts/cli.md) |
+| [`spec.md`](0001-set-registry/spec.md) | always | overview, EARS `FR-NNN` requirements, key entities; **`Status:` Specified** |
+| [`contracts/<verb>-<noun>.md`](0001-set-registry/contracts/set-registry.md) | per owned command | synopsis, args, flags, output, exit codes — conforms to the [CLI contract](contracts/cli.md) |
 | [`data/state.md`](contracts/state.md) | touches persisted state | which documents/fields it owns + the `FR-NNN` realization; the schema stays in the [state data contract](contracts/state.md) |
-| `capabilities/<name>.md` | needs technical sub-behavior | one capability, no CLI surface ([add registry](0001-add-registry/spec.md) has git/http/filesystem transports) |
+| `capabilities/<name>.md` | needs technical sub-behavior | one capability, no CLI surface ([set registry](0001-set-registry/spec.md) has git/http/filesystem transports) |
 | `architecture/ADR-NNNN-*.md` | a significant decision needs recording | one decision — authored **only with the maintainer's explicit intent** ([Ch. I, Art. 4](../CONSTITUTION.md)), never auto-generated |
 
 Requirements are EARS, describing observable behavior, not implementation
@@ -62,11 +62,10 @@ source.
 ([Constitution Ch. III](../CONSTITUTION.md)) and pass the verification gate
 ([Ch. IV, Art. 2](../CONSTITUTION.md)).
 
-**a. Plan the work.** Write [`plan.md`](0001-add-registry/plan.md) (goal &
-scope, design, checkpoints — each with a verify command) and the paired
-[`TASKS.md`](0001-add-registry/TASKS.md) (one independently verifiable task per
-unit of work, with dependency order). Both trace back to the `FR-NNN` they
-fulfill ([Ch. IV, Art. 1](../CONSTITUTION.md)). The `sauron-developer` agent
+**a. Plan the work.** Write `plan.md` (goal & scope, design, checkpoints — each
+with a verify command) and the paired `TASKS.md` (one independently verifiable
+task per unit of work, with dependency order). Both trace back to the `FR-NNN`
+they fulfill ([Ch. IV, Art. 1](../CONSTITUTION.md)). The `sauron-developer` agent
 executes a planned unit; the `plan-implementation` skill shapes the plan.
 
 **b. Branch and implement.** Take a short-lived branch off `main`
@@ -75,8 +74,8 @@ Implement under `internal/` following the
 [architecture contract](contracts/architecture.md): a command's logic is a
 **Use Case** that orchestrates **Actions**, stateless with collaborators
 injected by uberfx and per-invocation context arriving through a `Request`
-([Ch. III, Art. 3–4](../CONSTITUTION.md)). Add registry, for example, ships
-`AddRegistryUseCase` behind the `extension.Registry` port. Work is **test-first
+([Ch. III, Art. 3–4](../CONSTITUTION.md)). Set registry, for example, ships
+`SetRegistryUseCase` behind the `extension.Registry` port. Work is **test-first
 to the 90% coverage target** ([Ch. III, Art. 1](../CONSTITUTION.md)).
 
 **c. Pass the gate.** The [Taskfile](../Taskfile.yml) targets match the CI jobs

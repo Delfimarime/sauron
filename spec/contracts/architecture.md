@@ -74,7 +74,7 @@ pkg/
     extension/           public ports (SPI): Registry, Provider — implemented under internal/infrastructure/repository
     source/              public port: FileSystem/File/Stat — the content view a Registry.Open() returns
     marketplace/         public client SDK for the Registry HTTP API (resty-backed); used by the http registry adapter
-    types/               public domain & manifest types (Skill, Agent, Persona, Registry, Provider, Schedule, provenance)
+    types/               public domain & manifest types (Skill, Agent, Registry, Provider)
 test/
   e2e/                   external black-box integration tests — own go.mod (replace → root); godog + testcontainers; excluded from `go test ./...`
     testdata/            Gherkin .feature files
@@ -275,8 +275,7 @@ from the container with `fx.Populate`, calls `Execute`, and renders the returned
 
 `internal/infrastructure/repository/storage` owns all manipulation of Sauron's
 persisted state — the files under `~/.sauron/` whose schema is fixed by the
-[state data contract](state.md) (`registries.yaml`,
-`track.yaml`, `settings.yaml`). It is the single
+[state data contract](state.md) (`track.yaml`, `settings.yaml`). It is the single
 package that reads and writes those files; no use case or adapter touches them
 directly.
 
@@ -294,7 +293,7 @@ directly.
   the app itself authors are written **without** re-validation — they are
   constructed from typed values, so schema validation is a concern for input, not
   for app output. Writes are atomic (write-temp + rename) and serialized by a
-  lockfile under the home, so a scheduled run and a manual command never corrupt a
+  lockfile under the home, so a periodic run and a manual command never corrupt a
   file.
 - **The `afero.Fs` is injected by uberfx**, not carried on the `Request`:
   `storage`'s `fx.go` provides the filesystem (`afero.NewOsFs()` in production,
@@ -429,7 +428,7 @@ recorded as verified at vetting time.
 | `github.com/spf13/afero` | Filesystem abstraction; injected into `internal/infrastructure/repository/storage` | Apache-2.0 |
 | `net/http` (stdlib) | HTTP client (`pkg/http` toolkit) | BSD-3-Clause |
 | `github.com/go-resty/resty/v2` | REST client for the `http` registry adapter | MIT |
-| `os/exec` (stdlib) | Invoking external provider CLIs and the OS scheduler (`crontab`) | BSD-3-Clause |
+| `os/exec` (stdlib) | Invoking external provider CLIs | BSD-3-Clause |
 | `github.com/go-git/go-git/v5` | Git operations | Apache-2.0 |
 | `gopkg.in/yaml.v3` | YAML read/write | MIT and Apache-2.0 |
 | `github.com/google/jsonschema-go` | JSON Schema validation | MIT |
@@ -441,10 +440,8 @@ recorded as verified at vetting time.
 
 ## Notes
 
-- `os/exec` is scoped to invoking external provider CLIs and the OS scheduler
-  (`crontab`) — the scheduler is a use-case concern, not an infrastructure
-  adapter, so it introduces no new dependency; `github.com/go-git/go-git/v5`
-  owns all git interaction.
+- `os/exec` is scoped to invoking external provider CLIs;
+  `github.com/go-git/go-git/v5` owns all git interaction.
 - `github.com/google/jsonschema-go` is a young library — track its maturity
   before deeper reliance, per the dependency-scrutiny rule.
 - The dependency set is scanned for known vulnerabilities with `trivy` (or an

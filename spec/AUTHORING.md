@@ -30,7 +30,7 @@ Every spec declares one of two types:
   cross-link declarations, requirement text, Decision Records, and Notes — is a
   relative markdown link to the provider file, resolved from the referencing
   file's own location. For example, a feature's `spec.md` declares
-  `Depends on: [install](../0006-install-artifacts/spec.md)`, and a
+  `Depends on: [install](../0005-install-artifacts/spec.md)`, and a
   `data/state.md` links the schema as
   `[state data contract](../../contracts/state.md)`. Bare ids or
   unlinked feature names are not allowed.
@@ -52,9 +52,9 @@ Every spec declares one of two types:
   └── TASKS.md                     optional verifiable task breakdown, paired with plan.md
   ```
 
-  A feature owning a command family (e.g. `list skills` / `list agents` /
-  `list personas`) has one contract file per command
-  (`contracts/list-skills.md`, …), each specifying that command's own output.
+  A feature owning a command family (e.g. `list skills` / `list agents`) has one
+  contract file per command (`contracts/list-skills.md`, …), each specifying that
+  command's own output.
 
 - Global, cross-feature contracts live in `spec/contracts/` — the
   [CLI contract](contracts/cli.md) (the command conventions), the
