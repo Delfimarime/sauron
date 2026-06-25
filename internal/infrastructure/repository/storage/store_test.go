@@ -17,7 +17,10 @@ import (
 )
 
 // registriesFile is the backing file for the Registry kind.
-const registriesFile = "registries.yaml"
+const registriesFile = "settings.yaml"
+
+// caseMissingFile names the shared "no backing file" table case.
+const caseMissingFile = "missing file"
 
 // acmeName is a fixture registry name shared by the storage tests.
 const acmeName = "acme"
@@ -63,7 +66,7 @@ func TestStoreFindOneAbsent(t *testing.T) {
 		// lookup is the document name searched for.
 		lookup string
 	}{
-		{name: "missing file", seed: "", lookup: acmeName},
+		{name: caseMissingFile, seed: "", lookup: acmeName},
 		{name: "missing document", seed: validRegistryYAML, lookup: "other"},
 	}
 
@@ -291,7 +294,7 @@ func TestStoreRemoveAbsentIsNoOp(t *testing.T) {
 		// remove is the document name removed.
 		remove string
 	}{
-		{name: "missing file", seed: "", remove: acmeName},
+		{name: caseMissingFile, seed: "", remove: acmeName},
 		{name: "no matching document", seed: validRegistryYAML, remove: "other"},
 	}
 
@@ -411,7 +414,7 @@ func TestNewFilesystem(t *testing.T) {
 		probe string
 	}{
 		// A flat path resolves directly under home.
-		{name: "roots a file under home", probe: "registries.yaml"},
+		{name: "roots a file under home", probe: "settings.yaml"},
 		// A nested path resolves under home too.
 		{name: "roots a nested path under home", probe: "sub/track.yaml"},
 	}

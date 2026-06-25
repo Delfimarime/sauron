@@ -13,9 +13,9 @@ type MockBasedRegistriesStore struct {
 	mock.Mock
 }
 
-// FindByName records the call and returns the configured values.
-func (m *MockBasedRegistriesStore) FindByName(ctx context.Context, name string) (*types.Registry, error) {
-	args := m.Called(ctx, name)
+// Get records the call and returns the configured values.
+func (m *MockBasedRegistriesStore) Get(ctx context.Context) (*types.Registry, error) {
+	args := m.Called(ctx)
 
 	var registry *types.Registry
 	if v := args.Get(0); v != nil {
@@ -25,24 +25,12 @@ func (m *MockBasedRegistriesStore) FindByName(ctx context.Context, name string) 
 	return registry, args.Error(1)
 }
 
-// Add records the call and returns the configured error.
-func (m *MockBasedRegistriesStore) Add(ctx context.Context, r types.Registry) error {
+// Set records the call and returns the configured error.
+func (m *MockBasedRegistriesStore) Set(ctx context.Context, r types.Registry) error {
 	return m.Called(ctx, r).Error(0)
 }
 
-// List records the call and returns the configured values.
-func (m *MockBasedRegistriesStore) List(ctx context.Context) ([]types.Registry, error) {
-	args := m.Called(ctx)
-
-	var registries []types.Registry
-	if v := args.Get(0); v != nil {
-		registries = v.([]types.Registry)
-	}
-
-	return registries, args.Error(1)
-}
-
 // Remove records the call and returns the configured error.
-func (m *MockBasedRegistriesStore) Remove(ctx context.Context, name string) error {
-	return m.Called(ctx, name).Error(0)
+func (m *MockBasedRegistriesStore) Remove(ctx context.Context) error {
+	return m.Called(ctx).Error(0)
 }

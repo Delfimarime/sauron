@@ -4,7 +4,7 @@ import (
 	"go.uber.org/fx"
 )
 
-// NewFxOptions wires the storage engine and the typed registries store.
+// NewFxOptions wires the storage engine and the typed registry store.
 func NewFxOptions() fx.Option {
 	return fx.Options(
 		fx.Provide(

@@ -4,8 +4,7 @@ package telemetry
 // of standard ECS is namespaced under the single custom top-level key "sauron",
 // per ECS's custom-field convention.
 const (
-	FieldRegistryName      = "sauron.registry.name"
+	FieldRegistryURI       = "sauron.registry.uri"
 	FieldRegistryTransport = "sauron.registry.transport"
-	FieldRegistryCount     = "sauron.registry.count"
 	FieldArtifactCount     = "sauron.artifact.count"
 )

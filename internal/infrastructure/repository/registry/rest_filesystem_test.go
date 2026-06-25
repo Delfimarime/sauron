@@ -87,12 +87,6 @@ func TestRESTFactory_Open_List(t *testing.T) {
 			wantPath:  "/agents",
 			wantNames: []string{writerName},
 		},
-		{
-			name:      "personas collection maps to /personas",
-			uri:       ".personas",
-			wantPath:  "/personas",
-			wantNames: []string{writerName},
-		},
 	}
 
 	for _, tt := range tests {

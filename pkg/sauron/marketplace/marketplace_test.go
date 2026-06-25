@@ -43,11 +43,6 @@ func TestClient_List(t *testing.T) {
 			collection: func(c Client) ArtifactClient { return c.Agents() },
 			wantPath:   "/agents",
 		},
-		{
-			name:       "personas list hits /personas",
-			collection: func(c Client) ArtifactClient { return c.Personas() },
-			wantPath:   "/personas",
-		},
 	}
 
 	for _, tt := range tests {
@@ -100,7 +95,7 @@ func TestClient_List_NullableFields(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act.
-	list, listErr := c.Personas().List(context.Background())
+	list, listErr := c.Agents().List(context.Background())
 
 	// Assert: version/size stay nil.
 	require.NoError(t, listErr)
@@ -317,7 +312,6 @@ func TestMockBasedClient(t *testing.T) {
 	client := &MockBasedClient{}
 	client.On("Skills").Return(artifacts)
 	client.On("Agents").Return(ArtifactClient(nil))
-	client.On("Personas").Return(artifacts)
 
 	// Act.
 	got, err := client.Skills().List(context.Background(), WithLimit(1))
@@ -326,7 +320,6 @@ func TestMockBasedClient(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 	assert.Nil(t, client.Agents())
-	assert.NotNil(t, client.Personas())
 	client.AssertExpectations(t)
 	artifacts.AssertExpectations(t)
 }

@@ -8,11 +8,9 @@ func NewFxOptions() fx.Option {
 		fx.Annotate(
 			NewOpenRegistryAction, fx.As(new(OpenRegistry)),
 		),
-		NewAddRegistryUseCase,
-		NewListRegistriesUseCase,
+		NewSetRegistryUseCase,
 		NewDescribeRegistryUseCase,
 		NewListCatalogueUseCase,
-		NewUninstallByRegistryAction,
-		NewDeleteRegistryUseCase,
+		NewUnsetRegistryUseCase,
 	)
 }

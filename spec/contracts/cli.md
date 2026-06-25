@@ -18,14 +18,14 @@ here for the command conventions.
 sauron <verb> [<noun> [<noun>]] [flags] <args...>
 ```
 
-- Verb–noun hierarchy: `add registry`, `list registries`, `list catalogue skill`,
-  `install skill`, `uninstall agent`, `sync`, `upgrade`, `set provider`,
-  `describe persona`, `schedule sync`. `unschedule` is the inverse of `schedule`
-  (removes a scheduled job); `uninstall` is the inverse of `install`; `describe`
-  shows a single resource's detail.
+- Verb–noun hierarchy: `set registry`, `describe registry`, `unset registry`,
+  `list catalogue skill`, `install skill`, `uninstall agent`, `sync`, `upgrade`,
+  `set provider`, `describe skill`. `unset` is the inverse of `set` for the
+  registry; `uninstall` is the inverse of `install`; `describe` shows a single
+  resource's detail.
 - A feature may own a **family** of sibling commands that differ by their noun
-  (e.g. `list skills` / `list agents` / `list personas`); each such command is a
-  distinct command with its own contract file.
+  (e.g. `list skills` / `list agents`); each such command is a distinct command
+  with its own contract file.
 - Flags are GNU-style long options: `--flag` for booleans, `--flag <value>`
   otherwise. Repeatable arguments are marked `...` in synopses.
 - Positional arguments follow flags in synopses and are written `<name>`.
@@ -65,11 +65,10 @@ redefine these meanings.
 - A failing command writes exactly one human-readable message to stderr and
   produces no partial output.
 - Commands that apply changes in bulk (`install`, `uninstall`, `sync`, `upgrade`,
-  `delete registry`, `set provider`) print a shared plan/report format: artifacts
-  grouped under `skills:`, `agents:`, and `personas:` headings, one artifact per
-  line, prefixed `+` (added), `~` (updated in place), or `-` (removed), followed
-  by a summary count line when changes are applied. Per-artifact failures are
-  reported without stopping the run.
+  `set provider`) print a shared plan/report format: artifacts grouped under
+  `skills:` and `agents:` headings, one artifact per line, prefixed `+` (added),
+  `~` (updated in place), or `-` (removed), followed by a summary count line when
+  changes are applied. Per-artifact failures are reported without stopping the run.
 
 ### Canonical rendering
 
@@ -80,9 +79,9 @@ formats; the formats themselves are fixed here.
 optional value:
 
 ```
-NAME        REGISTRY  VERSION  UPDATED
-go-style    acme      v1.4.0   2026-06-15
-sql-review  acme      —        2026-06-12
+NAME        VERSION  UPDATED
+go-style    v1.4.0   2026-06-15
+sql-review  —        2026-06-12
 ```
 
 **Catalogue** (`list catalogue`) — a table followed by one paging line:
@@ -94,48 +93,39 @@ code-helper  skill
 showing 1–20 (page 1, limit 20)
 ```
 
-**Detail** (`describe`) — left-aligned `key:` values, nested for persona
-membership:
+**Detail** (`describe`) — left-aligned `key:` values:
 
 ```
-name:      backend-dev
-registry:  acme
-version:   9f4d2a1
-members:
-  skills:  go-style, sql-review
-  agents:  code-reviewer
+name:     go-style
+version:  9f4d2a1
+digest:   sha256:1c8f…
+path:     sauron-go-style
+updated:  2026-06-15
 ```
-
-In `describe` detail, **provenance** renders as a comma-separated list of reasons —
-`direct` when installed explicitly, and `via persona <name>` for each persona that
-brings the artifact in. A persona is itself always direct, so its own detail and
-listing omit the field.
 
 **Plan / report** (bulk operations) — kind headings, two-space indent, `+`/`~`/`-`
 and the target name, then a summary line:
 
 ```
-personas:
-  + backend-dev
 skills:
-  + sauron-acme-go-style
-  ~ sauron-acme-sql-review
+  + sauron-go-style
+  ~ sauron-sql-review
 agents:
-  - sauron-acme-old-reviewer
-1 persona, 1 added, 1 updated, 1 removed
+  - sauron-old-reviewer
+1 added, 1 updated, 1 removed
 ```
 
 Under `--dry-run` the same plan is printed beneath a `(dry run)` header and nothing
 is applied.
 
-**Confirmation** (`add registry`, `schedule`, `unschedule`) — a single line:
+**Confirmation** (`set registry`, `unset registry`) — a single line:
 
 ```
-registered registry "acme" (git)
+registry set to git@github.com:acme/artifacts.git (git)
 ```
 
 **Failure** — exactly one `error:`-prefixed line to stderr, no partial stdout:
 
 ```
-error: registry "acme" already exists
+error: registry source unreachable
 ```

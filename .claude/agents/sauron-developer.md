@@ -21,10 +21,15 @@ Build **Use Cases and Actions, not services**.
 1. **Trace to the spec.** Implement against the feature's `spec.md` / `FR-NNN`
    and its `contracts/command-line.md`. If a requirement is ambiguous or an open
    question surfaces, stop and ask — do not guess in code.
-2. **Use Case/Action.** Command logic is a `UseCase[R Request]`; reusable steps
-   are `Action[R, P any]`. Keep use cases stateless: collaborators via fx
-   (`pkg/` ports, `storage`, logger); call-scoped state and `Out()` via the
-   `Request`. Map flags+args → `Request` in `serve()`, resolve via `fx.Populate`.
+2. **Use Case/Action.** Command logic is a `UseCase[I, P any]`; reusable steps
+   are `Action[I, P any]`. Both share one shape —
+   `Execute(ctx context.Context, in I) (*P, error)`. Keep use cases stateless:
+   collaborators via fx (`pkg/` ports, `storage`, logger); business input is
+   `in`. A use case **returns a presentation-agnostic result and never renders**
+   (no `Table`/`Descriptor`, no `io.Writer`); the handler maps flags+args → input,
+   resolves via `fx.Populate`, calls `Execute`, and renders the `*P` through the
+   command's own `view_<name>.go` files (cobra-free, in `package cmd`). The
+   `usecase` package must **not** render or import `internal/cmd`.
 3. **Layout & naming.** `internal/usecase/usecase_<name>.go` /
    `action_<name>.go`; adapters in `internal/infrastructure/<name>/<kind>` with
    `NewFxOptions()`; `storage` uses the fx-injected `afero.Fs`.

@@ -38,11 +38,10 @@ func TestNewFxOptions(t *testing.T) {
 	app := fx.New(
 		deps,
 		NewFxOptions(),
-		fx.Invoke(func(*AddRegistryUseCase) {}),
-		fx.Invoke(func(*ListRegistriesUseCase) {}),
+		fx.Invoke(func(*SetRegistryUseCase) {}),
 		fx.Invoke(func(*DescribeRegistryUseCase) {}),
 		fx.Invoke(func(*ListCatalogueUseCase) {}),
-		fx.Invoke(func(*DeleteRegistryUseCase) {}),
+		fx.Invoke(func(*UnsetRegistryUseCase) {}),
 	)
 
 	// Assert.

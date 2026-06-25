@@ -14,8 +14,6 @@ type Client interface {
 	Skills() ArtifactClient
 	// Agents returns the client for the registry's agent artifacts.
 	Agents() ArtifactClient
-	// Personas returns the client for the registry's persona artifacts.
-	Personas() ArtifactClient
 }
 
 // client is the resty-backed Client implementation.
@@ -66,9 +64,4 @@ func (c *client) Skills() ArtifactClient {
 // Agents returns the client for agent artifacts.
 func (c *client) Agents() ArtifactClient {
 	return &artifactClient{rest: c.rest, kind: kindAgents}
-}
-
-// Personas returns the client for persona artifacts.
-func (c *client) Personas() ArtifactClient {
-	return &artifactClient{rest: c.rest, kind: kindPersonas}
 }

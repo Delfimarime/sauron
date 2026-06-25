@@ -55,6 +55,30 @@ func bindListingFlags(cmd *cobra.Command, f *listingFlags) {
 	flags.StringSliceVar(&f.Fields, "fields", nil, "columns to display, in order")
 }
 
+// the sort directions a listing accepts.
+const (
+	orderAsc  = "asc"
+	orderDesc = "desc"
+)
+
+// defaultOrder applies the listing default: an empty order becomes asc.
+func defaultOrder(order string) string {
+	if order == "" {
+		return orderAsc
+	}
+
+	return order
+}
+
+// validateOrder reports a usage error when order is not an accepted direction.
+func validateOrder(order string) error {
+	if order == orderAsc || order == orderDesc {
+		return nil
+	}
+
+	return fmt.Errorf("%w: order must be %s or %s", errInvalidFlag, orderAsc, orderDesc)
+}
+
 // the default paging window shared by paginated listings.
 const (
 	defaultPage  = 1

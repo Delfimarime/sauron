@@ -117,5 +117,5 @@ func TestHostRuntimeWebserverAndGitError(t *testing.T) {
 	assert.Error(t, err, "a webserver is not available on the host (@no-sandbox)")
 
 	_, err = h.Git("default").URL(ctx)
-	assert.Error(t, err, "git is deferred everywhere")
+	assert.Error(t, err, "git is not available on the host runtime")
 }

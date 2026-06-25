@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sauron.raitonbl.com/schemas/v1/Registry.schema.json",
   "title": "Registry",
-  "description": "A registered source of artifacts, persisted in registries.yaml.",
+  "description": "The single registered source of artifacts, persisted in settings.yaml.",
   "type": "object",
   "additionalProperties": false,
   "required": ["apiVersion", "kind", "metadata", "spec"],
@@ -12,12 +12,10 @@
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
       "properties": {
         "name": {
           "type": "string",
-          "description": "Unique, path-safe registry name; the namespacing segment in sauron-<registry>-<name>.",
-          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+          "description": "Unused for the single registry; retained for envelope uniformity."
         },
         "labels": {
           "type": "object",

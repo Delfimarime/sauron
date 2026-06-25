@@ -113,7 +113,7 @@ func (h *hostRuntime) Webserver(string) runtime.Source {
 }
 
 func (h *hostRuntime) Git(string) runtime.Source {
-	return runtime.NewErroringSource(errors.New("host: a git source is not available (deferred)"))
+	return runtime.NewErroringSource(errors.New("host: a git source is not available on @no-sandbox; use the docker runtime"))
 }
 
 func (h *hostRuntime) Execute(ctx context.Context, command ...string) (int, string, error) {

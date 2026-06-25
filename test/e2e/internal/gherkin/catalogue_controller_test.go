@@ -17,9 +17,9 @@ func TestParseManifestsSplitsOnFileDirective(t *testing.T) {
 		"kind: Skill\n" +
 		"metadata:\n" +
 		"  name: go-style\n" +
-		"# file: .personas/backend-dev.yml\n" +
+		"# file: .agents/code-reviewer.yml\n" +
 		"apiVersion: sauron.raitonbl.com/v1\n" +
-		"kind: Persona\n"
+		"kind: Agent\n"
 
 	resources, err := parseManifests(body)
 	require.NoError(t, err)
@@ -27,10 +27,10 @@ func TestParseManifestsSplitsOnFileDirective(t *testing.T) {
 
 	assert.Equal(t, ".skills/go-style.yaml", resources[0].Path)
 	assert.Contains(t, string(resources[0].Content), "name: go-style")
-	assert.NotContains(t, string(resources[0].Content), "Persona", "a file's content stops at the next directive")
+	assert.NotContains(t, string(resources[0].Content), "Agent", "a file's content stops at the next directive")
 
-	assert.Equal(t, ".personas/backend-dev.yml", resources[1].Path)
-	assert.Contains(t, string(resources[1].Content), "kind: Persona")
+	assert.Equal(t, ".agents/code-reviewer.yml", resources[1].Path)
+	assert.Contains(t, string(resources[1].Content), "kind: Agent")
 }
 
 func TestParseManifestsRejectsContentBeforeFirstDirectiveAndEmptyBody(t *testing.T) {
@@ -42,7 +42,7 @@ func TestParseManifestsRejectsContentBeforeFirstDirectiveAndEmptyBody(t *testing
 }
 
 func TestFilesystemRegistryStreamIsSchemaValid(t *testing.T) {
-	stream, err := filesystemRegistryStream("acme", "/tmp/registry/acme")
+	stream, err := filesystemRegistryStream("/tmp/registry/acme")
 	require.NoError(t, err)
 
 	regs, err := decodeRegistries(stream)
@@ -51,7 +51,6 @@ func TestFilesystemRegistryStreamIsSchemaValid(t *testing.T) {
 
 	assert.Equal(t, types.APIVersion, regs[0].APIVersion)
 	assert.Equal(t, types.KindRegistry, regs[0].Kind)
-	assert.Equal(t, "acme", regs[0].Metadata.Name)
 	assert.Equal(t, types.TransportFilesystem, regs[0].Spec.Transport)
 	assert.Equal(t, "/tmp/registry/acme", regs[0].Spec.URI)
 }

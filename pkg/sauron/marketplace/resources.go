@@ -26,9 +26,8 @@ type artifactClient struct {
 type kind string
 
 const (
-	kindSkills   kind = "skills"
-	kindAgents   kind = "agents"
-	kindPersonas kind = "personas"
+	kindSkills kind = "skills"
+	kindAgents kind = "agents"
 )
 
 // List issues a GET against the kind's collection and decodes the page.

@@ -47,7 +47,7 @@ func NewStore(fs afero.Fs) (*Store, error) {
 		fs:        fs,
 		guard:     newGuard(fs),
 		validator: v,
-		files:     map[string]string{types.KindRegistry: "registries.yaml"},
+		files:     map[string]string{types.KindRegistry: "settings.yaml"},
 	}, nil
 }
 
@@ -164,6 +164,113 @@ func (s *Store) removeLocked(file, name string) error {
 	return s.writeAtomic(file, stream)
 }
 
+// First returns the first document of kind in its file, validated against the
+// kind's schema, or nil when none is present. It filters by the document's own
+// kind, so a file that holds several kinds (settings.yaml) yields only matches.
+func (s *Store) First(_ context.Context, kind string) (*yaml.Node, error) {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return nil, err
+	}
+
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, doc := range docs {
+		if kindOf(doc) != kind {
+			continue
+		}
+		if err := s.validator.validate(kind, doc); err != nil {
+			return nil, err
+		}
+		return doc, nil
+	}
+
+	return nil, nil
+}
+
+// Replace atomically rewrites the kind's file so it holds exactly doc for that
+// kind, preserving every document of another kind in the same file, under the
+// write lock. The document is not re-validated on write.
+func (s *Store) Replace(_ context.Context, kind string, doc *yaml.Node) error {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return err
+	}
+
+	return s.guard.withLock(func() error {
+		return s.replaceLocked(file, kind, doc)
+	})
+}
+
+// replaceLocked drops every document of kind and appends the new one while the
+// lock is held, keeping documents of other kinds untouched.
+func (s *Store) replaceLocked(file, kind string, doc *yaml.Node) error {
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return err
+	}
+
+	kept := make([]*yaml.Node, 0, len(docs)+1)
+	for _, d := range docs {
+		if kindOf(d) == kind {
+			continue
+		}
+		kept = append(kept, d)
+	}
+	kept = append(kept, doc)
+
+	stream, err := encodeStream(kept)
+	if err != nil {
+		return err
+	}
+
+	return s.writeAtomic(file, stream)
+}
+
+// Purge atomically removes every document of kind from its file, preserving
+// documents of other kinds, under the write lock. Purging when none is present
+// is a no-op success that leaves the file untouched.
+func (s *Store) Purge(_ context.Context, kind string) error {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return err
+	}
+
+	return s.guard.withLock(func() error {
+		return s.purgeLocked(file, kind)
+	})
+}
+
+// purgeLocked drops every document of kind while the lock is held; when none
+// matches, the file is left byte-for-byte untouched.
+func (s *Store) purgeLocked(file, kind string) error {
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return err
+	}
+
+	kept := make([]*yaml.Node, 0, len(docs))
+	for _, d := range docs {
+		if kindOf(d) == kind {
+			continue
+		}
+		kept = append(kept, d)
+	}
+	if len(kept) == len(docs) {
+		return nil
+	}
+
+	stream, err := encodeStream(kept)
+	if err != nil {
+		return err
+	}
+
+	return s.writeAtomic(file, stream)
+}
+
 // encodeStream renders documents as a multi-document YAML stream, each prefixed
 // with a stream separator — the same on-disk shape Append produces. An empty slice
 // yields no bytes, so removing the last document leaves an empty file.
@@ -259,6 +366,18 @@ func nameOf(doc *yaml.Node) string {
 		return ""
 	}
 	return envelope.Metadata.Name
+}
+
+// kindOf returns the kind of a document node, or "" when absent. It lets the
+// store operate on one kind within a file shared by several kinds.
+func kindOf(doc *yaml.Node) string {
+	var envelope struct {
+		Kind string `yaml:"kind"`
+	}
+	if err := doc.Decode(&envelope); err != nil {
+		return ""
+	}
+	return envelope.Kind
 }
 
 // documentSeparator delimits documents in a multi-document YAML stream.

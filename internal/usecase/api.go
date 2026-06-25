@@ -1,26 +1,18 @@
 package usecase
 
-import (
-	"context"
-	"io"
-)
+import "context"
 
-// Request is the per-invocation context object: a context.Context that also exposes the command's output writer.
-type Request interface {
-	context.Context
-	// Out returns the writer the command's output goes to.
-	Out() io.Writer
-}
-
-// UseCase is a command's stateless entrypoint, executed with a Request.
-type UseCase[R Request] interface {
-	Execute(request R) error
+// UseCase is a command's stateless entrypoint: executed with a context and a
+// typed input, it returns a presentation-agnostic *P product or a classified
+// *Error. It never renders.
+type UseCase[I, P any] interface {
+	Execute(ctx context.Context, in I) (*P, error)
 }
 
 // Action is a stateless, composable step a use case runs: executed with a
-// context and an input R, it returns a *P product or a classified *Error.
-type Action[R, P any] interface {
-	Execute(ctx context.Context, in R) (*P, error)
+// context and an input I, it returns a *P product or a classified *Error.
+type Action[I, P any] interface {
+	Execute(ctx context.Context, in I) (*P, error)
 }
 
 // Type classifies a use-case failure so callers can map it to an exit code or

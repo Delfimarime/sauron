@@ -19,8 +19,8 @@ import (
 // designed by the feature, never synthesized in controller code.
 const fileDirective = "# file:"
 
-// catalogueController owns the catalogue fixture Given (seeding a filesystem
-// registry's .skills/.agents/.personas) and the catalogue Then assertions. It reads
+// catalogueController owns the catalogue fixture Given (seeding the single
+// filesystem registry's .skills/.agents) and the catalogue Then assertions. It reads
 // the recorded output of the last command from the commandController rather than
 // re-running anything, so the rendered rows and paging line are asserted exactly as
 // the user saw them. Seed logic lives in pure helpers so it is unit-tested without a
@@ -31,31 +31,31 @@ type catalogueController struct {
 }
 
 func (c *catalogueController) Init(sc *godog.ScenarioContext) {
-	sc.Step(`^the registry (.+) offers the following (skills|agents|personas):$`, c.offers)
+	sc.Step(`^the registry offers the following (skills|agents):$`, c.offers)
 	sc.Step(`^the catalogue lists (.+)$`, c.catalogueLists)
 	sc.Step(`^the paging line reads (.+)$`, c.pagingLineReads)
 }
 
-// offers seeds a filesystem registry that exposes the doc-string's manifests under
-// the kind's source root, then records the registry in registries.yaml pointing at
-// the materialized folder. Repeated calls for the same registry accumulate onto one
-// folder, so a scenario can offer skills, agents, and personas to the same source.
-func (c *catalogueController) offers(ctx context.Context, registry, kind string, body *godog.DocString) error {
+// offers seeds the single filesystem registry that exposes the doc-string's
+// manifests under the kind's source root, then records the registry in settings.yaml
+// pointing at the materialized folder. Repeated calls accumulate onto one folder, so
+// a scenario can offer skills and agents to the same source.
+func (c *catalogueController) offers(ctx context.Context, _ string, body *godog.DocString) error {
 	resources, err := parseManifests(body.Content)
 	if err != nil {
 		return err
 	}
-	source := c.rt.Folder(registry)
+	source := c.rt.Folder(defaultAlias)
 	source.Expose(resources...)
 	path, err := source.Path(ctx)
 	if err != nil {
 		return err
 	}
-	stream, err := filesystemRegistryStream(registry, path)
+	stream, err := filesystemRegistryStream(path)
 	if err != nil {
 		return err
 	}
-	return c.rt.CopyTo(ctx, registriesFile, stream)
+	return c.rt.CopyTo(ctx, settingsFile, stream)
 }
 
 // catalogueLists asserts a "NAME KIND" row is present in the rendered catalogue. The
@@ -134,14 +134,13 @@ func cutDirective(line string) (string, bool) {
 	return strings.TrimSpace(strings.TrimPrefix(trimmed, fileDirective)), true
 }
 
-// filesystemRegistryStream renders a one-document registries.yaml for a schema-valid
-// filesystem Registry named name whose source uri is path. Pure (name+path in, bytes
-// out) so it is unit-tested without the runtime.
-func filesystemRegistryStream(name, path string) ([]byte, error) {
+// filesystemRegistryStream renders a one-document settings.yaml for a schema-valid
+// filesystem Registry whose source uri is path. The single registry carries no name.
+// Pure (path in, bytes out) so it is unit-tested without the runtime.
+func filesystemRegistryStream(path string) ([]byte, error) {
 	reg := types.Registry{
 		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
 	}
-	reg.Metadata.Name = name
 	reg.Spec.Transport = types.TransportFilesystem
 	reg.Spec.URI = path
 
@@ -149,7 +148,7 @@ func filesystemRegistryStream(name, path string) ([]byte, error) {
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
 	if err := enc.Encode(reg); err != nil {
-		return nil, fmt.Errorf("encode registry %q: %w", name, err)
+		return nil, fmt.Errorf("encode filesystem registry: %w", err)
 	}
 	if err := enc.Close(); err != nil {
 		return nil, err

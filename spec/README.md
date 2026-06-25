@@ -24,12 +24,13 @@ environment, regardless of provider.
 Sauron is imperative, in the spirit of a package manager (`apt`, `brew`). The
 developer **installs** named artifacts from a registry and **uninstalls** them;
 **sync** and **upgrade** keep what is installed current with its source. Nothing
-runs in the background unless explicitly scheduled.
+runs in the background; to reconcile periodically, a developer wires `sync` or
+`upgrade` into their own OS scheduler.
 
 ```
    ┌──────────────────────┐                          ┌──────────────────────┐
-   │      Registries      │                          │         User         │
-   │   artifact sources   │                          │  a developer using   │
+   │       Registry       │                          │         User         │
+   │   artifact source    │                          │  a developer using   │
    │   git · http · fs    │                          │   an AI assistant    │
    └──────────┬───────────┘                          └──────────┬───────────┘
               ▲                                                  │
@@ -52,100 +53,100 @@ runs in the background unless explicitly scheduled.
 ```
 
 Everything Sauron touches at delivery time lives in the user's environment: the
-CLI itself, the optional crontab entry that schedules it, and the provider's
-artifact directories. Registries are external sources — a `filesystem` registry
-may happen to be on the same machine, but Sauron treats it as a source like any
-other.
+CLI itself, an optional OS-scheduler entry the developer wires themselves, and the
+provider's artifact directories. The registry is an external source — a
+`filesystem` registry may happen to be on the same machine, but Sauron treats it
+as a source like any other.
 
 ## Concepts
 
-- **Artifact** — a unit Sauron distributes. Three kinds: **skill**, **agent**, and
-  **persona**.
+- **Artifact** — a unit Sauron distributes. Two kinds in v1: **skill** and
+  **agent**. A third kind, **persona**, is a defined concept deferred past v1 — see
+  [ADR-0003](architecture/ADR-0003-persona-deferred.md).
 - **Skill / Agent** — content hosted in a registry under its `.skills/` or
   `.agents/` directory.
-- **Persona** — a named grouping that references a set of skills and agents
-  **within the same registry**. A persona is first-class: it is installed, listed,
-  and described like any artifact, and its realized content is its resolved
-  **membership**.
-- **Registry** — a registered source of artifacts. Its **transport** — `git`,
-  `http`, or `filesystem` — determines how it is reached, validated, and fetched
-  from.
+- **Persona** *(deferred — not implemented in v1)* — a named grouping that
+  references a set of skills and agents within the registry; first-class
+  (installed, listed, and described like any artifact), its realized content being
+  its resolved **membership**. The full design is recorded in
+  [ADR-0003](architecture/ADR-0003-persona-deferred.md).
+- **Registry** — the single registered source of artifacts. Its **transport** —
+  `git`, `http`, or `filesystem` — determines how it is reached, validated, and
+  fetched from. Sauron has exactly one registry; supporting more is deferred — see
+  [ADR-0002](architecture/ADR-0002-single-registry.md).
 - **Provider** — the destination environment where artifacts are installed
   (`claude` or `zencoder`). There is one global provider; changing it migrates the
   installed artifacts to the new provider's directories.
-- **Catalogue** — the live, paginated view of what a registry offers. It is always
-  fetched fresh; it is never persisted, and there is no offline catalogue.
-- **Track** — the recorded set of installed artifacts and their provenance: the
-  source of truth for `uninstall`, `sync`, and `upgrade`.
+- **Catalogue** — the live, paginated view of what the registry offers. It is
+  always fetched fresh; it is never persisted, and there is no offline catalogue.
+- **Track** — the recorded set of installed artifacts: the source of truth for
+  `uninstall`, `sync`, and `upgrade`.
 
 ### Namespacing
 
-Every installed artifact lands at a target named `sauron-<registry>-<name>` in the
-provider's directory for its kind. The registry segment namespaces artifacts, so
-two registries may offer the same name without conflict. The `sauron-` prefix
-marks ownership: Sauron only ever touches artifacts it installed.
+Every installed artifact lands at a target named `sauron-<name>` in the provider's
+directory for its kind. The `sauron-` prefix marks ownership: Sauron only ever
+touches artifacts it installed.
 
 ## Domain model
 
 ```
   ┌──────────────────────┐         ┌──────────────────────┐
   │       REGISTRY       │         │       PROVIDER       │
-  │  name · uri · kind   │         │  claude | zencoder   │
-  │   (transport) · …    │         │  one global setting  │
+  │  uri · transport     │         │  claude | zencoder   │
+  │  one global setting  │         │  one global setting  │
   └──────────┬───────────┘         └──────────┬───────────┘
              │ hosts                          │
              ▼                                │
    ┌──────────────────────────────────┐       │
    │             ARTIFACT             │       │
    │  skill (.skills/) ·              │       │
-   │  agent (.agents/) ·              │       │
-   │  persona → members within        │       │
-   │            the same registry     │       │
+   │  agent (.agents/)                │       │
+   │  (persona — deferred, ADR-0003)  │       │
    └──────────────────┬───────────────┘       │
                       │ install / uninstall   │  installs into
-                      │ sync / upgrade        │  sauron-<registry>-<name>
+                      │ sync / upgrade        │  sauron-<name>
                       ▼                       │
             ┌───────────────────────┐         │
             │      track.yaml       │◀────────┘
-            │ installed + provenance│
+            │   installed artifacts │
             └───────────────────────┘
 ```
 
 ## State
 
-Sauron keeps its state under `~/.sauron/` (or `$SAURON_HOME`) in three YAML files,
+Sauron keeps its state under `~/.sauron/` (or `$SAURON_HOME`) in two YAML files,
 each a multi-document stream of Kubernetes-style manifests
 (`apiVersion: sauron.raitonbl.com/v1`, with `kind`):
 
 ```
 ~/.sauron/
-├── registries.yaml   Registry documents — the registered artifact sources
-├── track.yaml        Skill / Agent / Persona documents — what is installed and where it came from
-└── settings.yaml     Provider and Schedule documents — the active provider and the sync/upgrade schedules
+├── track.yaml      Skill / Agent documents — what is installed
+└── settings.yaml   Registry and Provider documents — the configured source and the active provider
 ```
 
 The schema of every document is owned by the
-[state data contract](contracts/state.md). The **catalogue** is
-not persisted: what a registry *offers* is computed live from a fetch against the
-registry, so there is no offline catalogue.
+[state data contract](contracts/state.md). The **catalogue** is not persisted:
+what the registry *offers* is computed live from a fetch against it, so there is no
+offline catalogue.
 
 The track file is what makes maintenance safe: `uninstall`, `sync`, and `upgrade`
-touch only artifacts Sauron recorded, and provenance distinguishes an artifact
-installed directly from one brought in by a persona, so cascades remove exactly
-what they should.
+touch only artifacts Sauron recorded, so they never disturb a developer's own
+skills and agents.
 
 ## The flow
 
-1. **Register sources** — `add registry` validates and persists each source.
-2. **Browse** — `list catalogue` shows what a registry offers, live and paginated.
-3. **Install** — `install (skill|agent|persona) <registry> <name>...` installs
-   named artifacts; installing a persona installs its members.
+1. **Set the source** — `set registry` validates and persists the single source.
+2. **Browse** — `list catalogue` shows what the registry offers, live and
+   paginated.
+3. **Install** — `install (skill|agent) <name>...` installs named artifacts.
 4. **Maintain** — `upgrade` refreshes installed artifacts to the latest
-   non-destructively; `sync` fully reconciles them against their sources
-   (refresh, drift repair, removal of what vanished, persona membership
-   re-resolution). Review either with `--dry-run`.
-5. **Schedule** — `schedule (sync|upgrade) <expression>` registers an OS-crontab
-   entry; `unschedule (sync|upgrade)` removes it.
+   non-destructively; `sync` fully reconciles them against the source (refresh,
+   drift repair, removal of what vanished). Review either with `--dry-run`.
+
+To reconcile on a schedule, wire `sauron sync` or `sauron upgrade` into the OS
+scheduler. A built-in `schedule` command is deferred — see
+[ADR-0004](architecture/ADR-0004-schedule-deferred.md).
 
 ## Reconciling artifacts
 
@@ -166,33 +167,32 @@ new on its own.
    install / update / remove on provider ──▶ record in track.yaml
 ```
 
-- **`upgrade`** is non-destructive: it refreshes changed artifacts and adds
-  newly-added persona members, but never removes anything.
+- **`upgrade`** is non-destructive: it refreshes changed artifacts but never
+  removes anything.
 - **`sync`** is a full reconcile: everything `upgrade` does, plus repairing local
-  drift, removing artifacts that vanished upstream, and removing persona members
-  dropped upstream.
+  drift and removing artifacts that vanished upstream.
 
 ## Specifications
 
 Every feature is specified before it is built. Status is owned by each feature's
-`spec.md` `**Status:**` field; this table is the aggregated view.
+`spec.md` `**Status:**` field; this table is the aggregated view. Decisions that
+shape the whole project — single registry, deferred persona, deferred schedule —
+are recorded as project-level ADRs under [architecture/](architecture/).
 
 | # | Feature | Status |
 |---|---|---|
-| [0001](0001-add-registry/spec.md) | Add registry | **Built** |
-| [0002](0002-list-registries/spec.md) | List registries | **Built** |
-| [0003](0003-describe-registry/spec.md) | Describe registry | **Built** |
-| [0004](0004-delete-registry/spec.md) | Delete registry | **Partial** — registry removal ships; artifact cascade deferred to [0007](0007-uninstall-artifacts/spec.md) |
-| [0005](0005-list-catalogue/spec.md) | List catalogue | Specified |
-| [0006](0006-install-artifacts/spec.md) | Install artifacts | Specified |
-| [0007](0007-uninstall-artifacts/spec.md) | Uninstall artifacts | Specified |
-| [0008](0008-sync/spec.md) | Sync | Specified |
-| [0009](0009-upgrade/spec.md) | Upgrade | Specified |
-| [0010](0010-list-artifacts/spec.md) | List artifacts | Specified |
-| [0011](0011-describe-artifact/spec.md) | Describe artifact | Specified |
-| [0012](0012-set-provider/spec.md) | Set provider | Specified |
-| [0013](0013-describe-provider/spec.md) | Describe provider | Specified |
-| [0014](0014-schedule/spec.md) | Schedule | Specified |
+| [0001](0001-set-registry/spec.md) | Set registry | **Built** |
+| [0002](0002-describe-registry/spec.md) | Describe registry | **Built** |
+| [0003](0003-unset-registry/spec.md) | Unset registry | **Built** |
+| [0004](0004-list-catalogue/spec.md) | List catalogue | Specified |
+| [0005](0005-install-artifacts/spec.md) | Install artifacts | Specified |
+| [0006](0006-uninstall-artifacts/spec.md) | Uninstall artifacts | Specified |
+| [0007](0007-sync/spec.md) | Sync | Specified |
+| [0008](0008-upgrade/spec.md) | Upgrade | Specified |
+| [0009](0009-list-artifacts/spec.md) | List artifacts | Specified |
+| [0010](0010-describe-artifact/spec.md) | Describe artifact | Specified |
+| [0011](0011-set-provider/spec.md) | Set provider | Specified |
+| [0012](0012-describe-provider/spec.md) | Describe provider | Specified |
 
 Authoring conventions and the requirement taxonomy live in
 [AUTHORING.md](AUTHORING.md); the domain vocabulary in [GLOSSARY.md](GLOSSARY.md);

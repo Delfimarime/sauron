@@ -12,18 +12,35 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
-const twoRegistries = `apiVersion: sauron.raitonbl.com/v1
+// oneRegistryDoc is the single Registry document settings.yaml holds, alongside the
+// Provider that shares the file.
+const oneRegistryDoc = `apiVersion: sauron.raitonbl.com/v1
 kind: Registry
 metadata:
-  name: acme
-  labels:
-    team: platform
+  creationTimestamp: "2026-06-21T07:30:00Z"
+  lastUpdatedTimestamp: "2026-06-21T07:30:00Z"
 spec:
   transport: http
   uri: http://registry-http-default
   auth:
     username: ${env:ACME_USER}
     password: ${env:ACME_TOKEN}
+---
+apiVersion: sauron.raitonbl.com/v1
+kind: Provider
+metadata:
+  name: claude
+`
+
+// twoRegistries is a malformed-for-v1 stream (two Registry documents) used to prove
+// the decoder reads every Registry document and oneRegistry rejects more than one.
+const twoRegistries = `apiVersion: sauron.raitonbl.com/v1
+kind: Registry
+metadata:
+  name: acme
+spec:
+  transport: http
+  uri: http://registry-http-default
 ---
 apiVersion: sauron.raitonbl.com/v1
 kind: Registry
@@ -34,44 +51,49 @@ spec:
   uri: /opt/registry/default
 `
 
-func TestDecodeRegistriesMultiDoc(t *testing.T) {
-	regs, err := decodeRegistries([]byte(twoRegistries))
+const oneSkillTrack = `apiVersion: sauron.raitonbl.com/v1
+kind: Skill
+metadata:
+  name: sauron-acme-go-style
+spec:
+  digest: sha256:abc
+  path: skills/sauron-acme-go-style
+  installedAt: "2026-06-21T07:30:00Z"
+  updatedAt: "2026-06-21T07:30:00Z"
+`
+
+func TestDecodeRegistriesSkipsProviderAndEmptyDocs(t *testing.T) {
+	regs, err := decodeRegistries([]byte(oneRegistryDoc))
 	require.NoError(t, err)
-	require.Len(t, regs, 2)
-	assert.Equal(t, "acme", regs[0].Metadata.Name)
+	require.Len(t, regs, 1, "the Provider document and empty documents are skipped")
 	assert.Equal(t, types.TransportHTTP, regs[0].Spec.Transport)
 	assert.Equal(t, "${env:ACME_TOKEN}", regs[0].Spec.Auth.Password)
-	assert.Equal(t, types.TransportFilesystem, regs[1].Spec.Transport)
 }
 
-func TestDecodeRegistriesSkipsOtherKindsAndEmptyDocs(t *testing.T) {
-	stream := "---\n" + twoRegistries + "\n---\napiVersion: sauron.raitonbl.com/v1\nkind: Provider\nmetadata:\n  name: claude\n"
-	regs, err := decodeRegistries([]byte(stream))
+func TestOneRegistry(t *testing.T) {
+	one, err := decodeRegistries([]byte(oneRegistryDoc))
 	require.NoError(t, err)
-	assert.Len(t, regs, 2, "empty documents and non-Registry kinds are skipped")
-}
-
-func TestFindRegistry(t *testing.T) {
-	regs, err := decodeRegistries([]byte(twoRegistries))
+	reg, err := oneRegistry(one)
 	require.NoError(t, err)
+	assert.Equal(t, types.TransportHTTP, reg.Spec.Transport)
 
-	reg, err := findRegistry(regs, "local")
+	_, err = oneRegistry(nil)
+	assert.Error(t, err, "no registry configured is an error")
+
+	two, err := decodeRegistries([]byte(twoRegistries))
 	require.NoError(t, err)
-	assert.Equal(t, types.TransportFilesystem, reg.Spec.Transport)
-
-	_, err = findRegistry(regs, "absent")
-	assert.Error(t, err)
+	_, err = oneRegistry(two)
+	assert.Error(t, err, "more than one registry is an error")
 }
 
 func TestRegistryField(t *testing.T) {
-	regs, err := decodeRegistries([]byte(twoRegistries))
+	regs, err := decodeRegistries([]byte(oneRegistryDoc))
 	require.NoError(t, err)
 	reg := regs[0]
 
 	cases := map[string]string{
 		"kind":           "Registry",
 		"apiVersion":     "sauron.raitonbl.com/v1",
-		"metadata.name":  "acme",
 		"spec.transport": "http",
 		"spec.uri":       "http://registry-http-default",
 	}
@@ -85,21 +107,32 @@ func TestRegistryField(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestStateControllerAssertsThroughRuntime drives a couple of Then steps end
-// to end against an in-memory file served by the fake runtime (no real fs).
+func TestDecodeSkillsKeepsSkillDocuments(t *testing.T) {
+	skills, err := decodeSkills([]byte(oneSkillTrack))
+	require.NoError(t, err)
+	require.Len(t, skills, 1)
+	assert.Equal(t, "sauron-acme-go-style", skills[0].Metadata.Name)
+}
+
+// TestStateControllerAssertsThroughRuntime drives a couple of Then steps end to end
+// against in-memory files served by the fake runtime (no real fs).
 func TestStateControllerAssertsThroughRuntime(t *testing.T) {
 	ctx := context.Background()
-	rt := &fakeRuntime{files: map[string][]byte{registriesFile: []byte(twoRegistries)}}
+	rt := &fakeRuntime{files: map[string][]byte{
+		settingsFile: []byte(oneRegistryDoc),
+		trackFile:    []byte(oneSkillTrack),
+	}}
 	c := &stateController{rt: rt}
 
-	require.NoError(t, c.registryCount(ctx, 2))
-	require.NoError(t, c.registryExists(ctx, "acme"))
-	require.NoError(t, c.registryTransport(ctx, "acme", "http"))
-	require.NoError(t, c.registryLabel(ctx, "acme", "team", "platform"))
-	require.NoError(t, c.registryPasswordRef(ctx, "acme", "${env:ACME_TOKEN}"))
+	require.NoError(t, c.exactlyOneRegistry(ctx))
+	require.NoError(t, c.registryTransport(ctx, "http"))
+	require.NoError(t, c.registryPasswordRef(ctx, "${env:ACME_TOKEN}"))
+	require.NoError(t, c.registryHasCreationTimestamp(ctx))
 	require.NoError(t, c.configDoesNotContain(ctx, "s3cr3t"))
+	require.NoError(t, c.skillStillTracked(ctx, "sauron-acme-go-style"))
 
-	assert.Error(t, c.registryCount(ctx, 99))
-	assert.Error(t, c.registryTransport(ctx, "acme", "git"))
+	assert.Error(t, c.noRegistry(ctx), "there IS one registry")
+	assert.Error(t, c.registryTransport(ctx, "git"))
 	assert.Error(t, c.configDoesNotContain(ctx, "ACME_TOKEN"), "the reference text IS present")
+	assert.Error(t, c.skillStillTracked(ctx, "absent"))
 }
