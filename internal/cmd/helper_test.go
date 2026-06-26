@@ -23,6 +23,9 @@ import (
 // package's set/describe/unset/catalogue command tests.
 const (
 	subcmdRegistry    = "registry"
+	subcmdProvider    = "provider"
+	nameClaude        = "claude"
+	nameBogus         = "bogus"
 	acmeName          = "acme"
 	settingsFile      = "settings.yaml"
 	caseUnexpectedArg = "rejects an unexpected argument"

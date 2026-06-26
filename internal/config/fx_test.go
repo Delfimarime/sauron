@@ -73,6 +73,57 @@ func TestResolveHome(t *testing.T) {
 	}
 }
 
+// TestNew resolves both homes on success and surfaces the failures of each
+// resolution step.
+func TestNew(t *testing.T) {
+	t.Run("resolves both homes", func(t *testing.T) {
+		// Arrange.
+		home := t.TempDir()
+		t.Setenv(envHome, home)
+
+		// Act.
+		cfg, err := New()
+
+		// Assert.
+		require.NoError(t, err)
+		assert.Equal(t, home, cfg.HomeDirectory)
+		assert.True(t, filepath.IsAbs(cfg.UserHomeDirectory))
+	})
+
+	t.Run("fails when no sauron home is derivable", func(t *testing.T) {
+		// Arrange: no override and no derivable user home.
+		t.Setenv(envHome, "")
+		clearUserHome(t)
+
+		// Act.
+		_, err := New()
+
+		// Assert.
+		require.Error(t, err)
+	})
+
+	t.Run("fails when the user home is not derivable", func(t *testing.T) {
+		// Arrange: SAURON_HOME resolves, but os.UserHomeDir cannot.
+		t.Setenv(envHome, t.TempDir())
+		clearUserHome(t)
+
+		// Act.
+		_, err := New()
+
+		// Assert.
+		require.Error(t, err)
+	})
+}
+
+// clearUserHome clears the inputs os.UserHomeDir reads, so it fails.
+func clearUserHome(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("HOMEDRIVE", "")
+	t.Setenv("HOMEPATH", "")
+}
+
 // TestNewFxOptions verifies the fx option provides a Configuration carrying the
 // resolved home and that *viper.Viper is never required to satisfy it.
 func TestNewFxOptions(t *testing.T) {

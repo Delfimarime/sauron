@@ -35,7 +35,7 @@ type SetRegistryUseCaseParams struct {
 	Filesystem extension.Registry `name:"registry.filesystem"`
 	Git        extension.Registry `name:"registry.git"`
 	HTTP       extension.Registry `name:"registry.http"`
-	Open       OpenRegistry
+	Open       OpenRegistryUseCase
 	Registries storage.RegistriesStore
 	Logger     *zap.Logger
 }
@@ -45,7 +45,7 @@ type SetRegistryUseCaseParams struct {
 // already configured.
 type SetRegistryUseCase struct {
 	adapters   map[types.Transport]extension.Registry
-	open       OpenRegistry
+	open       OpenRegistryUseCase
 	registries storage.RegistriesStore
 	logger     *zap.Logger
 }

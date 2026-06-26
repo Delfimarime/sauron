@@ -2,13 +2,17 @@ package usecase
 
 import "go.uber.org/fx"
 
-// NewFxOptions wires the use cases and actions.
+// NewFxOptions wires the use cases. OpenRegistryUseCase keeps a bespoke interface
+// (its Execute returns a filesystem, not a *Result); the migrate step fits the
+// generic UseCase shape and is provided as UseCase[MigrateInput, MigrateResult].
 func NewFxOptions() fx.Option {
 	return fx.Provide(
+		NewOpenRegistryUseCase,
 		fx.Annotate(
-			NewOpenRegistryUseCase, fx.As(new(OpenRegistry)),
+			NewMigrateUseCase, fx.As(new(UseCase[MigrateInput, MigrateResult])),
 		),
 		NewSetRegistryUseCase,
+		NewSetProviderUseCase,
 		NewDescribeRegistryUseCase,
 		NewListCatalogueUseCase,
 		NewUnsetRegistryUseCase,

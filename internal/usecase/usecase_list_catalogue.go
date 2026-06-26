@@ -41,7 +41,7 @@ var catalogueRoots = map[CatalogueKind]string{
 type ListCatalogueUseCaseParams struct {
 	fx.In
 	Registries storage.RegistriesStore
-	Open       OpenRegistry
+	Open       OpenRegistryUseCase
 	Logger     *zap.Logger
 }
 
@@ -49,7 +49,7 @@ type ListCatalogueUseCaseParams struct {
 // returns the artifact names of the selected kind with the paging window.
 type ListCatalogueUseCase struct {
 	registries storage.RegistriesStore
-	open       OpenRegistry
+	open       OpenRegistryUseCase
 	logger     *zap.Logger
 }
 

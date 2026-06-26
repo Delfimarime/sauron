@@ -17,16 +17,16 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
-// openFixture bundles the action and its mocked transport adapters.
+// openFixture bundles the use case and its mocked transport adapters.
 type openFixture struct {
-	action     *OpenRegistryUseCase
+	action     *openRegistryUseCase
 	filesystem *extension.MockBasedRegistry
 	git        *extension.MockBasedRegistry
 	http       *extension.MockBasedRegistry
 	fs         *source.MockBasedFileSystem
 }
 
-// newOpenFixture wires an action over fresh mocks with an injected env lookup.
+// newOpenFixture wires a use case over fresh mocks with an injected env lookup.
 func newOpenFixture(env map[string]string) *openFixture {
 	f := &openFixture{
 		filesystem: &extension.MockBasedRegistry{},
@@ -40,7 +40,7 @@ func newOpenFixture(env map[string]string) *openFixture {
 		Git:        f.git,
 		HTTP:       f.http,
 		Logger:     zap.NewNop(),
-	})
+	}).(*openRegistryUseCase)
 	f.action.lookupEnv = func(key string) (string, bool) {
 		v, ok := env[key]
 		return v, ok

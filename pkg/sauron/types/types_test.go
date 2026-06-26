@@ -77,8 +77,8 @@ func TestRoundTrip(t *testing.T) {
 			into: &types.Provider{},
 		},
 		{
-			name: "skill",
-			doc: &types.Skill{
+			name: "skill artifact",
+			doc: &types.Artifact{
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindSkill},
 				Metadata: types.Metadata{Name: "go-style", Labels: map[string]string{"team": "backend"}},
 				Spec: types.ArtifactSpec{
@@ -89,11 +89,11 @@ func TestRoundTrip(t *testing.T) {
 					UpdatedAt:   timestamp,
 				},
 			},
-			into: &types.Skill{},
+			into: &types.Artifact{},
 		},
 		{
-			name: "agent",
-			doc: &types.Agent{
+			name: "agent artifact",
+			doc: &types.Artifact{
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindAgent},
 				Metadata: types.Metadata{Name: "code-reviewer"},
 				Spec: types.ArtifactSpec{
@@ -103,7 +103,7 @@ func TestRoundTrip(t *testing.T) {
 					UpdatedAt:   timestamp,
 				},
 			},
-			into: &types.Agent{},
+			into: &types.Artifact{},
 		},
 	}
 

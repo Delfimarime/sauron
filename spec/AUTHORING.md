@@ -30,7 +30,7 @@ Every spec declares one of two types:
   cross-link declarations, requirement text, Decision Records, and Notes — is a
   relative markdown link to the provider file, resolved from the referencing
   file's own location. For example, a feature's `spec.md` declares
-  `Depends on: [install](../0005-install-artifacts/spec.md)`, and a
+  `Depends on: [install](../0007-install-artifacts/spec.md)`, and a
   `data/state.md` links the schema as
   `[state data contract](../../contracts/state.md)`. Bare ids or
   unlinked feature names are not allowed.

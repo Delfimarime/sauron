@@ -21,6 +21,10 @@ const (
 	filePerm os.FileMode = 0o644
 	// lockPerm is the mode for the write lock file.
 	lockPerm os.FileMode = 0o600
+	// settingsFile holds the singleton Registry and Provider documents.
+	settingsFile = "settings.yaml"
+	// trackFile holds the installed Skill and Agent documents.
+	trackFile = "track.yaml"
 )
 
 // errUnknownKind reports a kind with no backing file.
@@ -47,7 +51,12 @@ func NewStore(fs afero.Fs) (*Store, error) {
 		fs:        fs,
 		guard:     newGuard(fs),
 		validator: v,
-		files:     map[string]string{types.KindRegistry: "settings.yaml"},
+		files: map[string]string{
+			types.KindRegistry: settingsFile,
+			types.KindProvider: settingsFile,
+			types.KindSkill:    trackFile,
+			types.KindAgent:    trackFile,
+		},
 	}, nil
 }
 
@@ -101,13 +110,18 @@ func (s *Store) FindAll(_ context.Context, kind string) ([]*yaml.Node, error) {
 		return nil, err
 	}
 
+	matches := make([]*yaml.Node, 0, len(docs))
 	for _, doc := range docs {
+		if kindOf(doc) != kind {
+			continue
+		}
 		if err := s.validator.validate(kind, doc); err != nil {
 			return nil, err
 		}
+		matches = append(matches, doc)
 	}
 
-	return docs, nil
+	return matches, nil
 }
 
 // Append atomically adds doc to the kind's file under the write lock. The
@@ -221,6 +235,51 @@ func (s *Store) replaceLocked(file, kind string, doc *yaml.Node) error {
 		kept = append(kept, d)
 	}
 	kept = append(kept, doc)
+
+	stream, err := encodeStream(kept)
+	if err != nil {
+		return err
+	}
+
+	return s.writeAtomic(file, stream)
+}
+
+// Upsert atomically replaces the document of kind whose metadata.name matches
+// name with doc, or appends doc when none matches, preserving every other
+// document in the file, under the write lock. The document is not re-validated
+// on write.
+func (s *Store) Upsert(_ context.Context, kind, name string, doc *yaml.Node) error {
+	file, err := s.fileFor(kind)
+	if err != nil {
+		return err
+	}
+
+	return s.guard.withLock(func() error {
+		return s.upsertLocked(file, kind, name, doc)
+	})
+}
+
+// upsertLocked replaces the matching (kind, name) document with doc, or appends
+// it when absent, while the lock is held, keeping every other document untouched.
+func (s *Store) upsertLocked(file, kind, name string, doc *yaml.Node) error {
+	docs, err := s.readDocuments(file)
+	if err != nil {
+		return err
+	}
+
+	replaced := false
+	kept := make([]*yaml.Node, 0, len(docs)+1)
+	for _, d := range docs {
+		if kindOf(d) == kind && nameOf(d) == name {
+			kept = append(kept, doc)
+			replaced = true
+			continue
+		}
+		kept = append(kept, d)
+	}
+	if !replaced {
+		kept = append(kept, doc)
+	}
 
 	stream, err := encodeStream(kept)
 	if err != nil {

@@ -6,7 +6,7 @@
 
 **Enables:** [list catalogue](../../0004-list-catalogue/spec.md)
 
-**Enables:** [install](../../0005-install-artifacts/spec.md)
+**Enables:** [install](../../0007-install-artifacts/spec.md)
 
 ## Overview
 
