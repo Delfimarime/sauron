@@ -10,7 +10,7 @@ Show the configured registry's full detail.
 
 | Flag | Meaning |
 |---|---|
-| `--fields <list>` | Fields to display, in order; `uri` is always present and first. Valid: `uri`, `transport`, `ref`, `auth`, `tls`, `sshKey`, `timeout`, `creationTimestamp`, `lastUpdatedTimestamp` |
+| `--fields <list>` | Fields to display, in order; `source` is always present and first. Valid: `source`, `transport`, `revision`, `credentials`, `tls`, `sshKey`, `timeout`, `created`, `updated` |
 
 ## Output
 
@@ -21,14 +21,14 @@ environment reference, never a resolved secret.
 
 ```
 $ sauron describe registry
-uri:                   git@github.com:acme/artifacts.git
+source:                git@github.com:acme/artifacts.git
 transport:             git
-auth:
+credentials:
   username:            ${env:ACME_USER}
   password:            ${env:ACME_TOKEN}
 timeout:               30s
-creationTimestamp:     2026-06-21T07:30:00Z
-lastUpdatedTimestamp:  2026-06-21T07:30:00Z
+created:               2026-06-21T07:30:00Z
+updated:               2026-06-21T07:30:00Z
 ```
 
 ## Exit codes

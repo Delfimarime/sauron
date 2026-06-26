@@ -84,7 +84,7 @@ func TestOpenRegistryAction_Execute_TransportSelection(t *testing.T) {
 
 			// Act.
 			got, err := f.action.Execute(context.Background(), types.Registry{
-				Spec: types.RegistrySpec{Transport: tt.transport, URI: testFSURI},
+				Spec: types.RegistrySpec{Transport: tt.transport, Source: testFSURI},
 			})
 
 			// Assert: the selected adapter is opened and its file system returned.
@@ -101,7 +101,7 @@ func TestOpenRegistryAction_Execute_UnknownTransport(t *testing.T) {
 
 	// Act.
 	_, err := f.action.Execute(context.Background(), types.Registry{
-		Spec: types.RegistrySpec{Transport: types.Transport("ftp"), URI: "x"},
+		Spec: types.RegistrySpec{Transport: types.Transport("ftp"), Source: "x"},
 	})
 
 	// Assert: a usage error names the unknown transport; no adapter is opened.
@@ -126,8 +126,8 @@ func TestOpenRegistryAction_Execute_CredentialReferences(t *testing.T) {
 		// Act.
 		_, err := f.action.Execute(context.Background(), types.Registry{
 			Spec: types.RegistrySpec{
-				Transport: types.TransportGit, URI: "git@host:repo.git", Ref: testRef,
-				Auth: &types.Auth{Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}"},
+				Transport: types.TransportGit, Source: "git@host:repo.git", Revision: testRef,
+				Credentials: &types.Credentials{Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}"},
 			},
 		})
 
@@ -153,8 +153,8 @@ func TestOpenRegistryAction_Execute_CredentialReferences(t *testing.T) {
 		// Act.
 		_, err := f.action.Execute(context.Background(), types.Registry{
 			Spec: types.RegistrySpec{
-				Transport: types.TransportHTTP, URI: testHTTPURI, Timeout: "15s", SSHKey: "/key",
-				Auth: &types.Auth{Username: "literal-user", Password: "literal-pass"},
+				Transport: types.TransportHTTP, Source: testHTTPURI, Timeout: "15s", SSHKey: "/key",
+				Credentials: &types.Credentials{Username: "literal-user", Password: "literal-pass"},
 				TLS:  &types.TLS{SkipVerify: true, CACert: "/ca.pem", ClientCert: "/c.pem", ClientKey: "/k.pem"},
 			},
 		})
@@ -177,8 +177,8 @@ func TestOpenRegistryAction_Execute_CredentialReferences(t *testing.T) {
 		// Act.
 		_, err := f.action.Execute(context.Background(), types.Registry{
 			Spec: types.RegistrySpec{
-				Transport: types.TransportHTTP, URI: testHTTPURI,
-				Auth: &types.Auth{Username: "${env:ACME_USER}"},
+				Transport: types.TransportHTTP, Source: testHTTPURI,
+				Credentials: &types.Credentials{Username: "${env:ACME_USER}"},
 			},
 		})
 
@@ -223,7 +223,7 @@ func TestOpenRegistryAction_Execute_OpenFailureClassification(t *testing.T) {
 
 			// Act.
 			_, err := f.action.Execute(context.Background(), types.Registry{
-				Spec: types.RegistrySpec{Transport: types.TransportHTTP, URI: testHTTPURI},
+				Spec: types.RegistrySpec{Transport: types.TransportHTTP, Source: testHTTPURI},
 			})
 
 			// Assert.
@@ -238,7 +238,7 @@ func TestOpenRegistryAction_Execute_InvalidTimeout(t *testing.T) {
 
 	// Act.
 	_, err := f.action.Execute(context.Background(), types.Registry{
-		Spec: types.RegistrySpec{Transport: types.TransportHTTP, URI: testHTTPURI, Timeout: "nope"},
+		Spec: types.RegistrySpec{Transport: types.TransportHTTP, Source: testHTTPURI, Timeout: "nope"},
 	})
 
 	// Assert: an unparsable duration is a usage error and no source is opened.

@@ -38,8 +38,8 @@ func TestRegistriesStoreSetRoundTrip(t *testing.T) {
 	in := types.Registry{
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			URI:       acmeURI,
-			Ref:       "release-1.2.3",
+			Source:       acmeURI,
+			Revision:       "release-1.2.3",
 		},
 	}
 
@@ -53,8 +53,8 @@ func TestRegistriesStoreSetRoundTrip(t *testing.T) {
 	assert.Equal(t, types.APIVersion, got.APIVersion)
 	assert.Equal(t, types.KindRegistry, got.Kind)
 	assert.Equal(t, types.TransportGit, got.Spec.Transport)
-	assert.Equal(t, acmeURI, got.Spec.URI)
-	assert.Equal(t, "release-1.2.3", got.Spec.Ref)
+	assert.Equal(t, acmeURI, got.Spec.Source)
+	assert.Equal(t, "release-1.2.3", got.Spec.Revision)
 }
 
 // TestRegistriesStoreSetReplaces keeps exactly one registry: a second Set
@@ -63,12 +63,12 @@ func TestRegistriesStoreSetReplaces(t *testing.T) {
 	// Arrange: an http registry already configured.
 	registries, _ := newTestRegistriesStore(t)
 	require.NoError(t, registries.Set(context.Background(), types.Registry{
-		Spec: types.RegistrySpec{Transport: types.TransportHTTP, URI: "https://example.com/first"},
+		Spec: types.RegistrySpec{Transport: types.TransportHTTP, Source: "https://example.com/first"},
 	}))
 
 	// Act: set a different git registry.
 	require.NoError(t, registries.Set(context.Background(), types.Registry{
-		Spec: types.RegistrySpec{Transport: types.TransportGit, URI: acmeURI},
+		Spec: types.RegistrySpec{Transport: types.TransportGit, Source: acmeURI},
 	}))
 
 	// Assert: only the replacement remains.
@@ -76,7 +76,7 @@ func TestRegistriesStoreSetReplaces(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, types.TransportGit, got.Spec.Transport)
-	assert.Equal(t, acmeURI, got.Spec.URI)
+	assert.Equal(t, acmeURI, got.Spec.Source)
 }
 
 // TestRegistriesStoreSetPersistsValidDocument writes a document that passes the
@@ -87,7 +87,7 @@ func TestRegistriesStoreSetPersistsValidDocument(t *testing.T) {
 	in := types.Registry{
 		Spec: types.RegistrySpec{
 			Transport: types.TransportHTTP,
-			URI:       "https://example.com/beta",
+			Source:       "https://example.com/beta",
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestRegistriesStoreRemoveDropsRegistry(t *testing.T) {
 	// Arrange.
 	registries, _ := newTestRegistriesStore(t)
 	require.NoError(t, registries.Set(context.Background(), types.Registry{
-		Spec: types.RegistrySpec{Transport: types.TransportGit, URI: acmeURI},
+		Spec: types.RegistrySpec{Transport: types.TransportGit, Source: acmeURI},
 	}))
 
 	// Act.
@@ -147,7 +147,7 @@ func TestRegistriesStoreGetPropagatesReadError(t *testing.T) {
 func TestMockBasedRegistriesStore(t *testing.T) {
 	// Arrange.
 	m := &MockBasedRegistriesStore{}
-	want := &types.Registry{Spec: types.RegistrySpec{URI: acmeURI}}
+	want := &types.Registry{Spec: types.RegistrySpec{Source: acmeURI}}
 	ctx := context.Background()
 	m.On("Get", ctx).Return(want, nil)
 	m.On("Set", ctx, types.Registry{}).Return(nil)

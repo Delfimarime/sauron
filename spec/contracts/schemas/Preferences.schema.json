@@ -1,20 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sauron.raitonbl.com/schemas/v1/Agent.schema.json",
-  "title": "Agent",
-  "description": "An installed agent, recorded in track.yaml.",
+  "$id": "https://sauron.raitonbl.com/schemas/v1/Preferences.schema.json",
+  "title": "Preferences",
+  "description": "User interface preferences, persisted in settings.yaml.",
   "type": "object",
   "additionalProperties": false,
   "required": ["apiVersion", "kind", "metadata", "spec"],
   "properties": {
     "apiVersion": { "const": "sauron.raitonbl.com/v1" },
-    "kind": { "const": "Agent" },
+    "kind": { "const": "Preferences" },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
+        "name": {
+          "type": "string",
+          "description": "Unused for the single preferences document; retained for envelope uniformity."
+        },
         "labels": {
           "type": "object",
           "additionalProperties": { "type": "string" }
@@ -34,24 +36,12 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["digest", "path", "installedAt", "updatedAt"],
+      "required": ["theme"],
       "properties": {
-        "version": {
-          "type": "string",
-          "description": "Optional human-meaningful version; derivable for git, declared-only otherwise."
-        },
-        "digest": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Content identity used to detect change and local drift; always present."
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Exact installed location relative to the provider root (sauron-<name>)."
-        },
-        "installedAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "theme": {
+          "enum": ["sauron", "light"],
+          "description": "The active terminal UI color theme; sauron (dark) is the default."
+        }
       }
     }
   }

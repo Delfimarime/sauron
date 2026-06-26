@@ -142,7 +142,7 @@ Feature: List catalogue
   # error (exit 1).
   Scenario: fails when the registry source is unreachable
     Given the registry is configured:
-      | transport  | uri                    |
+      | transport  | source                 |
       | filesystem | /nonexistent/acme/repo |
     When the user runs sauron list catalogue agent
     Then the command exits with status 1

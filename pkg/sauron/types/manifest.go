@@ -27,8 +27,8 @@ type TypeMeta struct {
 // are RFC3339 UTC strings stamped by the writing use case from an injected clock,
 // never hand-edited; both are optional on read so documents predating them load.
 type Metadata struct {
-	Name                 string            `json:"name" yaml:"name"`
-	Labels               map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	CreationTimestamp    string            `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
-	LastUpdatedTimestamp string            `json:"lastUpdatedTimestamp,omitempty" yaml:"lastUpdatedTimestamp,omitempty"`
+	Name          string            `json:"name" yaml:"name"`
+	Labels        map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	CreatedAt     string            `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
+	LastUpdatedAt string            `json:"lastUpdatedAt,omitempty" yaml:"lastUpdatedAt,omitempty"`
 }

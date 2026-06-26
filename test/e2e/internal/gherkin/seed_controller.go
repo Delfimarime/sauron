@@ -14,13 +14,13 @@ import (
 )
 
 // seedColumns are the table columns the registry seed step understands; the
-// username/password columns populate spec.auth, and every other column populates the
-// matching spec field. name is accepted but unused for the single registry (its
-// identity is spec.uri).
+// username/password columns populate spec.credentials, and every other column populates
+// the matching spec field. name is accepted but unused for the single registry (its
+// identity is spec.source).
 var seedColumns = map[string]struct{}{
-	"name": {}, "transport": {}, "uri": {}, "ref": {}, "timeout": {},
+	"name": {}, "transport": {}, "source": {}, "revision": {}, "timeout": {},
 	"username": {}, "password": {}, "sshKey": {},
-	"creationTimestamp": {}, "lastUpdatedTimestamp": {},
+	"createdAt": {}, "lastUpdatedAt": {},
 }
 
 // seedController owns the arrange Given seeds (the graybox-arrange exception): it
@@ -61,7 +61,7 @@ func (c *seedController) trackedSkill(ctx context.Context, name string) error {
 	return c.rt.CopyTo(ctx, trackFile, trackedSkillStream(name))
 }
 
-// buildRegistryStream turns a |transport|uri|…| table into a multi-document YAML
+// buildRegistryStream turns a |transport|source|…| table into a multi-document YAML
 // stream of schema-valid Registry documents. Pure (table in, bytes out) so it is
 // unit-tested without the runtime.
 func buildRegistryStream(table *godog.Table) ([]byte, error) {
@@ -71,7 +71,7 @@ func buildRegistryStream(table *godog.Table) ([]byte, error) {
 	header := table.Rows[0].Cells
 	for _, cell := range header {
 		if _, ok := seedColumns[cell.Value]; !ok {
-			return nil, fmt.Errorf("unknown registry column %q (valid: name, transport, uri, ref, timeout, username, password, sshKey, creationTimestamp, lastUpdatedTimestamp)", cell.Value)
+			return nil, fmt.Errorf("unknown registry column %q (valid: name, transport, source, revision, timeout, username, password, sshKey, createdAt, lastUpdatedAt)", cell.Value)
 		}
 	}
 	var buf bytes.Buffer
@@ -110,34 +110,34 @@ func registryFromRow(header, cells []*messages.PickleTableCell) (types.Registry,
 			reg.Metadata.Name = value
 		case "transport":
 			reg.Spec.Transport = types.Transport(value)
-		case "uri":
-			reg.Spec.URI = value
-		case "ref":
-			reg.Spec.Ref = value
+		case "source":
+			reg.Spec.Source = value
+		case "revision":
+			reg.Spec.Revision = value
 		case "timeout":
 			reg.Spec.Timeout = value
 		case "username":
-			ensureAuth(&reg).Username = value
+			ensureCredentials(&reg).Username = value
 		case "password":
-			ensureAuth(&reg).Password = value
+			ensureCredentials(&reg).Password = value
 		case "sshKey":
 			reg.Spec.SSHKey = value
-		case "creationTimestamp":
-			reg.Metadata.CreationTimestamp = value
-		case "lastUpdatedTimestamp":
-			reg.Metadata.LastUpdatedTimestamp = value
+		case "createdAt":
+			reg.Metadata.CreatedAt = value
+		case "lastUpdatedAt":
+			reg.Metadata.LastUpdatedAt = value
 		}
 	}
 	return reg, nil
 }
 
-// ensureAuth lazily allocates the registry's auth block so the username and password
-// columns populate spec.auth, leaving it nil when neither is given.
-func ensureAuth(reg *types.Registry) *types.Auth {
-	if reg.Spec.Auth == nil {
-		reg.Spec.Auth = &types.Auth{}
+// ensureCredentials lazily allocates the registry's credentials block so the username
+// and password columns populate spec.credentials, leaving it nil when neither is given.
+func ensureCredentials(reg *types.Registry) *types.Credentials {
+	if reg.Spec.Credentials == nil {
+		reg.Spec.Credentials = &types.Credentials{}
 	}
-	return reg.Spec.Auth
+	return reg.Spec.Credentials
 }
 
 // trackedSkillStream renders a schema-valid installed Skill document for track.yaml.

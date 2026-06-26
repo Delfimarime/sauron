@@ -23,8 +23,8 @@ const (
 )
 
 // TestNewSetRegistryInputMapsFlags asserts the parsed flags and positional
-// argument land on the use case input, including the --kind default and the
-// git-specific --ref.
+// argument land on the use case input, including the --transport default and the
+// git-specific --revision.
 func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -39,23 +39,23 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 	}{
 		{
 			name:      "defaults to http transport",
-			flags:     setRegistryFlags{kindFlags: kindFlags{Kind: kindHTTP}, timeoutFlags: timeoutFlags{Timeout: 30 * time.Second}},
+			flags:     setRegistryFlags{transportFlags: transportFlags{Transport: transportHTTP}, timeoutFlags: timeoutFlags{Timeout: 30 * time.Second}},
 			args:      []string{regURI},
-			wantKind:  kindHTTP,
+			wantKind:  transportHTTP,
 			wantTmout: 30 * time.Second,
 		},
 		{
 			name: "git ref and credentials carried",
 			flags: setRegistryFlags{
-				kindFlags:     kindFlags{Kind: kindGit},
+				transportFlags:     transportFlags{Transport: transportGit},
 				timeoutFlags:  timeoutFlags{Timeout: 5 * time.Second},
-				Ref:           "v1.2.3",
+				Revision:      "v1.2.3",
 				Username:      envRef,
 				SkipTLSVerify: true,
 				SSHKey:        "/keys/id_ed25519",
 			},
 			args:      []string{regURI},
-			wantKind:  kindGit,
+			wantKind:  transportGit,
 			wantRef:   "v1.2.3",
 			wantUser:  envRef,
 			wantTLS:   true,
@@ -69,8 +69,8 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 			// Act.
 			input := usecase.SetRegistryInput{
 				URI:           tt.args[0],
-				Transport:     tt.flags.Kind,
-				Ref:           tt.flags.Ref,
+				Transport:     tt.flags.Transport,
+				Ref:           tt.flags.Revision,
 				Username:      tt.flags.Username,
 				Password:      tt.flags.Password,
 				SSHKey:        tt.flags.SSHKey,
@@ -93,11 +93,11 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 	}
 }
 
-// TestSetRegistryRejectsInvalidKind asserts an unknown --kind is rejected before
+// TestSetRegistryRejectsInvalidKind asserts an unknown --transport is rejected before
 // the use case runs and maps to the usage exit code.
 func TestSetRegistryRejectsInvalidKind(t *testing.T) {
 	// Arrange.
-	flags := setRegistryFlags{kindFlags: kindFlags{Kind: "ftp"}}
+	flags := setRegistryFlags{transportFlags: transportFlags{Transport: "ftp"}}
 
 	// Act.
 	err := setRegistry(context.Background(), &flags, []string{regURI}, &bytes.Buffer{})
@@ -109,7 +109,7 @@ func TestSetRegistryRejectsInvalidKind(t *testing.T) {
 }
 
 // TestSetRegistryCommand exercises the assembled subcommand: flag binding, the
-// --kind default, ExactArgs(1), and rejection of malformed input before the
+// --transport default, ExactArgs(1), and rejection of malformed input before the
 // graph is built. It uses a temporary SAURON_HOME so nothing durable is touched.
 func TestSetRegistryCommand(t *testing.T) {
 	tests := []struct {
@@ -132,7 +132,7 @@ func TestSetRegistryCommand(t *testing.T) {
 		},
 		{
 			name:      "rejects an unknown kind",
-			args:      []string{"--kind", "ftp", regURI},
+			args:      []string{"--transport", "ftp", regURI},
 			wantErr:   true,
 			wantUsage: true,
 		},
@@ -171,14 +171,14 @@ func TestSetRegistryFlagDefaults(t *testing.T) {
 	// Arrange + Act.
 	cmd := SetRegistry()
 
-	// Assert: --kind defaults to http.
-	kind, err := cmd.Flags().GetString(flagKind)
+	// Assert: --transport defaults to http.
+	kind, err := cmd.Flags().GetString(flagTransport)
 	require.NoError(t, err)
-	assert.Equal(t, kindHTTP, kind)
+	assert.Equal(t, transportHTTP, kind)
 
 	// Assert: the full flag surface is present.
 	for _, name := range []string{
-		flagKind, "ref", "timeout", "username", "password",
+		flagTransport, "revision", "timeout", "username", "password",
 		"skip-tls-verify", "ca-cert", "client-cert", "client-key", "ssh-key",
 	} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
@@ -209,12 +209,12 @@ func TestExitCode(t *testing.T) {
 
 // TestKindFlagsValidate covers the shared transport validator.
 func TestKindFlagsValidate(t *testing.T) {
-	for _, kind := range kindValues {
-		f := kindFlags{Kind: kind}
+	for _, kind := range transportValues {
+		f := transportFlags{Transport: kind}
 		assert.NoErrorf(t, f.validate(), "kind %q is accepted", kind)
 	}
 
-	f := kindFlags{Kind: "smtp"}
+	f := transportFlags{Transport: "smtp"}
 	assert.ErrorIs(t, f.validate(), errInvalidFlag)
 }
 
@@ -244,7 +244,7 @@ func TestSetRegistryEndToEnd(t *testing.T) {
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
 	cmd.SetContext(context.Background())
-	cmd.SetArgs([]string{"--kind", kindFilesystem, source})
+	cmd.SetArgs([]string{"--transport", transportFilesystem, source})
 
 	// Act.
 	err := cmd.Execute()

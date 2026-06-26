@@ -29,7 +29,7 @@ func table(rows ...[]string) *godog.Table {
 
 func TestBuildRegistryStreamStampsEnvelopeAndSpec(t *testing.T) {
 	stream, err := buildRegistryStream(table(
-		[]string{"transport", "uri"},
+		[]string{"transport", "source"},
 		[]string{"git", "git@github.com:acme/artifacts.git"},
 	))
 	require.NoError(t, err)
@@ -43,12 +43,12 @@ func TestBuildRegistryStreamStampsEnvelopeAndSpec(t *testing.T) {
 	assert.Equal(t, types.APIVersion, regs[0].APIVersion)
 	assert.Equal(t, types.KindRegistry, regs[0].Kind)
 	assert.Equal(t, types.TransportGit, regs[0].Spec.Transport)
-	assert.Equal(t, "git@github.com:acme/artifacts.git", regs[0].Spec.URI)
+	assert.Equal(t, "git@github.com:acme/artifacts.git", regs[0].Spec.Source)
 }
 
 func TestBuildRegistryStreamCarriesOptionalColumns(t *testing.T) {
 	stream, err := buildRegistryStream(table(
-		[]string{"transport", "uri", "ref", "timeout", "sshKey", "creationTimestamp", "lastUpdatedTimestamp"},
+		[]string{"transport", "source", "revision", "timeout", "sshKey", "createdAt", "lastUpdatedAt"},
 		[]string{"git", "git@github.com:acme/artifacts.git", "v1.2.0", "45s", "/home/dev/.ssh/id_ed25519", "2026-06-21T07:30:00Z", "2026-06-22T08:00:00Z"},
 	))
 	require.NoError(t, err)
@@ -56,11 +56,11 @@ func TestBuildRegistryStreamCarriesOptionalColumns(t *testing.T) {
 	regs, err := decodeRegistries(stream)
 	require.NoError(t, err)
 	require.Len(t, regs, 1)
-	assert.Equal(t, "v1.2.0", regs[0].Spec.Ref)
+	assert.Equal(t, "v1.2.0", regs[0].Spec.Revision)
 	assert.Equal(t, "45s", regs[0].Spec.Timeout)
 	assert.Equal(t, "/home/dev/.ssh/id_ed25519", regs[0].Spec.SSHKey)
-	assert.Equal(t, "2026-06-21T07:30:00Z", regs[0].Metadata.CreationTimestamp)
-	assert.Equal(t, "2026-06-22T08:00:00Z", regs[0].Metadata.LastUpdatedTimestamp)
+	assert.Equal(t, "2026-06-21T07:30:00Z", regs[0].Metadata.CreatedAt)
+	assert.Equal(t, "2026-06-22T08:00:00Z", regs[0].Metadata.LastUpdatedAt)
 }
 
 func TestBuildRegistryStreamRejectsUnknownColumnAndEmptyTable(t *testing.T) {
@@ -70,7 +70,7 @@ func TestBuildRegistryStreamRejectsUnknownColumnAndEmptyTable(t *testing.T) {
 	))
 	assert.Error(t, err)
 
-	_, err = buildRegistryStream(table([]string{"transport", "uri"}))
+	_, err = buildRegistryStream(table([]string{"transport", "source"}))
 	assert.Error(t, err, "a header with no data rows is rejected")
 }
 

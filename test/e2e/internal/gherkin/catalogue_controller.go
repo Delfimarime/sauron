@@ -142,7 +142,7 @@ func filesystemRegistryStream(path string) ([]byte, error) {
 		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
 	}
 	reg.Spec.Transport = types.TransportFilesystem
-	reg.Spec.URI = path
+	reg.Spec.Source = path
 
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

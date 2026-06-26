@@ -14,7 +14,7 @@ import (
 func TestDescriptorValueReadsLabelledLine(t *testing.T) {
 	output := "name:       acme\n" +
 		"transport:  git\n" +
-		"auth:\n" +
+		"credentials:\n" +
 		"  username: ${env:ACME_USER}\n" +
 		"  password: ${env:ACME_TOKEN}\n"
 
@@ -32,13 +32,13 @@ func TestDescriptorValueReadsLabelledLine(t *testing.T) {
 }
 
 func TestDescriptorValueMissingLabel(t *testing.T) {
-	_, ok := descriptorValue("name: acme\n", "ref")
+	_, ok := descriptorValue("name: acme\n", "revision")
 	assert.False(t, ok)
 }
 
-func TestBuildRegistryStreamCarriesAuthColumns(t *testing.T) {
+func TestBuildRegistryStreamCarriesCredentialColumns(t *testing.T) {
 	stream, err := buildRegistryStream(table(
-		[]string{"name", "transport", "uri", "username", "password"},
+		[]string{"name", "transport", "source", "username", "password"},
 		[]string{"acme", "git", "git@github.com:acme/artifacts.git", "${env:ACME_USER}", "${env:ACME_TOKEN}"},
 	))
 	require.NoError(t, err)
@@ -46,14 +46,14 @@ func TestBuildRegistryStreamCarriesAuthColumns(t *testing.T) {
 	regs, err := decodeRegistries(stream)
 	require.NoError(t, err)
 	require.Len(t, regs, 1)
-	require.NotNil(t, regs[0].Spec.Auth)
-	assert.Equal(t, "${env:ACME_USER}", regs[0].Spec.Auth.Username)
-	assert.Equal(t, "${env:ACME_TOKEN}", regs[0].Spec.Auth.Password)
+	require.NotNil(t, regs[0].Spec.Credentials)
+	assert.Equal(t, "${env:ACME_USER}", regs[0].Spec.Credentials.Username)
+	assert.Equal(t, "${env:ACME_TOKEN}", regs[0].Spec.Credentials.Password)
 }
 
-func TestBuildRegistryStreamLeavesAuthNilWhenAbsent(t *testing.T) {
+func TestBuildRegistryStreamLeavesCredentialsNilWhenAbsent(t *testing.T) {
 	stream, err := buildRegistryStream(table(
-		[]string{"name", "transport", "uri"},
+		[]string{"name", "transport", "source"},
 		[]string{"acme", "git", "git@github.com:acme/artifacts.git"},
 	))
 	require.NoError(t, err)
@@ -61,6 +61,6 @@ func TestBuildRegistryStreamLeavesAuthNilWhenAbsent(t *testing.T) {
 	regs, err := decodeRegistries(stream)
 	require.NoError(t, err)
 	require.Len(t, regs, 1)
-	var nilAuth *types.Auth
-	assert.Equal(t, nilAuth, regs[0].Spec.Auth)
+	var nilCredentials *types.Credentials
+	assert.Equal(t, nilCredentials, regs[0].Spec.Credentials)
 }

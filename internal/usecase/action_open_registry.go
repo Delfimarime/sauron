@@ -82,10 +82,10 @@ func (a *OpenRegistryAction) Execute(ctx context.Context, registry types.Registr
 // connectOptions builds the extension option set from the spec, resolving any
 // ${env:VAR} credential references to their values for connecting only.
 func (a *OpenRegistryAction) connectOptions(spec types.RegistrySpec) ([]extension.Option, error) {
-	opts := []extension.Option{extension.WithURI(spec.URI)}
+	opts := []extension.Option{extension.WithURI(spec.Source)}
 
-	if spec.Transport == types.TransportGit && spec.Ref != "" {
-		opts = append(opts, extension.WithRef(spec.Ref))
+	if spec.Transport == types.TransportGit && spec.Revision != "" {
+		opts = append(opts, extension.WithRef(spec.Revision))
 	}
 	if timeout, err := a.timeout(spec.Timeout); err != nil {
 		return nil, err
@@ -96,12 +96,12 @@ func (a *OpenRegistryAction) connectOptions(spec types.RegistrySpec) ([]extensio
 		opts = append(opts, extension.WithSSHKey(spec.SSHKey))
 	}
 
-	authOpt, err := a.authOption(spec.Auth)
+	credentialsOpt, err := a.credentialsOption(spec.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	if authOpt != nil {
-		opts = append(opts, authOpt)
+	if credentialsOpt != nil {
+		opts = append(opts, credentialsOpt)
 	}
 
 	return append(opts, a.tlsOptions(spec.TLS)...), nil
@@ -121,18 +121,18 @@ func (a *OpenRegistryAction) timeout(value string) (time.Duration, error) {
 	return timeout, nil
 }
 
-// authOption builds the basic-auth option, resolving credential references; it
-// returns nil when no credentials were supplied.
-func (a *OpenRegistryAction) authOption(auth *types.Auth) (extension.Option, error) {
-	if auth == nil || (auth.Username == "" && auth.Password == "") {
+// credentialsOption builds the basic-auth option, resolving credential
+// references; it returns nil when no credentials were supplied.
+func (a *OpenRegistryAction) credentialsOption(credentials *types.Credentials) (extension.Option, error) {
+	if credentials == nil || (credentials.Username == "" && credentials.Password == "") {
 		return nil, nil
 	}
 
-	username, err := a.resolveRef(auth.Username)
+	username, err := a.resolveRef(credentials.Username)
 	if err != nil {
 		return nil, err
 	}
-	password, err := a.resolveRef(auth.Password)
+	password, err := a.resolveRef(credentials.Password)
 	if err != nil {
 		return nil, err
 	}

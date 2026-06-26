@@ -19,7 +19,7 @@ metadata:
   name: beta
 spec:
   transport: http
-  uri: https://example.com/beta
+  source: https://example.com/beta
 `
 
 // TestStoreFindAllReturnsEveryDocument returns every document of the kind, in order.
@@ -89,7 +89,7 @@ metadata:
   name: beta
 spec:
   transport: git
-  uri: https://example.com/beta.git
+  source: https://example.com/beta.git
   bogus: nope
 `
 	store, fs := newTestStore(t)

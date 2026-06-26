@@ -29,7 +29,7 @@ const (
 	flagSearch = "search"
 	flagSort   = "sort"
 	fieldsName = "fields"
-	flagKind   = "kind"
+	flagTransport   = "transport"
 	sortName   = "name"
 )
 
@@ -48,7 +48,7 @@ func seedCatalogueRegistry(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(agents, "code-reviewer.yaml"), []byte(manifest), 0o644))
 
 	stream := "apiVersion: sauron.raitonbl.com/v1\nkind: Registry\nmetadata:\n  name: " + acmeName +
-		"\nspec:\n  transport: filesystem\n  uri: " + source + "\n"
+		"\nspec:\n  transport: filesystem\n  source: " + source + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
 }
 
@@ -245,7 +245,7 @@ func TestListCatalogueUnreachableSource(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("SAURON_HOME", home)
 	stream := "apiVersion: sauron.raitonbl.com/v1\nkind: Registry\nmetadata:\n  name: " + acmeName +
-		"\nspec:\n  transport: filesystem\n  uri: " + filepath.Join(home, "nonexistent") + "\n"
+		"\nspec:\n  transport: filesystem\n  source: " + filepath.Join(home, "nonexistent") + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
 
 	// Act.

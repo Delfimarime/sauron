@@ -90,7 +90,7 @@ func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInp
 
 	items := uc.items(files)
 	uc.logger.Info("catalogue listed",
-		zap.String(telemetry.FieldRegistryURI, registry.Spec.URI),
+		zap.String(telemetry.FieldRegistryURI, registry.Spec.Source),
 		zap.Int(telemetry.FieldArtifactCount, len(items)),
 	)
 

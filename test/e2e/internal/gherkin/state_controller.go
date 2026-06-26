@@ -93,10 +93,10 @@ func (c *stateController) registryPasswordRef(ctx context.Context, ref string) e
 	if err != nil {
 		return err
 	}
-	if reg.Spec.Auth == nil {
-		return fmt.Errorf("the registry has no auth block")
+	if reg.Spec.Credentials == nil {
+		return fmt.Errorf("the registry has no credentials block")
 	}
-	return assertExpected("password reference", ref, reg.Spec.Auth.Password)
+	return assertExpected("password reference", ref, reg.Spec.Credentials.Password)
 }
 
 // registryHasCreationTimestamp proves set stamps the audit timestamps: both are
@@ -108,16 +108,16 @@ func (c *stateController) registryHasCreationTimestamp(ctx context.Context) erro
 	if err != nil {
 		return err
 	}
-	created := reg.Metadata.CreationTimestamp
-	updated := reg.Metadata.LastUpdatedTimestamp
+	created := reg.Metadata.CreatedAt
+	updated := reg.Metadata.LastUpdatedAt
 	if created == "" {
-		return fmt.Errorf("the registry has no creationTimestamp")
+		return fmt.Errorf("the registry has no createdAt")
 	}
 	if _, err := time.Parse(time.RFC3339, created); err != nil {
-		return fmt.Errorf("registry creationTimestamp %q is not RFC3339: %w", created, err)
+		return fmt.Errorf("registry createdAt %q is not RFC3339: %w", created, err)
 	}
 	if _, err := time.Parse(time.RFC3339, updated); err != nil {
-		return fmt.Errorf("registry lastUpdatedTimestamp %q is not RFC3339: %w", updated, err)
+		return fmt.Errorf("registry lastUpdatedAt %q is not RFC3339: %w", updated, err)
 	}
 	return assertExpected("audit timestamps equal on create", created, updated)
 }
@@ -243,10 +243,10 @@ func registryField(reg types.Registry, field string) (string, error) {
 		return reg.APIVersion, nil
 	case "spec.transport":
 		return string(reg.Spec.Transport), nil
-	case "spec.uri":
-		return reg.Spec.URI, nil
-	case "spec.ref":
-		return reg.Spec.Ref, nil
+	case "spec.source":
+		return reg.Spec.Source, nil
+	case "spec.revision":
+		return reg.Spec.Revision, nil
 	default:
 		return "", fmt.Errorf("unknown registry field %q", field)
 	}

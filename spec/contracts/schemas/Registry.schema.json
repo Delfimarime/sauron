@@ -21,12 +21,12 @@
           "type": "object",
           "additionalProperties": { "type": "string" }
         },
-        "creationTimestamp": {
+        "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "RFC3339 UTC timestamp stamped by sauron when the document was created; never hand-edited."
         },
-        "lastUpdatedTimestamp": {
+        "lastUpdatedAt": {
           "type": "string",
           "format": "date-time",
           "description": "RFC3339 UTC timestamp stamped by sauron on the document's most recent write; never hand-edited."
@@ -36,16 +36,16 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["transport", "uri"],
+      "required": ["transport", "source"],
       "properties": {
         "transport": { "enum": ["git", "http", "filesystem"] },
-        "uri": { "type": "string", "minLength": 1 },
-        "ref": {
+        "source": { "type": "string", "minLength": 1 },
+        "revision": {
           "type": "string",
           "minLength": 1,
-          "description": "Git ref (branch, tag, or commit) to resolve artifacts from; git transport only. Absent means the repository's default branch."
+          "description": "Git revision (branch, tag, or commit) to resolve artifacts from; git transport only. Absent means the repository's default branch."
         },
-        "auth": {
+        "credentials": {
           "type": "object",
           "additionalProperties": false,
           "description": "Credentials as environment references only (${env:VAR}); never resolved secrets.",

@@ -52,7 +52,7 @@ func (c *commandController) setRegistry(ctx context.Context, transport, uriRef s
 }
 
 // setRegistryPinned is setRegistry with the source pinned to a git ref, forwarded
-// as --ref (the binary records it as spec.ref).
+// as --revision (the binary records it as spec.revision).
 func (c *commandController) setRegistryPinned(ctx context.Context, transport, uriRef, ref string) error {
 	return c.set(ctx, setOptions{transport: transport, uriRef: uriRef, ref: ref})
 }
@@ -206,14 +206,14 @@ func (c *commandController) lastOutput() (string, error) {
 
 // setRegistryArgs assembles the `sauron set registry` invocation shared by every
 // When step. It takes the option struct with its uri and ssh-key references already
-// resolved to concrete values. The command takes the transport as --kind and the
+// resolved to concrete values. The command takes the transport as --transport and the
 // uri as the sole positional argument (the single registry carries no name); the
-// ref, basic-auth, ssh-key, and client-certificate flags are appended only when
+// revision, basic-auth, ssh-key, and client-certificate flags are appended only when
 // set, before the positional.
 func setRegistryArgs(o setOptions) []string {
-	args := []string{"sauron", "set", "registry", "--kind", o.transport}
+	args := []string{"sauron", "set", "registry", "--transport", o.transport}
 	if o.ref != "" {
-		args = append(args, "--ref", o.ref)
+		args = append(args, "--revision", o.ref)
 	}
 	if o.username != "" {
 		args = append(args, "--username", o.username)

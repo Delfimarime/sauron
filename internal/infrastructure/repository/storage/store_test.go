@@ -35,8 +35,8 @@ metadata:
   name: acme
 spec:
   transport: git
-  uri: https://example.com/acme.git
-  ref: main
+  source: https://example.com/acme.git
+  revision: main
 `
 
 // newTestStore builds a Store over an in-memory filesystem.
@@ -97,7 +97,7 @@ metadata:
   name: acme
 spec:
   transport: git
-  uri: https://example.com/acme.git
+  source: https://example.com/acme.git
   bogus: nope
 `
 	store, fs := newTestStore(t)
@@ -149,7 +149,7 @@ metadata:
   name: beta
 spec:
   transport: http
-  uri: https://example.com/beta
+  source: https://example.com/beta
 `)
 
 	// Act.
@@ -248,7 +248,7 @@ metadata:
   name: beta
 spec:
   transport: http
-  uri: https://example.com/beta
+  source: https://example.com/beta
 `)))
 
 	// Act.
@@ -370,7 +370,7 @@ func registryYAML(i int) string {
 		"  name: " + registryName(i) + "\n" +
 		"spec:\n" +
 		"  transport: git\n" +
-		"  uri: https://example.com/" + registryName(i) + ".git\n"
+		"  source: https://example.com/" + registryName(i) + ".git\n"
 }
 
 // TestNewStore asserts the store retains the injected filesystem.

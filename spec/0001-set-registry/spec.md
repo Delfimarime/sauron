@@ -26,7 +26,7 @@ this feature is realized by.
 
 - FR-001: Sauron shall persist the source's URI and transport as the single
   `Registry` document in `settings.yaml`.
-- FR-002: Sauron shall default the transport to `http` when `--kind` is not given.
+- FR-002: Sauron shall default the transport to `http` when `--transport` is not given.
 - FR-003: Sauron shall store a secret credential (password or token) as an
   environment reference (`${env:VAR}`) only, never resolving or persisting the
   secret value; a non-secret username may be a literal or a reference.
@@ -38,7 +38,7 @@ this feature is realized by.
 - FR-005: When validation succeeds, Sauron shall report the configured URI and
   transport on stdout.
 - FR-014: When the `Registry` document is persisted, Sauron shall stamp
-  `metadata.creationTimestamp` and `metadata.lastUpdatedTimestamp` as equal
+  `metadata.createdAt` and `metadata.lastUpdatedAt` as equal
   RFC3339 UTC instants taken from its clock.
 
 ### State-driven
@@ -63,15 +63,15 @@ this feature is realized by.
   document.
 - FR-012: Where `--timeout` is provided, Sauron shall bound the validation network
   operation by it (default `30s`).
-- FR-013: Where `--ref` is provided for a git registry, Sauron shall apply it when
-  validating and persist it on the `Registry` document as `spec.ref`; when `--ref`
+- FR-013: Where `--revision` is provided for a git registry, Sauron shall apply it when
+  validating and persist it on the `Registry` document as `spec.revision`; when `--revision`
   is absent, the registry resolves from the repository's default branch.
 
 ## Key Entities
 
 - **Registry** — the single configured source, persisted as a `Registry` document;
   see the [state data contract](../contracts/state.md).
-- **Transport** — `git`, `http`, or `filesystem`, selected by `--kind` and stored
+- **Transport** — `git`, `http`, or `filesystem`, selected by `--transport` and stored
   as `spec.transport`.
 
 ## Notes

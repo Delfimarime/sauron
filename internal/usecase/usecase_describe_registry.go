@@ -46,7 +46,7 @@ func (uc *DescribeRegistryUseCase) Execute(ctx context.Context, _ DescribeRegist
 	}
 
 	uc.logger.Debug("registry described",
-		zap.String(telemetry.FieldRegistryURI, registry.Spec.URI),
+		zap.String(telemetry.FieldRegistryURI, registry.Spec.Source),
 	)
 
 	return registry, nil

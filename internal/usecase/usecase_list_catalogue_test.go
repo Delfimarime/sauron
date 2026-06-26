@@ -50,7 +50,7 @@ func (f *catalogueFixture) run(in ListCatalogueInput) (*ListCatalogueResult, err
 // expectFound stubs Get to return the configured registry.
 func (f *catalogueFixture) expectFound() {
 	f.store.On("Get", mock.Anything).
-		Return(&types.Registry{Spec: types.RegistrySpec{URI: catalogueURI}}, nil)
+		Return(&types.Registry{Spec: types.RegistrySpec{Source: catalogueURI}}, nil)
 }
 
 // expectOpen stubs the open action to return the fixture's file system.

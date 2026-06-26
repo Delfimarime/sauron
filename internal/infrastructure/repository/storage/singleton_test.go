@@ -75,7 +75,7 @@ metadata:
   name: acme
 spec:
   transport: git
-  uri: https://example.com/acme.git
+  source: https://example.com/acme.git
   bogus: nope
 `
 	store, fs := newTestStore(t)

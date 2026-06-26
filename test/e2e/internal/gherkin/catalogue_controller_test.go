@@ -52,7 +52,7 @@ func TestFilesystemRegistryStreamIsSchemaValid(t *testing.T) {
 	assert.Equal(t, types.APIVersion, regs[0].APIVersion)
 	assert.Equal(t, types.KindRegistry, regs[0].Kind)
 	assert.Equal(t, types.TransportFilesystem, regs[0].Spec.Transport)
-	assert.Equal(t, "/tmp/registry/acme", regs[0].Spec.URI)
+	assert.Equal(t, "/tmp/registry/acme", regs[0].Spec.Source)
 }
 
 func TestCatalogueHasRowMatchesOnFields(t *testing.T) {

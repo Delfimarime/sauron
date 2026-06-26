@@ -242,13 +242,13 @@ func TestBindFlags(t *testing.T) {
 	var listing listingFlags
 	var dry dryRunFlags
 	var timeout timeoutFlags
-	var kind kindFlags
+	var kind transportFlags
 
 	// Act.
 	bindListingFlags(cmd, &listing)
 	bindDryRunFlags(cmd, &dry)
 	bindTimeoutFlags(cmd, &timeout)
-	bindKindFlags(cmd, &kind)
+	bindTransportFlags(cmd, &kind)
 
 	// Assert: defaults bound onto the structs.
 	assert.Equal(t, "", listing.Search)
@@ -257,10 +257,10 @@ func TestBindFlags(t *testing.T) {
 	assert.Empty(t, listing.Fields)
 	assert.False(t, dry.DryRun)
 	assert.Equal(t, 30*time.Second, timeout.Timeout)
-	assert.Equal(t, kindHTTP, kind.Kind)
+	assert.Equal(t, transportHTTP, kind.Transport)
 
 	// Assert: flags are registered on the command.
-	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName, "dry-run", "timeout", flagKind} {
+	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName, "dry-run", "timeout", flagTransport} {
 		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
 	}
 }

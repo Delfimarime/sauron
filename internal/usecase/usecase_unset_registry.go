@@ -55,7 +55,7 @@ func (uc *UnsetRegistryUseCase) Execute(ctx context.Context, in UnsetRegistryInp
 		return nil, NewIOError(fmt.Sprintf("remove registry: %v", err))
 	}
 
-	uc.logger.Info("registry unset", zap.String(telemetry.FieldRegistryURI, registry.Spec.URI))
+	uc.logger.Info("registry unset", zap.String(telemetry.FieldRegistryURI, registry.Spec.Source))
 
 	return &UnsetRegistryResult{Outcome: UnsetRemoved}, nil
 }

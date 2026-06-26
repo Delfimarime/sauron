@@ -1,11 +1,11 @@
 # `set registry` — command line
 
 ```
-sauron set registry [--kind git|http|filesystem] [--ref <ref>] [--timeout <duration>]
+sauron set registry [--transport git|http|filesystem] [--revision <revision>] [--timeout <duration>]
                      [--username <value>] [--password <ref>] [--skip-tls-verify]
                      [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
                      [--ssh-key <path>]
-                     <uri>
+                     <source>
 ```
 
 Configure the single artifact source, of any transport, replacing any registry
@@ -15,13 +15,13 @@ already set.
 
 | Argument | Required | Meaning |
 |---|---|---|
-| `<uri>` | yes | The source location, interpreted per the transport |
+| `<source>` | yes | The source location, interpreted per the transport |
 
 ## Flags
 
 | Flag | Meaning |
 |---|---|
-| `--kind <kind>` | Transport: `git`, `http` (default), or `filesystem`; persisted as `spec.transport` |
+| `--transport <kind>` | Transport: `git`, `http` (default), or `filesystem`; persisted as `spec.transport` |
 | `--timeout <duration>` | Bound on the validation network operation (default `30s`) |
 | `--username <value>` | Auth username; a literal value or an environment reference (`${env:VAR}`) |
 | `--password <ref>` | Auth password/token, as an environment reference (`${env:VAR}`); a literal secret is a usage error |
@@ -30,7 +30,7 @@ already set.
 | `--client-cert <path>` | Client certificate path (http) |
 | `--client-key <path>` | Client key path (http) |
 | `--ssh-key <path>` | SSH private key path (git over SSH) |
-| `--ref <ref>` | Git ref (branch, tag, or commit) to resolve artifacts from; persisted as `spec.ref`; git only |
+| `--revision <revision>` | Git revision (branch, tag, or commit) to resolve artifacts from; persisted as `spec.revision`; git only |
 
 Auth and TLS flags are accepted only for the transports that use them; the
 applicable set per transport is fixed by the
@@ -45,7 +45,7 @@ transport. No output is written to stdout on failure.
 ## Example
 
 ```
-$ sauron set registry --kind git git@github.com:acme/artifacts.git
+$ sauron set registry --transport git git@github.com:acme/artifacts.git
 registry set to git@github.com:acme/artifacts.git (git)
 ```
 

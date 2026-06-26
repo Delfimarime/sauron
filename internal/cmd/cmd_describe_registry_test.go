@@ -15,13 +15,13 @@ import (
 const (
 	flagFields   = "--fields"
 	flagUnknown  = "--nope"
-	transportSel = "transport,uri"
+	transportSel = "transport,source"
 	caseUnknown  = "rejects an unknown flag"
 
 	labelTransport = "transport:"
-	labelURI       = "uri:"
-	labelRef       = "ref:"
-	labelAuth      = "auth:"
+	labelURI       = "source:"
+	labelRef       = "revision:"
+	labelAuth      = "credentials:"
 	labelTimeout   = "timeout:"
 )
 
@@ -33,9 +33,9 @@ metadata:
   name: acme
 spec:
   transport: git
-  uri: git@github.com:acme/artifacts.git
-  ref: v1.2.0
-  auth:
+  source: git@github.com:acme/artifacts.git
+  revision: v1.2.0
+  credentials:
     username: ${env:ACME_USER}
     password: ${env:ACME_TOKEN}
   timeout: 45s
@@ -111,7 +111,7 @@ func TestDescribeRegistryRejectsBadInput(t *testing.T) {
 
 // TestDescribeRegistryEndToEnd drives the assembled subcommand through the real fx
 // graph against a seeded settings.yaml, covering the full detail, field
-// selection, the auth block, the not-found error, and the usage error. uri is the
+// selection, the credentials block, the not-found error, and the usage error. source is the
 // identity and is always present and first; there is no name line.
 func TestDescribeRegistryEndToEnd(t *testing.T) {
 	tests := []struct {
@@ -130,7 +130,7 @@ func TestDescribeRegistryEndToEnd(t *testing.T) {
 			wantOut: []string{labelURI, "git@github.com:acme/artifacts.git", labelTransport, labelRef, "v1.2.0", labelAuth, "${env:ACME_USER}", "${env:ACME_TOKEN}", labelTimeout, "45s"},
 		},
 		{
-			name:       "fields selects and orders, uri forced first",
+			name:       "fields selects and orders, source forced first",
 			seed:       authRegistries,
 			args:       []string{flagFields, transportSel},
 			wantOut:    []string{labelURI, labelTransport},
