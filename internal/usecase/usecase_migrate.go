@@ -26,9 +26,9 @@ var providerDirs = map[string]string{
 // MigrateUseCaseParams injects the collaborators the migration composes.
 type MigrateUseCaseParams struct {
 	fx.In
+	Logger *zap.Logger
 	Track  storage.TrackStore
 	Fs     afero.Fs `name:"provider"`
-	Logger *zap.Logger
 }
 
 // MigrateUseCase relocates installed artifacts when the provider changes: for
