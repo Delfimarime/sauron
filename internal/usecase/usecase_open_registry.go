@@ -14,9 +14,9 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
-// OpenRegistryActionParams injects the named transport adapters and collaborators
+// OpenRegistryUseCaseParams injects the named transport adapters and collaborators
 // the action composes.
-type OpenRegistryActionParams struct {
+type OpenRegistryUseCaseParams struct {
 	fx.In
 	Filesystem extension.Registry `name:"registry.filesystem"`
 	Git        extension.Registry `name:"registry.git"`
@@ -32,21 +32,21 @@ type OpenRegistry interface {
 	Execute(ctx context.Context, registry types.Registry) (source.FileSystem, error)
 }
 
-// OpenRegistryAction opens a stored registry's source: it selects the transport
+// OpenRegistryUseCase opens a stored registry's source: it selects the transport
 // adapter, resolves ${env:VAR} credential references, builds the extension option
 // set from the registry spec, and opens the source. It is the shared
 // open-a-stored-registry step the catalogue, install, and listing use cases
 // compose. An open failure classifies as unreachable.
-type OpenRegistryAction struct {
+type OpenRegistryUseCase struct {
 	logger    *zap.Logger
 	lookupEnv func(string) (string, bool)
 	adapters  map[types.Transport]extension.Registry
 }
 
-// NewOpenRegistryAction builds the action from the injected adapters and
+// NewOpenRegistryUseCase builds the use case from the injected adapters and
 // collaborators.
-func NewOpenRegistryAction(params OpenRegistryActionParams) *OpenRegistryAction {
-	return &OpenRegistryAction{
+func NewOpenRegistryUseCase(params OpenRegistryUseCaseParams) *OpenRegistryUseCase {
+	return &OpenRegistryUseCase{
 		adapters: map[types.Transport]extension.Registry{
 			types.TransportFilesystem: params.Filesystem,
 			types.TransportGit:        params.Git,
@@ -60,7 +60,7 @@ func NewOpenRegistryAction(params OpenRegistryActionParams) *OpenRegistryAction 
 // Execute opens registry's source over its transport, returning the read-only
 // file system. It returns a usage *Error for an unknown transport, an unreachable
 // *Error for an unset credential reference or a failed open.
-func (a *OpenRegistryAction) Execute(ctx context.Context, registry types.Registry) (source.FileSystem, error) {
+func (a *OpenRegistryUseCase) Execute(ctx context.Context, registry types.Registry) (source.FileSystem, error) {
 	adapter, ok := a.adapters[registry.Spec.Transport]
 	if !ok {
 		return nil, NewUsageError(fmt.Sprintf("unknown transport %q", registry.Spec.Transport))
@@ -81,7 +81,7 @@ func (a *OpenRegistryAction) Execute(ctx context.Context, registry types.Registr
 
 // connectOptions builds the extension option set from the spec, resolving any
 // ${env:VAR} credential references to their values for connecting only.
-func (a *OpenRegistryAction) connectOptions(spec types.RegistrySpec) ([]extension.Option, error) {
+func (a *OpenRegistryUseCase) connectOptions(spec types.RegistrySpec) ([]extension.Option, error) {
 	opts := []extension.Option{extension.WithURI(spec.Source)}
 
 	if spec.Transport == types.TransportGit && spec.Revision != "" {
@@ -108,7 +108,7 @@ func (a *OpenRegistryAction) connectOptions(spec types.RegistrySpec) ([]extensio
 }
 
 // timeout parses the spec's Go duration string; an empty value yields no bound.
-func (a *OpenRegistryAction) timeout(value string) (time.Duration, error) {
+func (a *OpenRegistryUseCase) timeout(value string) (time.Duration, error) {
 	if value == "" {
 		return 0, nil
 	}
@@ -123,7 +123,7 @@ func (a *OpenRegistryAction) timeout(value string) (time.Duration, error) {
 
 // credentialsOption builds the basic-auth option, resolving credential
 // references; it returns nil when no credentials were supplied.
-func (a *OpenRegistryAction) credentialsOption(credentials *types.Credentials) (extension.Option, error) {
+func (a *OpenRegistryUseCase) credentialsOption(credentials *types.Credentials) (extension.Option, error) {
 	if credentials == nil || (credentials.Username == "" && credentials.Password == "") {
 		return nil, nil
 	}
@@ -142,7 +142,7 @@ func (a *OpenRegistryAction) credentialsOption(credentials *types.Credentials) (
 
 // resolveRef resolves a ${env:VAR} reference to its value; a literal (or empty)
 // value is returned unchanged. A referenced but unset variable is unreachable.
-func (a *OpenRegistryAction) resolveRef(value string) (string, error) {
+func (a *OpenRegistryUseCase) resolveRef(value string) (string, error) {
 	match := envRefPattern.FindStringSubmatch(value)
 	if match == nil {
 		return value, nil
@@ -157,7 +157,7 @@ func (a *OpenRegistryAction) resolveRef(value string) (string, error) {
 }
 
 // tlsOptions builds the transport-security options from the spec.
-func (a *OpenRegistryAction) tlsOptions(tls *types.TLS) []extension.Option {
+func (a *OpenRegistryUseCase) tlsOptions(tls *types.TLS) []extension.Option {
 	if tls == nil {
 		return nil
 	}

@@ -1,6 +1,6 @@
 ---
 name: sauron-implementing-architecture
-description: Use when writing or modifying Go code in this repository — the Use Case/Action orchestration pattern (UseCase/Action sharing one Execute(ctx, in) (*P, error) shape, use cases returning a presentation-agnostic result rendered by the cobra handler's view_<name>.go files in package cmd, the verb-named command builder/handler + fx.Populate), the ports-and-adapters layout under internal/infrastructure with pkg/ ports, the storage internal capability (fx-injected afero.Fs), the root-command and package.json/git ldflags versioning, the no-rogue-goroutines (pond) rule, and the local Taskfile gates. Normative rules live in spec/contracts/architecture.md and CONSTITUTION.md.
+description: Use when writing or modifying Go code in this repository — the Use Case orchestration pattern (a single UseCase type sharing one Execute(ctx, in) (*P, error) shape — a command entrypoint or a reusable composed step, composed acyclically by developer discipline — use cases returning a presentation-agnostic result rendered by the cobra handler's view_<name>.go files in package cmd, the verb-named command builder/handler + fx.Populate), the ports-and-adapters layout under internal/infrastructure with pkg/ ports, the storage internal capability (fx-injected afero.Fs), the root-command and package.json/git ldflags versioning, the no-rogue-goroutines (pond) rule, and the local Taskfile gates. Normative rules live in spec/contracts/architecture.md and CONSTITUTION.md.
 ---
 
 # Implementing Sauron's Architecture
@@ -10,16 +10,18 @@ When writing Go for sauron, follow the normative
 [Constitution](../../../CONSTITUTION.md).
 
 **This skill overrides `golang-personal-architecture` for this repo.** Sauron uses
-the **Use Case/Action** pattern, **not** services-as-interfaces, and the
+the **Use Case** pattern, **not** services-as-interfaces, and the
 infrastructure layout below — when they conflict, this skill wins.
 
 ## Procedural reminders
 
-1. **Use Case = command entrypoint.** A command's business logic is a
-   `UseCase[I, P any]`, not a service; reusable steps are `Action[I, P any]`.
-   Both share one shape — `Execute(ctx context.Context, in I) (*P, error)` —
-   distinguished only by role. Both live in `internal/usecase` as `<Name>UseCase`
-   / `<Name>Action`, in files `usecase_<name>.go` / `action_<name>.go`.
+1. **Use Case = command entrypoint or composed step.** A command's business logic
+   is a `UseCase[I, P any]`, not a service; reusable steps are use cases too —
+   there is no separate `Action` type. All share one shape —
+   `Execute(ctx context.Context, in I) (*P, error)` — distinguished only by role.
+   They live in `internal/usecase` as `<Name>UseCase`, in files
+   `usecase_<name>.go`. A use case may compose other use cases; keeping the call
+   graph acyclic is the developer's discipline (nothing enforces it).
 2. **A use case returns a result, never bytes.** `Execute` returns a
    *presentation-agnostic* `*P` — domain objects from `pkg/sauron/types`, or a
    small struct of them — and a classified `*Error`. It never renders: no
@@ -75,7 +77,7 @@ infrastructure layout below — when they conflict, this skill wins.
 9. **Integration tests are out of scope here.** The black-box BDD suite lives in
    its own `test/e2e` module (godog + testcontainers, `replace` → root, imports
    only `pkg/`, `depguard`-banned from `internal/`); it does **not** follow Use
-   Case/Action or ports-and-adapters. See the
+   Case or ports-and-adapters. See the
    [`sauron-implementing-integration-tests`](../sauron-implementing-integration-tests/SKILL.md)
    skill and the architecture contract's
    [Integration tests](../../../spec/contracts/architecture.md) section.

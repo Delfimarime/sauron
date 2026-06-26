@@ -2,16 +2,11 @@ package usecase
 
 import "context"
 
-// UseCase is a command's stateless entrypoint: executed with a context and a
-// typed input, it returns a presentation-agnostic *P product or a classified
-// *Error. It never renders.
+// UseCase is a stateless interactor: executed with a context and a typed input,
+// it returns a presentation-agnostic *P product or a classified *Error. It is
+// either a command's entrypoint or a reusable step another use case composes,
+// and it never renders.
 type UseCase[I, P any] interface {
-	Execute(ctx context.Context, in I) (*P, error)
-}
-
-// Action is a stateless, composable step a use case runs: executed with a
-// context and an input I, it returns a *P product or a classified *Error.
-type Action[I, P any] interface {
 	Execute(ctx context.Context, in I) (*P, error)
 }
 

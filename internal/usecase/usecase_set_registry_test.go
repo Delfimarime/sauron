@@ -51,7 +51,7 @@ func newFixture() *fixture {
 		fs:         &source.MockBasedFileSystem{},
 	}
 
-	open := NewOpenRegistryAction(OpenRegistryActionParams{
+	open := NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
 		Filesystem: f.filesystem,
 		Git:        f.git,
 		HTTP:       f.http,

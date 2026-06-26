@@ -19,7 +19,7 @@ import (
 
 // openFixture bundles the action and its mocked transport adapters.
 type openFixture struct {
-	action     *OpenRegistryAction
+	action     *OpenRegistryUseCase
 	filesystem *extension.MockBasedRegistry
 	git        *extension.MockBasedRegistry
 	http       *extension.MockBasedRegistry
@@ -35,7 +35,7 @@ func newOpenFixture(env map[string]string) *openFixture {
 		fs:         &source.MockBasedFileSystem{},
 	}
 
-	f.action = NewOpenRegistryAction(OpenRegistryActionParams{
+	f.action = NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
 		Filesystem: f.filesystem,
 		Git:        f.git,
 		HTTP:       f.http,
@@ -49,7 +49,7 @@ func newOpenFixture(env map[string]string) *openFixture {
 	return f
 }
 
-func TestOpenRegistryAction_Execute_TransportSelection(t *testing.T) {
+func TestOpenRegistryUseCase_Execute_TransportSelection(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
@@ -95,7 +95,7 @@ func TestOpenRegistryAction_Execute_TransportSelection(t *testing.T) {
 	}
 }
 
-func TestOpenRegistryAction_Execute_UnknownTransport(t *testing.T) {
+func TestOpenRegistryUseCase_Execute_UnknownTransport(t *testing.T) {
 	// Arrange.
 	f := newOpenFixture(nil)
 
@@ -110,7 +110,7 @@ func TestOpenRegistryAction_Execute_UnknownTransport(t *testing.T) {
 	f.filesystem.AssertNotCalled(t, "Open", mock.Anything, mock.Anything)
 }
 
-func TestOpenRegistryAction_Execute_CredentialReferences(t *testing.T) {
+func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {
 	t.Run("set references resolve before open", func(t *testing.T) {
 		// Arrange.
 		f := newOpenFixture(map[string]string{"GIT_USER": "real-user", "GIT_PASS": "real-pass"})
@@ -189,7 +189,7 @@ func TestOpenRegistryAction_Execute_CredentialReferences(t *testing.T) {
 	})
 }
 
-func TestOpenRegistryAction_Execute_OpenFailureClassification(t *testing.T) {
+func TestOpenRegistryUseCase_Execute_OpenFailureClassification(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
@@ -232,7 +232,7 @@ func TestOpenRegistryAction_Execute_OpenFailureClassification(t *testing.T) {
 	}
 }
 
-func TestOpenRegistryAction_Execute_InvalidTimeout(t *testing.T) {
+func TestOpenRegistryUseCase_Execute_InvalidTimeout(t *testing.T) {
 	// Arrange.
 	f := newOpenFixture(nil)
 
