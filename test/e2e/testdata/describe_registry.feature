@@ -72,14 +72,14 @@ Feature: Describe registry
     And the descriptor shows caCert as /etc/ssl/ca.pem
     And the descriptor reads:
       """
-      source:                git@github.com:acme/artifacts.git
-      transport:             git
+      source:      git@github.com:acme/artifacts.git
+      transport:   git
       tls:
-        skipVerify:          true
-        caCert:              /etc/ssl/ca.pem
-      sshKey:                /home/dev/.ssh/id_ed25519
-      created:               2026-06-21T07:30:00Z
-      updated:               2026-06-22T08:00:00Z
+        skipVerify: true
+        caCert:    /etc/ssl/ca.pem
+      sshKey:      /home/dev/.ssh/id_ed25519
+      created:     2026-06-21T07:30:00Z
+      updated:     2026-06-22T08:00:00Z
       """
 
   # FR-005 — an invalid --fields value is a usage error (exit 2).
