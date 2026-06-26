@@ -65,8 +65,7 @@ internal/
         <store>.go         per-type store over the ~/.sauron state files
   usecase/
     fx.go                  NewFxOptions() fx.Option; provides use cases and actions
-    usecase_<name>.go      a command's UseCase entrypoint
-    action_<name>.go       a reusable Action a use case composes
+    usecase_<name>.go      a UseCase — a command entrypoint or a composed step
 pkg/
   http/                  public HTTP client: functional-options New() + composable round trippers (basic-auth, zap logger)
   telemetry/             shared ECS field-key vocabulary, referenced by public packages and internal/telemetry
@@ -223,15 +222,11 @@ shape is canonical — the [use-case](#use-case-orchestration) and
 ## Use Case orchestration
 
 Business logic is organized as **use cases** (interactors), not services. A
-command's entrypoint is a `UseCase`; the reusable capabilities a use case
-composes are `Action`s. Both live in `internal/usecase`.
+command's entrypoint is a `UseCase`; a use case may compose other use cases as
+reusable steps. They all live in `internal/usecase`.
 
 ```go
 type UseCase[I, P any] interface {
-	Execute(ctx context.Context, in I) (*P, error)
-}
-
-type Action[I, P any] interface {
 	Execute(ctx context.Context, in I) (*P, error)
 }
 ```
@@ -245,16 +240,22 @@ type Action[I, P any] interface {
   `Execute` returns (see [Command structure](#command-structure)). A use case is
   thus ignorant of presentation *entirely* — not merely of the output
   destination — which is the separation an `Out()` writer could not provide.
-- **`UseCase` and `Action` share one shape**, distinguished only by role: a
-  `UseCase` is a command's entrypoint; an `Action` is a reusable step a use case
-  composes. Both take an explicit `context.Context` first and a typed input `in`
-  (a value type, or an empty struct for a parameterless query), and return
+- **One shape, two roles.** A `UseCase` is either a command's entrypoint or a
+  reusable step another use case composes — there is no separate `Action` type.
+  Every use case takes an explicit `context.Context` first and a typed input `in`
+  (a value type, or an empty struct for a parameterless query), and returns
   `(*P, error)`. There is no `Request` context object and no `Out()`: the
   per-invocation context is the explicit first parameter, and call-scoped
   *business* input is `in`. *View* options (field selection, sort, search) are
   **not** use-case input — they belong to the client.
-- **Resource-acquiring actions may return a port.** The shared `(*P, error)` shape
-  has one sanctioned exception: an internal `Action` whose role is to *open* a
+- **Composition is acyclic by discipline.** A use case may call another use case.
+  Nothing structurally enforces a direction, so keeping the call graph acyclic is
+  the developer's responsibility. **Boundary concerns** — the top-level telemetry
+  span, error classification at the edge, and the 1:1 command↔entrypoint mapping —
+  belong to the command-invoked use case; a composed use case assumes it already
+  runs inside that boundary and does not re-establish it.
+- **Resource-acquiring use cases may return a port.** The `(*P, error)` shape
+  has one sanctioned exception: an internal use case whose role is to *open* a
   resource returns the live `pkg/` port it acquires rather than a `*P` product —
   e.g. `OpenRegistry` returns a `source.FileSystem`. Such a seam is composed only by
   other use cases, never resolved by a handler and never rendered, so wrapping the
@@ -271,11 +272,9 @@ type Action[I, P any] interface {
 
 ### Layout & naming
 
-`internal/usecase` owns both kinds and exposes `NewFxOptions() fx.Option`,
-through which use cases and actions are provided with their `pkg/` ports, the
-[`storage`](#state-storage) stores, and the logger. Types are named
-`<Name>UseCase` / `<Name>Action`; their files are `usecase_<name>.go` /
-`action_<name>.go`.
+`internal/usecase` exposes `NewFxOptions() fx.Option`, through which use cases are
+provided with their `pkg/` ports, the [`storage`](#state-storage) stores, and the
+logger. Types are named `<Name>UseCase`; each lives in `usecase_<name>.go`.
 
 The cobra **handler** that drives a use case — its naming and the builder/handler
 split — is fixed under [Command structure](#command-structure). It maps the flag
@@ -423,7 +422,7 @@ two facts that bind on *this* contract:
 - **`pkg/`-only graybox.** The harness `exec`s the built binary and decodes its
   output into the public `pkg/` types — never importing `internal/` (enforced by a
   `depguard` rule, since Go's `internal/` rule does not apply across the shared
-  module prefix). It is **not** bound by the Use Case/Action or ports-and-adapters
+  module prefix). It is **not** bound by the Use Case or ports-and-adapters
   rules.
 
 The gate that runs it (`gate-integration`) is defined in the

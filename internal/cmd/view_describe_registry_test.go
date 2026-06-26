@@ -16,8 +16,8 @@ import (
 const (
 	labelTLS     = "tls:"
 	labelSSHKey  = "sshKey:"
-	labelCreated = "creationTimestamp:"
-	labelUpdated = "lastUpdatedTimestamp:"
+	labelCreated = "created:"
+	labelUpdated = "updated:"
 	vUserRef     = "${env:ACME_USER}"
 	vTokenRef    = "${env:ACME_TOKEN}"
 	vGitURI      = "git@github.com:acme/artifacts.git"
@@ -31,8 +31,8 @@ const (
 // yields.
 func allDescribeFields() []string {
 	return []string{
-		describeFieldURI, describeFieldTransport, describeFieldRef,
-		describeFieldAuth, describeFieldTLS, describeFieldSSHKey, describeFieldTimeout,
+		describeFieldSource, describeFieldTransport, describeFieldRevision,
+		describeFieldCredentials, describeFieldTLS, describeFieldSSHKey, describeFieldTimeout,
 		describeFieldCreated, describeFieldUpdated,
 	}
 }
@@ -41,14 +41,14 @@ func allDescribeFields() []string {
 func fullViewRegistry() types.Registry {
 	return types.Registry{
 		Metadata: types.Metadata{
-			CreationTimestamp:    createdStamp,
-			LastUpdatedTimestamp: updatedStamp,
+			CreatedAt:    createdStamp,
+			LastUpdatedAt: updatedStamp,
 		},
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			URI:       vGitURI,
-			Ref:       vRefV120,
-			Auth:      &types.Auth{Username: vUserRef, Password: vTokenRef},
+			Source:       vGitURI,
+			Revision:       vRefV120,
+			Credentials:      &types.Credentials{Username: vUserRef, Password: vTokenRef},
 			Timeout:   v45s,
 		},
 	}
@@ -88,7 +88,7 @@ func TestRenderDescribeRegistry(t *testing.T) {
 		},
 		{
 			name:         "default omits unpopulated fields",
-			registry:     types.Registry{Spec: types.RegistrySpec{Transport: types.TransportGit, URI: "u"}},
+			registry:     types.Registry{Spec: types.RegistrySpec{Transport: types.TransportGit, Source: "u"}},
 			fields:       allDescribeFields(),
 			wantContains: []string{labelURI, labelTransport},
 			wantAbsent:   []string{labelRef, labelAuth, labelTLS, labelSSHKey, labelTimeout, labelCreated, labelUpdated},
@@ -96,14 +96,14 @@ func TestRenderDescribeRegistry(t *testing.T) {
 		{
 			name:         "fields projects and orders, uri forced first",
 			registry:     fullViewRegistry(),
-			fields:       []string{describeFieldURI, describeFieldTransport, describeFieldRef},
+			fields:       []string{describeFieldSource, describeFieldTransport, describeFieldRevision},
 			wantContains: []string{labelURI, labelTransport, labelRef},
 			wantAbsent:   []string{labelAuth, labelTimeout},
 		},
 		{
 			name:         "auth renders the stored env references, never a secret",
 			registry:     fullViewRegistry(),
-			fields:       []string{describeFieldURI, describeFieldAuth},
+			fields:       []string{describeFieldSource, describeFieldCredentials},
 			wantContains: []string{labelAuth, vUserRef, vTokenRef},
 			wantAbsent:   []string{"s3cr3t"},
 		},
@@ -112,7 +112,7 @@ func TestRenderDescribeRegistry(t *testing.T) {
 			registry: types.Registry{
 				Spec: types.RegistrySpec{
 					Transport: types.TransportHTTP,
-					URI:       "u",
+					Source:       "u",
 					SSHKey:    "/home/dev/.ssh/id_ed25519",
 					TLS: &types.TLS{
 						SkipVerify: true,
@@ -122,7 +122,7 @@ func TestRenderDescribeRegistry(t *testing.T) {
 					},
 				},
 			},
-			fields: []string{describeFieldURI, describeFieldTLS, describeFieldSSHKey},
+			fields: []string{describeFieldSource, describeFieldTLS, describeFieldSSHKey},
 			wantContains: []string{
 				labelTLS,
 				"skipVerify: true",
@@ -135,9 +135,9 @@ func TestRenderDescribeRegistry(t *testing.T) {
 		{
 			name: "an empty tls block is omitted",
 			registry: types.Registry{
-				Spec: types.RegistrySpec{Transport: types.TransportHTTP, URI: "u", TLS: &types.TLS{}},
+				Spec: types.RegistrySpec{Transport: types.TransportHTTP, Source: "u", TLS: &types.TLS{}},
 			},
-			fields:       []string{describeFieldURI, describeFieldTLS},
+			fields:       []string{describeFieldSource, describeFieldTLS},
 			wantContains: []string{labelURI},
 			wantAbsent:   []string{labelTLS},
 		},
@@ -194,9 +194,9 @@ func TestSelectDescribeFields(t *testing.T) {
 	})
 
 	t.Run("selection forces uri present and first, deduped", func(t *testing.T) {
-		got, err := selectDescribeFields([]string{describeFieldTransport, describeFieldRef, describeFieldTransport})
+		got, err := selectDescribeFields([]string{describeFieldTransport, describeFieldRevision, describeFieldTransport})
 		require.NoError(t, err)
-		assert.Equal(t, []string{describeFieldURI, describeFieldTransport, describeFieldRef}, got)
+		assert.Equal(t, []string{describeFieldSource, describeFieldTransport, describeFieldRevision}, got)
 	})
 
 	t.Run("unknown field is a usage error", func(t *testing.T) {

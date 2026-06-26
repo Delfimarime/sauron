@@ -18,7 +18,7 @@ shows the single registry's fields, with column selection.
 - FR-002: Sauron shall never display secret values — credential fields are shown
   as the stored environment reference.
 - FR-006: Sauron shall surface the registry's audit timestamps
-  (`metadata.creationTimestamp`, `metadata.lastUpdatedTimestamp`) in the detail
+  (`metadata.createdAt`, `metadata.lastUpdatedAt`) in the detail
   view when they are populated.
 
 ### Optional
@@ -47,6 +47,6 @@ shows the single registry's fields, with column selection.
   resolve to exit 1, so no new exit-code mapping arm is introduced; the type is
   reused by later `describe`/`get`-style features.
 - **The `--fields` valid set agrees across spec, state, and contract:**
-  `{uri, transport, ref, auth, tls, sshKey, timeout, creationTimestamp,
-  lastUpdatedTimestamp}`, with `uri` always present and first. The two audit
+  `{source, transport, revision, credentials, tls, sshKey, timeout, created,
+  updated}`, with `source` always present and first. The two audit
   timestamps display by default when populated (FR-006). No drift to reconcile.

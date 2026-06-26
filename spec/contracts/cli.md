@@ -2,11 +2,15 @@
 
 The normative conventions every `sauron` command obeys: command grammar, shared
 flags, exit-status semantics, and output discipline. This is a binding contract,
-alongside the [architecture contract](architecture.md) and the
-[state data contract](state.md). Each feature owns one or more
-commands; every command's `contracts/<verb>-<noun>.md` conforms to the rules here.
-A feature contract may refine *which conditions* map to which exit code; it may
-not redefine the meanings.
+alongside the [terminal UI contract](terminal-ui.md) (the interactive surface),
+the [architecture contract](architecture.md), and the
+[state data contract](state.md). The CLI is sauron's **headless surface** — for
+scripting, CI, and OS-crontab scheduling; the TUI is the interactive surface.
+Both render the same presentation-agnostic use-case results and share one
+field/flag vocabulary, so a name means the same thing on either surface. Each
+feature owns one or more commands; every command's `contracts/<verb>-<noun>.md`
+conforms to the rules here. A feature contract may refine *which conditions* map
+to which exit code; it may not redefine the meanings.
 
 Authoring mechanics (spec structure, numbering, EARS, the canonical
 requirement boilerplate) live in [AUTHORING.md](../AUTHORING.md), which points
@@ -39,7 +43,7 @@ contradict it.
 | Flag | Meaning |
 |---|---|
 | `--dry-run` | Print the plan without changing the environment or the track file |
-| `--kind <kind>` | Registry transport: `git`, `http`, or `filesystem` (persisted as `spec.transport`) |
+| `--transport <kind>` | Registry transport: `git`, `http`, or `filesystem` (persisted as `spec.transport`) |
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
@@ -47,6 +51,7 @@ contradict it.
 | `--limit <n>` | Page size (catalogue paging), default `20` |
 | `--fields <list>` | Comma-separated columns to display, in order, for `list` and `describe`; the identity field is always present and first. Each contract defines its valid field set |
 | `--timeout <duration>` | Bound on network operations, default `30s` |
+| `--theme <name>` | Color theme: `sauron` (dark, default) or `light`; honored by both surfaces. The `NO_COLOR` environment variable disables color entirely |
 
 ## Exit status
 

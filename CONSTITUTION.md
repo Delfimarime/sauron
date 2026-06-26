@@ -172,8 +172,8 @@ performed by the command layer (`internal/cmd`) after `Execute` returns. The
 use case therefore stays ignorant of presentation entirely, and of where state is
 persisted — persisted state flows through the
 `internal/infrastructure/repository/storage` package (which owns the `afero.Fs`),
-never through direct OS calls or a hard-coded destination. The `UseCase`/`Action`
-interface shapes, the `internal/usecase` layout, and the naming convention are
+never through direct OS calls or a hard-coded destination. The `UseCase`
+interface shape, the `internal/usecase` layout, and the naming convention are
 fixed by the [architecture contract](spec/contracts/architecture.md).
 
 ### Article 5 — Dependency, license & security discipline
@@ -202,7 +202,7 @@ black-box produce-then-read scenario so the write path stays exercised.
 The suite lives as a **separate Go module** under `/test` (`test/e2e`) that
 resolves the root through a `replace`; its heavy test dependencies stay there and
 out of the approved-dependency table. It is **exempt from Articles 3–4** (no
-ports-and-adapters, no Use Case/Action): it consumes the binary rather than being
+ports-and-adapters, no Use Case orchestration): it consumes the binary rather than being
 part of it. The module layout is fixed by the
 [architecture contract](spec/contracts/architecture.md); the harness's own
 architecture and conventions are governed locally by

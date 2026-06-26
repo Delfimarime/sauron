@@ -23,11 +23,10 @@ their envelope.
 
 ## Decision
 
-The shared `metadata` block gains two audit attributes, following the
-established `creationTimestamp` convention:
+The shared `metadata` block gains two audit attributes:
 
-- `metadata.creationTimestamp` — when the document was first written.
-- `metadata.lastUpdatedTimestamp` — when the document last changed.
+- `metadata.createdAt` — when the document was first written.
+- `metadata.lastUpdatedAt` — when the document last changed.
 
 The decision applies to the **shared envelope**, not to any individual kind, so
 all manifest kinds carry the fields identically.
@@ -41,8 +40,8 @@ Rules:
   clock, so writes are deterministic and assertable under test rather than
   reading wall-clock time directly.
 - **Create vs. update** — on create both timestamps are set to the same instant.
-  A subsequent update advances `lastUpdatedTimestamp` only and leaves
-  `creationTimestamp` untouched.
+  A subsequent update advances `lastUpdatedAt` only and leaves
+  `createdAt` untouched.
 - **Compatibility** — both fields are optional in the schema. Documents written
   before this decision lack the fields, and readers tolerate their absence, so
   the change is backward compatible.

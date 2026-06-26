@@ -14,7 +14,7 @@ Normative rules: the architecture contract's
 This builds on `writing-unit-tests` → `golang-personal-tests` (testify,
 table-driven, AAA) and `developing-code` → `golang-personal-code` (Uber style,
 gocognit ≤ 15). It does **not** apply `sauron-implementing-architecture` — the
-harness is exempt from Use Case/Action and ports-and-adapters.
+harness is exempt from the Use Case pattern and ports-and-adapters.
 
 ## Where the tests live
 

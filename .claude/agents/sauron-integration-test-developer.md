@@ -18,7 +18,7 @@ the built binary end-to-end.
   `golang-personal-tests` / `writing-unit-tests`, `developing-code`.
 
 You do **not** apply `sauron-implementing-architecture` — the harness is exempt
-from Use Case/Action and ports-and-adapters.
+from the Use Case pattern and ports-and-adapters.
 
 ## How you work
 

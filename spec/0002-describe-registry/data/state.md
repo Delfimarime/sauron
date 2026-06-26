@@ -13,6 +13,6 @@ owned by the [state data contract](../../contracts/state.md).
 
 | Field | Requirement |
 |---|---|
-| `spec.uri` | FR-001 |
-| `spec.auth.*` | FR-002 |
+| `spec.source` | FR-001 |
+| `spec.credentials.*` | FR-002 |
 | all `spec.*` | FR-003 |

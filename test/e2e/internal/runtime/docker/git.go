@@ -18,7 +18,7 @@ const (
 	gitImage = "gitea/gitea:1"
 	// gitUser is the account the binary clones as; gitRepo is the bare repository
 	// path served over ssh. gitDefaultRef/gitPinnedRef are the branch the repo
-	// checks out by default and the extra tag a scenario can pin via --ref.
+	// checks out by default and the extra tag a scenario can pin via --revision.
 	gitUser       = "git"
 	gitRepoName   = "acme.git"
 	gitDefaultRef = "main"
@@ -39,7 +39,7 @@ const (
 // gitSource serves provider content from a bare git repository over ssh, served by
 // an sshd sidecar. URL returns the ssh remote the binary clones; the seed
 // entrypoint commits the exposed content on the default branch and also tags it as
-// gitPinnedRef so a --ref scenario has a non-default ref to pin to.
+// gitPinnedRef so a --revision scenario has a non-default ref to pin to.
 type gitSource struct {
 	resourceSet
 	alias string

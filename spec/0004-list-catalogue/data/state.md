@@ -7,12 +7,12 @@ owned by the [state data contract](../../contracts/state.md).
 ## Reads
 
 - File: `settings.yaml`.
-- Uses the configured `Registry`'s `spec.transport`, `spec.uri`, `spec.auth`,
+- Uses the configured `Registry`'s `spec.transport`, `spec.source`, `spec.credentials`,
   `spec.tls`, `spec.sshKey`, and `spec.timeout` to fetch the live catalogue.
 
 ## Field realization
 
 | Field | Requirement |
 |---|---|
-| `spec.transport`, `spec.uri`, connection fields | FR-001, FR-005 |
+| `spec.transport`, `spec.source`, connection fields | FR-001, FR-005 |
 | `Registry` presence | FR-006 |

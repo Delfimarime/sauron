@@ -16,13 +16,13 @@ the field→requirement realization are stated here.
 
 | Field | Requirement |
 |---|---|
-| `spec.uri` | FR-001 |
+| `spec.source` | FR-001 |
 | `spec.transport` | FR-001, FR-002 |
-| `spec.auth.username` / `spec.auth.password` | FR-003, FR-011 |
+| `spec.credentials.username` / `spec.credentials.password` | FR-003, FR-011 |
 | `spec.tls.*`, `spec.sshKey` | FR-011 |
 | `spec.timeout` | FR-012 |
-| `spec.ref` | FR-013 |
-| `metadata.creationTimestamp` / `metadata.lastUpdatedTimestamp` | FR-014 |
+| `spec.revision` | FR-013 |
+| `metadata.createdAt` / `metadata.lastUpdatedAt` | FR-014 |
 
 An existing `Registry` is replaced (FR-007); the existing document is left
 unchanged until validation succeeds (FR-006).

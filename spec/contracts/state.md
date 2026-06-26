@@ -51,8 +51,8 @@ kind: <Registry|Skill|Agent|Provider>
 metadata:
   name: <identity>
   labels: {}                                # optional, free-form, on every kind
-  creationTimestamp: 2026-06-21T07:30:00Z   # writer-stamped, RFC3339 UTC
-  lastUpdatedTimestamp: 2026-06-21T07:30:00Z
+  createdAt: 2026-06-21T07:30:00Z   # writer-stamped, RFC3339 UTC
+  lastUpdatedAt: 2026-06-21T07:30:00Z
 spec:
   ...                   # kind-specific; see the kind's schema (Provider has none)
 ```
@@ -62,10 +62,10 @@ spec:
 - `kind` selects the document type and thereby its `spec` schema.
 - `metadata.name` is the document's identity; `metadata.labels` is an optional
   free-form string map available on every kind.
-- `metadata.creationTimestamp` and `metadata.lastUpdatedTimestamp` are audit
+- `metadata.createdAt` and `metadata.lastUpdatedAt` are audit
   timestamps available on every kind: RFC3339 UTC instants stamped by the use case
   that writes the document, never hand-edited. They are equal when the document is
-  first created; a later write advances `lastUpdatedTimestamp` only. Both are
+  first created; a later write advances `lastUpdatedAt` only. Both are
   optional on read, so documents written before they existed still load.
 
 ## Write semantics
@@ -83,8 +83,8 @@ spec:
   at rest, the files reveal which registry and artifacts a developer uses, so they
   are not world- or group-readable.
 - **Audit timestamps are writer-stamped.** Whenever Sauron writes a document it
-  stamps `metadata.creationTimestamp` (on first create) and
-  `metadata.lastUpdatedTimestamp` (on every write) from an injected clock as
+  stamps `metadata.createdAt` (on first create) and
+  `metadata.lastUpdatedAt` (on every write) from an injected clock as
   RFC3339 UTC; these fields are never hand-edited and are tolerated absent on read.
 - **Validation is on read, not on app-authored write.** Documents are validated
   against their schema when loaded (the home files are hand-editable); documents
@@ -101,14 +101,14 @@ meaning layered on top.
 - There is exactly one `Registry` document — Sauron has a single registry
   (supporting more is deferred, see
   [ADR-0002](../architecture/ADR-0002-single-registry.md)). It carries no
-  user-given name; `metadata.name` is unused, and `spec.uri` is its identity.
+  user-given name; `metadata.name` is unused, and `spec.source` is its identity.
   Setting a registry replaces the one already present.
 - `spec.transport` is the registry's transport; at the CLI it is selected by
-  `--kind` (the `--kind` → `spec.transport` mapping is intentional).
-- `spec.ref` is the optional git ref (branch, tag, or commit) the registry is
+  `--transport` (the `--transport` → `spec.transport` mapping is intentional).
+- `spec.revision` is the optional git revision (branch, tag, or commit) the registry is
   pinned to; it applies to the `git` transport only and, when absent, resolution
   uses the repository's default branch.
-- `spec.auth`, `spec.tls`, and `spec.sshKey` apply per transport; secret-bearing
+- `spec.credentials`, `spec.tls`, and `spec.sshKey` apply per transport; secret-bearing
   fields carry environment references only (see **No secrets at rest**).
 
 ### `Skill` / `Agent` — `track.yaml`
@@ -130,3 +130,10 @@ meaning layered on top.
 
 - There is exactly one `Provider` document; its identity is its `metadata.name`
   (`claude` | `zencoder`).
+
+### `Preferences` — `settings.yaml`
+
+- There is at most one `Preferences` document; `metadata.name` is unused.
+- `spec.theme` is the active terminal UI color theme (`sauron`, the default, or
+  `light`), set in the TUI by `m` or on either surface by `--theme`; when the
+  document or the field is absent, the default theme applies.

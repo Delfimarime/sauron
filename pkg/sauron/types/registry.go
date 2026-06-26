@@ -20,19 +20,19 @@ type Registry struct {
 
 // RegistrySpec is the spec block of a Registry document.
 type RegistrySpec struct {
-	Transport Transport `json:"transport" yaml:"transport"`
-	URI       string    `json:"uri" yaml:"uri"`
-	Ref       string    `json:"ref,omitempty" yaml:"ref,omitempty"`
-	Auth      *Auth     `json:"auth,omitempty" yaml:"auth,omitempty"`
-	TLS       *TLS      `json:"tls,omitempty" yaml:"tls,omitempty"`
-	SSHKey    string    `json:"sshKey,omitempty" yaml:"sshKey,omitempty"`
+	Transport   Transport    `json:"transport" yaml:"transport"`
+	Source      string       `json:"source" yaml:"source"`
+	Revision    string       `json:"revision,omitempty" yaml:"revision,omitempty"`
+	Credentials *Credentials `json:"credentials,omitempty" yaml:"credentials,omitempty"`
+	TLS         *TLS         `json:"tls,omitempty" yaml:"tls,omitempty"`
+	SSHKey      string       `json:"sshKey,omitempty" yaml:"sshKey,omitempty"`
 	// Timeout is a Go duration string bounding network operations (default 30s).
 	Timeout string `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 }
 
-// Auth holds credentials as environment references only (${env:VAR}); the
+// Credentials holds credentials as environment references only (${env:VAR}); the
 // values are stored verbatim and never resolved into secrets.
-type Auth struct {
+type Credentials struct {
 	Username string `json:"username,omitempty" yaml:"username,omitempty"`
 	Password string `json:"password,omitempty" yaml:"password,omitempty"`
 }

@@ -11,31 +11,31 @@ import (
 
 // the transports a source may be reached over.
 const (
-	kindGit        = "git"
-	kindHTTP       = "http"
-	kindFilesystem = "filesystem"
+	transportGit        = "git"
+	transportHTTP       = "http"
+	transportFilesystem = "filesystem"
 )
 
-// kindValues are the transports a source may be reached over.
-var kindValues = []string{kindGit, kindHTTP, kindFilesystem}
+// transportValues are the transports a source may be reached over.
+var transportValues = []string{transportGit, transportHTTP, transportFilesystem}
 
-// kindFlags groups the transport selector shared by source-defining commands.
-type kindFlags struct {
-	Kind string
+// transportFlags groups the transport selector shared by source-defining commands.
+type transportFlags struct {
+	Transport string
 }
 
-func bindKindFlags(cmd *cobra.Command, f *kindFlags) {
-	cmd.Flags().StringVar(&f.Kind, "kind", kindHTTP,
-		fmt.Sprintf("source transport (%s)", strings.Join(kindValues, "|")))
+func bindTransportFlags(cmd *cobra.Command, f *transportFlags) {
+	cmd.Flags().StringVar(&f.Transport, "transport", transportHTTP,
+		fmt.Sprintf("source transport (%s)", strings.Join(transportValues, "|")))
 }
 
-// validateKind reports a usage error when kind is not a known transport.
-func (f *kindFlags) validate() error {
-	if slices.Contains(kindValues, f.Kind) {
+// validate reports a usage error when transport is not a known transport.
+func (f *transportFlags) validate() error {
+	if slices.Contains(transportValues, f.Transport) {
 		return nil
 	}
 
-	return fmt.Errorf("%w: kind must be one of %s", errInvalidFlag, strings.Join(kindValues, "|"))
+	return fmt.Errorf("%w: transport must be one of %s", errInvalidFlag, strings.Join(transportValues, "|"))
 }
 
 // listingFlags groups the filter, sort, and column flags shared by list and

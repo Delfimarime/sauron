@@ -33,6 +33,13 @@ entrypoint is tagged `//go:build !unit` and the in-process unit tests
     .golangci.yml           depguard: ban .../internal and .../cmd
 ```
 
+## Feature naming
+
+Headless scenarios are named `<command>.feature` (e.g. `set_registry_git.feature`).
+TUI scenarios — driven through a pseudo-terminal and mirroring each interactive
+feature's headless behaviour — are named `terminal_ui_<command>.feature`; the
+`terminal_ui_` prefix marks the interactive surface.
+
 ## The runtime and shared state
 
 There is **no `world.go`**. The runtime *is* the only object every controller

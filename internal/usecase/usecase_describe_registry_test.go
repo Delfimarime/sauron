@@ -46,14 +46,14 @@ func newDescribeFixture() *describeFixture {
 func fullRegistry() *types.Registry {
 	return &types.Registry{
 		Metadata: types.Metadata{
-			CreationTimestamp:    createdStamp,
-			LastUpdatedTimestamp: updatedStamp,
+			CreatedAt:    createdStamp,
+			LastUpdatedAt: updatedStamp,
 		},
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			URI:       gitURI,
-			Ref:       "v1.2.0",
-			Auth: &types.Auth{
+			Source:       gitURI,
+			Revision:       "v1.2.0",
+			Credentials: &types.Credentials{
 				Username: userRef,
 				Password: tokenRef,
 			},
@@ -75,7 +75,7 @@ func TestDescribeRegistrySuccess(t *testing.T) {
 	// Assert.
 	require.NoError(t, err)
 	require.NotNil(t, registry)
-	assert.Equal(t, gitURI, registry.Spec.URI)
+	assert.Equal(t, gitURI, registry.Spec.Source)
 }
 
 // TestDescribeRegistryFailure covers the not-found and io classifications.

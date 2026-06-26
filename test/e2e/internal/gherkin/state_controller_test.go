@@ -17,12 +17,12 @@ import (
 const oneRegistryDoc = `apiVersion: sauron.raitonbl.com/v1
 kind: Registry
 metadata:
-  creationTimestamp: "2026-06-21T07:30:00Z"
-  lastUpdatedTimestamp: "2026-06-21T07:30:00Z"
+  createdAt: "2026-06-21T07:30:00Z"
+  lastUpdatedAt: "2026-06-21T07:30:00Z"
 spec:
   transport: http
-  uri: http://registry-http-default
-  auth:
+  source: http://registry-http-default
+  credentials:
     username: ${env:ACME_USER}
     password: ${env:ACME_TOKEN}
 ---
@@ -40,7 +40,7 @@ metadata:
   name: acme
 spec:
   transport: http
-  uri: http://registry-http-default
+  source: http://registry-http-default
 ---
 apiVersion: sauron.raitonbl.com/v1
 kind: Registry
@@ -48,7 +48,7 @@ metadata:
   name: local
 spec:
   transport: filesystem
-  uri: /opt/registry/default
+  source: /opt/registry/default
 `
 
 const oneSkillTrack = `apiVersion: sauron.raitonbl.com/v1
@@ -67,7 +67,7 @@ func TestDecodeRegistriesSkipsProviderAndEmptyDocs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, regs, 1, "the Provider document and empty documents are skipped")
 	assert.Equal(t, types.TransportHTTP, regs[0].Spec.Transport)
-	assert.Equal(t, "${env:ACME_TOKEN}", regs[0].Spec.Auth.Password)
+	assert.Equal(t, "${env:ACME_TOKEN}", regs[0].Spec.Credentials.Password)
 }
 
 func TestOneRegistry(t *testing.T) {
@@ -95,7 +95,7 @@ func TestRegistryField(t *testing.T) {
 		"kind":           "Registry",
 		"apiVersion":     "sauron.raitonbl.com/v1",
 		"spec.transport": "http",
-		"spec.uri":       "http://registry-http-default",
+		"spec.source":    "http://registry-http-default",
 	}
 	for field, want := range cases {
 		got, err := registryField(reg, field)

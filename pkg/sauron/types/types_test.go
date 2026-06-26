@@ -33,8 +33,8 @@ func TestRoundTrip(t *testing.T) {
 				Metadata: types.Metadata{Name: registryAcme},
 				Spec: types.RegistrySpec{
 					Transport: types.TransportGit,
-					URI:       "git@github.com:acme/artifacts.git",
-					Auth:      &types.Auth{Username: "${env:ACME_USER}", Password: "${env:ACME_TOKEN}"},
+					Source:       "git@github.com:acme/artifacts.git",
+					Credentials:      &types.Credentials{Username: "${env:ACME_USER}", Password: "${env:ACME_TOKEN}"},
 					SSHKey:    "/path/id_ed25519",
 					Timeout:   "30s",
 				},
@@ -48,7 +48,7 @@ func TestRoundTrip(t *testing.T) {
 				Metadata: types.Metadata{Name: "mirror", Labels: map[string]string{"team": "backend"}},
 				Spec: types.RegistrySpec{
 					Transport: types.TransportHTTP,
-					URI:       "https://example.com/artifacts",
+					Source:       "https://example.com/artifacts",
 					TLS: &types.TLS{
 						SkipVerify: true,
 						CACert:     "/path/ca.pem",
@@ -64,7 +64,7 @@ func TestRoundTrip(t *testing.T) {
 			doc: &types.Registry{
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
 				Metadata: types.Metadata{Name: "local"},
-				Spec:     types.RegistrySpec{Transport: types.TransportFilesystem, URI: "/srv/artifacts"},
+				Spec:     types.RegistrySpec{Transport: types.TransportFilesystem, Source: "/srv/artifacts"},
 			},
 			into: &types.Registry{},
 		},
@@ -120,7 +120,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// TestRegistrySpecRef asserts that RegistrySpec.Ref round-trips through both
+// TestRegistrySpecRef asserts that RegistrySpec.Revision round-trips through both
 // YAML and JSON, is omitted from the encoded form when empty, and is preserved
 // when set. It is purely in-memory — no filesystem.
 func TestRegistrySpecRef(t *testing.T) {
@@ -144,8 +144,8 @@ func TestRegistrySpecRef(t *testing.T) {
 				Metadata: types.Metadata{Name: registryAcme},
 				Spec: types.RegistrySpec{
 					Transport: types.TransportGit,
-					URI:       "git@github.com:acme/artifacts.git",
-					Ref:       tt.ref,
+					Source:       "git@github.com:acme/artifacts.git",
+					Revision:       tt.ref,
 				},
 			}
 
@@ -159,12 +159,12 @@ func TestRegistrySpecRef(t *testing.T) {
 				require.NoError(t, yaml.Unmarshal(data, &raw))
 				spec, ok := raw["spec"].(map[string]any)
 				require.True(t, ok)
-				_, present := spec["ref"]
+				_, present := spec["revision"]
 				assert.Equal(t, tt.wantPresent, present)
 
 				into := &types.Registry{}
 				require.NoError(t, yaml.Unmarshal(data, into))
-				assert.Equal(t, tt.ref, into.Spec.Ref)
+				assert.Equal(t, tt.ref, into.Spec.Revision)
 			})
 
 			t.Run("json", func(t *testing.T) {
@@ -177,12 +177,12 @@ func TestRegistrySpecRef(t *testing.T) {
 				require.NoError(t, json.Unmarshal(data, &raw))
 				var spec map[string]json.RawMessage
 				require.NoError(t, json.Unmarshal(raw["spec"], &spec))
-				_, present := spec["ref"]
+				_, present := spec["revision"]
 				assert.Equal(t, tt.wantPresent, present)
 
 				into := &types.Registry{}
 				require.NoError(t, json.Unmarshal(data, into))
-				assert.Equal(t, tt.ref, into.Spec.Ref)
+				assert.Equal(t, tt.ref, into.Spec.Revision)
 			})
 		})
 	}
@@ -197,7 +197,7 @@ func TestEnvelopeKeysAtTopLevel(t *testing.T) {
 	reg := &types.Registry{
 		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
 		Metadata: types.Metadata{Name: registryAcme},
-		Spec:     types.RegistrySpec{Transport: types.TransportGit, URI: "git@github.com:acme/a.git"},
+		Spec:     types.RegistrySpec{Transport: types.TransportGit, Source: "git@github.com:acme/a.git"},
 	}
 
 	data, err := yaml.Marshal(reg)

@@ -19,12 +19,12 @@
           "type": "object",
           "additionalProperties": { "type": "string" }
         },
-        "creationTimestamp": {
+        "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "RFC3339 UTC timestamp stamped by sauron when the document was created; never hand-edited."
         },
-        "lastUpdatedTimestamp": {
+        "lastUpdatedAt": {
           "type": "string",
           "format": "date-time",
           "description": "RFC3339 UTC timestamp stamped by sauron on the document's most recent write; never hand-edited."

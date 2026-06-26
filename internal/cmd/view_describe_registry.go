@@ -10,29 +10,29 @@ import (
 
 // describe field names; this view owns the valid set --fields may select from.
 const (
-	describeFieldURI       = "uri"
-	describeFieldTransport = "transport"
-	describeFieldRef       = "ref"
-	describeFieldAuth      = "auth"
-	describeFieldTLS       = "tls"
-	describeFieldSSHKey    = "sshKey"
-	describeFieldTimeout   = "timeout"
-	describeFieldCreated   = "creationTimestamp"
-	describeFieldUpdated   = "lastUpdatedTimestamp"
+	describeFieldSource      = "source"
+	describeFieldTransport   = "transport"
+	describeFieldRevision    = "revision"
+	describeFieldCredentials = "credentials"
+	describeFieldTLS         = "tls"
+	describeFieldSSHKey      = "sshKey"
+	describeFieldTimeout     = "timeout"
+	describeFieldCreated     = "created"
+	describeFieldUpdated     = "updated"
 )
 
 // describeFieldOrder is the ordered set --fields may select from. The single
-// registry has no name; uri is its identity and is always present and first.
+// registry has no name; source is its identity and is always present and first.
 var describeFieldOrder = []string{
-	describeFieldURI, describeFieldTransport, describeFieldRef,
-	describeFieldAuth, describeFieldTLS, describeFieldSSHKey, describeFieldTimeout,
+	describeFieldSource, describeFieldTransport, describeFieldRevision,
+	describeFieldCredentials, describeFieldTLS, describeFieldSSHKey, describeFieldTimeout,
 	describeFieldCreated, describeFieldUpdated,
 }
 
 // selectDescribeFields validates the requested fields against the describe field
-// set, forcing uri present and first and deduping; an empty request yields every
-// field in order. An unknown field is a usage error (exit 2) raised before the
-// use case runs.
+// set, forcing source present and first and deduping; an empty request yields
+// every field in order. An unknown field is a usage error (exit 2) raised before
+// the use case runs.
 func selectDescribeFields(requested []string) ([]string, error) {
 	if len(requested) == 0 {
 		return describeFieldOrder, nil
@@ -43,8 +43,8 @@ func selectDescribeFields(requested []string) ([]string, error) {
 		known[f] = struct{}{}
 	}
 
-	fields := []string{describeFieldURI}
-	seen := map[string]struct{}{describeFieldURI: {}}
+	fields := []string{describeFieldSource}
+	seen := map[string]struct{}{describeFieldSource: {}}
 	for _, f := range requested {
 		if _, ok := known[f]; !ok {
 			return nil, fmt.Errorf("%w: unknown field %q", errInvalidFlag, f)
@@ -70,9 +70,9 @@ func renderDescribeRegistry(w io.Writer, registry *types.Registry, fields []stri
 }
 
 // projectRegistry maps the selected fields onto descriptor fields, skipping
-// fields with no value so the default view shows only populated detail. The auth
-// and tls blocks become nested sections; credential values are the stored env
-// references, never resolved.
+// fields with no value so the default view shows only populated detail. The
+// credentials and tls blocks become nested sections; credential values are the
+// stored env references, never resolved.
 func projectRegistry(registry types.Registry, fields []string) []descriptorField {
 	out := make([]descriptorField, 0, len(fields))
 	for _, name := range fields {
@@ -88,8 +88,8 @@ func projectRegistry(registry types.Registry, fields []string) []descriptorField
 // false when the registry has no value for it.
 func fieldFor(registry types.Registry, name string) (descriptorField, bool) {
 	switch name {
-	case describeFieldAuth:
-		return sectionField(name, authChildren(registry.Spec.Auth))
+	case describeFieldCredentials:
+		return sectionField(name, credentialsChildren(registry.Spec.Credentials))
 	case describeFieldTLS:
 		return sectionField(name, tlsChildren(registry.Spec.TLS))
 	default:
@@ -102,12 +102,12 @@ func fieldFor(registry types.Registry, name string) (descriptorField, bool) {
 func leafValue(registry types.Registry, name string) string {
 	values := map[string]string{
 		describeFieldTransport: string(registry.Spec.Transport),
-		describeFieldURI:       registry.Spec.URI,
-		describeFieldRef:       registry.Spec.Ref,
+		describeFieldSource:    registry.Spec.Source,
+		describeFieldRevision:  registry.Spec.Revision,
 		describeFieldSSHKey:    registry.Spec.SSHKey,
 		describeFieldTimeout:   registry.Spec.Timeout,
-		describeFieldCreated:   registry.Metadata.CreationTimestamp,
-		describeFieldUpdated:   registry.Metadata.LastUpdatedTimestamp,
+		describeFieldCreated:   registry.Metadata.CreatedAt,
+		describeFieldUpdated:   registry.Metadata.LastUpdatedAt,
 	}
 
 	return values[name]
@@ -131,18 +131,18 @@ func sectionField(label string, children []descriptorField) (descriptorField, bo
 	return descriptorField{Label: label, Children: children}, true
 }
 
-// authChildren renders the auth block as its stored env references, omitting
-// either credential that was not set.
-func authChildren(auth *types.Auth) []descriptorField {
-	if auth == nil {
+// credentialsChildren renders the credentials block as its stored env
+// references, omitting either credential that was not set.
+func credentialsChildren(credentials *types.Credentials) []descriptorField {
+	if credentials == nil {
 		return nil
 	}
 
 	var children []descriptorField
-	if child, ok := leafField("username", auth.Username); ok {
+	if child, ok := leafField("username", credentials.Username); ok {
 		children = append(children, child)
 	}
-	if child, ok := leafField("password", auth.Password); ok {
+	if child, ok := leafField("password", credentials.Password); ok {
 		children = append(children, child)
 	}
 

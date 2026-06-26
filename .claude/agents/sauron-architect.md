@@ -1,6 +1,6 @@
 ---
 name: sauron-architect
-description: Read-only architecture guardian for sauron. Use after Go code is written or changed to audit it against the architecture contract (spec/contracts/architecture.md) and the Constitution — the Use Case/Action pattern (one Execute(ctx, in) (*P, error) shape, use cases returning presentation-agnostic results), the internal/infrastructure ports-and-adapters layout and fx wiring, the storage fs-injection, the no-rogue-goroutines rule, file/type naming, and the versioning vars. Reports conformance findings; does not modify code.
+description: Read-only architecture guardian for sauron. Use after Go code is written or changed to audit it against the architecture contract (spec/contracts/architecture.md) and the Constitution — the Use Case pattern (a single UseCase type with one Execute(ctx, in) (*P, error) shape — command entrypoint or composed step, composed acyclically by discipline — use cases returning presentation-agnostic results), the internal/infrastructure ports-and-adapters layout and fx wiring, the storage fs-injection, the no-rogue-goroutines rule, file/type naming, and the versioning vars. Reports conformance findings; does not modify code.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -19,9 +19,11 @@ convention. Sauron uses **Use Cases, not services**.
 
 ## What to check
 
-1. **Use Case/Action shape.** Command entrypoints are `UseCase[I, P any]` and
-   reusable steps `Action[I, P any]`, sharing one shape:
-   `Execute(ctx context.Context, in I) (*P, error)`. No "service" types.
+1. **Use Case shape.** Command entrypoints and the reusable steps they compose
+   are all `UseCase[I, P any]` (there is no separate `Action`), one shape:
+   `Execute(ctx context.Context, in I) (*P, error)`. No "service" types. A use
+   case may compose other use cases; the call graph must stay acyclic by
+   discipline (nothing enforces it).
 2. **Use cases return results, not bytes.** `Execute` returns a
    presentation-agnostic `*P` (domain objects or a small result struct) and a
    classified `*Error` — never a `Table`/`Descriptor`, an `io.Writer`, or field
@@ -36,8 +38,8 @@ convention. Sauron uses **Use Cases, not services**.
    `storage` is internal (no `pkg/` port) with an **fx-injected `afero.Fs`** and
    paths under `Configuration.HomeDirectory`.
 4. **No rogue goroutines.** No bare `go`; concurrency on the injected `pond` pool.
-5. **Naming/layout.** `internal/usecase/usecase_<name>.go` / `action_<name>.go`,
-   types `<Name>UseCase` / `<Name>Action`; `serve()`/`Serve()` split.
+5. **Naming/layout.** `internal/usecase/usecase_<name>.go`,
+   types `<Name>UseCase`; `serve()`/`Serve()` split.
 6. **Versioning vars.** `AppName`/`AppVersion`/`AppHash` are ldflags-set in
    `cmd/main.go`; not sourced otherwise.
 7. **Style gates.** Flag obvious Uber-style / gocognit (>15) / parameter-struct

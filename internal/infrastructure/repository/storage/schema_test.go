@@ -42,7 +42,7 @@ metadata:
   name: acme
 spec:
   transport: git
-  uri: https://example.com/acme.git
+  source: https://example.com/acme.git
 `,
 		},
 		{
@@ -54,7 +54,7 @@ metadata:
   name: acme
 spec:
   transport: ftp
-  uri: https://example.com/acme.git
+  source: https://example.com/acme.git
 `,
 			wantErr: true,
 		},

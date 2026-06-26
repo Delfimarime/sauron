@@ -85,7 +85,7 @@ documentation is organized so each reader can go straight to what they need.
 | [Lifecycle walkthrough](spec/WORKFLOW.md) | one slice from requirement to shipped, verified code |
 | [Constitution](CONSTITUTION.md) | governing principles (spec-driven, contracts, implementation, traceability) |
 | [Spec authoring](spec/AUTHORING.md) | how specs and ADRs are written |
-| [Contracts](spec/contracts/) | the binding [CLI](spec/contracts/cli.md) · [state](spec/contracts/state.md) · [architecture](spec/contracts/architecture.md) · [delivery](spec/contracts/delivery.md) contracts |
+| [Contracts](spec/contracts/) | the binding [CLI](spec/contracts/cli.md) · [terminal UI](spec/contracts/terminal-ui.md) · [state](spec/contracts/state.md) · [architecture](spec/contracts/architecture.md) · [delivery](spec/contracts/delivery.md) contracts |
 | [Security overview](spec/SECURITY.md) | the security posture, for analysts |
 | [Contributing](CONTRIBUTING.md) | branching, commits, proposals, the verification gate |
 | [Agent guide](AGENTS.md) | how AI coding agents work in this repo; routes to every rule |

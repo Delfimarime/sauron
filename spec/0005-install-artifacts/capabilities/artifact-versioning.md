@@ -41,4 +41,4 @@ sync/upgrade move to the source's latest.
 `version` is metadata, not a pin: there is no artifact-level version pinning, and
 none is reserved (YAGNI). A `git` registry's content — and therefore each
 artifact's derived `version` and `digest` — is resolved at the registry's
-[`spec.ref`](../../0001-set-registry/capabilities/git.md) when one is set.
+[`spec.revision`](../../0001-set-registry/capabilities/git.md) when one is set.

@@ -144,8 +144,8 @@ func (uc *SetRegistryUseCase) scanArtifacts(ctx context.Context, fs source.FileS
 func (uc *SetRegistryUseCase) persist(ctx context.Context, in SetRegistryInput, transport types.Transport) (*SetRegistryResult, error) {
 	registry := in.toRegistry(transport)
 	now := time.Now().UTC().Format(time.RFC3339)
-	registry.Metadata.CreationTimestamp = now
-	registry.Metadata.LastUpdatedTimestamp = now
+	registry.Metadata.CreatedAt = now
+	registry.Metadata.LastUpdatedAt = now
 	if err := uc.registries.Set(ctx, registry); err != nil {
 		return nil, NewIOError(fmt.Sprintf("persist registry: %v", err))
 	}
@@ -235,18 +235,18 @@ func (r *SetRegistryInput) tlsOptions() []extension.Option {
 
 // toRegistry assembles the persisted document, storing credential references
 // verbatim and never the resolved values. The single registry carries no
-// user-given name; spec.uri is its identity.
+// user-given name; spec.source is its identity.
 func (r *SetRegistryInput) toRegistry(transport types.Transport) types.Registry {
 	spec := types.RegistrySpec{
-		Transport: transport,
-		URI:       r.URI,
-		SSHKey:    r.SSHKey,
-		Auth:      r.toAuth(),
-		TLS:       r.toTLS(),
+		Transport:   transport,
+		Source:      r.URI,
+		SSHKey:      r.SSHKey,
+		Credentials: r.toCredentials(),
+		TLS:         r.toTLS(),
 	}
 
 	if transport == types.TransportGit {
-		spec.Ref = r.Ref
+		spec.Revision = r.Ref
 	}
 	if r.Timeout > 0 {
 		spec.Timeout = r.Timeout.String()
@@ -255,13 +255,13 @@ func (r *SetRegistryInput) toRegistry(transport types.Transport) types.Registry 
 	return types.Registry{Spec: spec}
 }
 
-// toAuth returns the credential references, or nil when none were supplied.
-func (r *SetRegistryInput) toAuth() *types.Auth {
+// toCredentials returns the credential references, or nil when none were supplied.
+func (r *SetRegistryInput) toCredentials() *types.Credentials {
 	if r.Username == "" && r.Password == "" {
 		return nil
 	}
 
-	return &types.Auth{Username: r.Username, Password: r.Password}
+	return &types.Credentials{Username: r.Username, Password: r.Password}
 }
 
 // toTLS returns the transport-security block, or nil when none was supplied.

@@ -51,7 +51,7 @@ func newFixture() *fixture {
 		fs:         &source.MockBasedFileSystem{},
 	}
 
-	open := NewOpenRegistryAction(OpenRegistryActionParams{
+	open := NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
 		Filesystem: f.filesystem,
 		Git:        f.git,
 		HTTP:       f.http,
@@ -268,18 +268,18 @@ func TestSetRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	// Assert.
 	require.NoError(t, err)
 	assert.Equal(t, types.TransportGit, stored.Spec.Transport)
-	assert.Equal(t, "git@host:repo.git", stored.Spec.URI)
-	assert.Equal(t, testRef, stored.Spec.Ref)
+	assert.Equal(t, "git@host:repo.git", stored.Spec.Source)
+	assert.Equal(t, testRef, stored.Spec.Revision)
 	assert.Equal(t, "15s", stored.Spec.Timeout)
-	require.NotNil(t, stored.Spec.Auth)
-	assert.Equal(t, "${env:GIT_USER}", stored.Spec.Auth.Username)
-	assert.Equal(t, "${env:GIT_PASS}", stored.Spec.Auth.Password)
+	require.NotNil(t, stored.Spec.Credentials)
+	assert.Equal(t, "${env:GIT_USER}", stored.Spec.Credentials.Username)
+	assert.Equal(t, "${env:GIT_PASS}", stored.Spec.Credentials.Password)
 	// Connecting uses the resolved values, never the references.
 	assert.Equal(t, "real-user", openOpts.Username)
 	assert.Equal(t, "real-pass", openOpts.Password)
 	// Both audit timestamps are stamped with the current instant, equal on create.
-	assert.Equal(t, want, stored.Metadata.CreationTimestamp)
-	assert.Equal(t, want, stored.Metadata.LastUpdatedTimestamp)
+	assert.Equal(t, want, stored.Metadata.CreatedAt)
+	assert.Equal(t, want, stored.Metadata.LastUpdatedAt)
 	// The result carries the configured URI and transport for the client to render.
 	require.NotNil(t, result)
 	assert.Equal(t, "git@host:repo.git", result.URI)
@@ -308,11 +308,11 @@ func TestSetRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Empty(t, stored.Spec.Ref)
+	assert.Empty(t, stored.Spec.Revision)
 	require.NotNil(t, stored.Spec.TLS)
 	assert.True(t, stored.Spec.TLS.SkipVerify)
 	assert.Equal(t, "/ca.pem", stored.Spec.TLS.CACert)
-	assert.Nil(t, stored.Spec.Auth)
+	assert.Nil(t, stored.Spec.Credentials)
 	require.NotNil(t, result)
 	assert.Equal(t, testHTTPURI, result.URI)
 	assert.Equal(t, types.TransportHTTP, result.Transport)

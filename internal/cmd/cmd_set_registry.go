@@ -12,9 +12,9 @@ import (
 
 // setRegistryFlags holds every flag the `set registry` subcommand binds.
 type setRegistryFlags struct {
-	kindFlags
+	transportFlags
 	timeoutFlags
-	Ref           string
+	Revision      string
 	Username      string
 	Password      string
 	SSHKey        string
@@ -42,10 +42,10 @@ func SetRegistry() *cobra.Command {
 		return fmt.Errorf("%w: %w", errInvalidFlag, err)
 	})
 
-	bindKindFlags(cmd, &flags.kindFlags)
+	bindTransportFlags(cmd, &flags.transportFlags)
 	bindTimeoutFlags(cmd, &flags.timeoutFlags)
 	set := cmd.Flags()
-	set.StringVar(&flags.Ref, "ref", "", "git revision to pin (git sources only)")
+	set.StringVar(&flags.Revision, "revision", "", "git revision to pin (git sources only)")
 	set.StringVar(&flags.Username, "username", "", "credential reference for the user, as ${env:VAR}")
 	set.StringVar(&flags.Password, "password", "", "credential reference for the secret, as ${env:VAR}")
 	set.StringVar(&flags.SSHKey, "ssh-key", "", "path to the SSH private key")
@@ -68,8 +68,8 @@ func setRegistry(ctx context.Context, flags *setRegistryFlags, args []string, st
 	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetRegistryUseCase) (*usecase.SetRegistryResult, error) {
 		return uc.Execute(runCtx, usecase.SetRegistryInput{
 			URI:           args[0],
-			Transport:     flags.Kind,
-			Ref:           flags.Ref,
+			Transport:     flags.Transport,
+			Ref:           flags.Revision,
 			Username:      flags.Username,
 			Password:      flags.Password,
 			SSHKey:        flags.SSHKey,

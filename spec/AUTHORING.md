@@ -57,7 +57,8 @@ Every spec declares one of two types:
   command's own output.
 
 - Global, cross-feature contracts live in `spec/contracts/` — the
-  [CLI contract](contracts/cli.md) (the command conventions), the
+  [CLI contract](contracts/cli.md) (the headless command conventions), the
+  [terminal UI contract](contracts/terminal-ui.md) (the interactive surface), the
   [state data contract](contracts/state.md) (the schema of every document Sauron
   persists), the [architecture contract](contracts/architecture.md) (code
   structure and wiring), the [delivery contract](contracts/delivery.md)

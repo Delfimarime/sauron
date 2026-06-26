@@ -16,7 +16,7 @@ import (
 
 // acmeRegistry is a stored registry fixture the unset tests resolve.
 func acmeRegistry() *types.Registry {
-	return &types.Registry{Spec: types.RegistrySpec{URI: testHTTPURI}}
+	return &types.Registry{Spec: types.RegistrySpec{Source: testHTTPURI}}
 }
 
 // newUnsetUseCase builds the use case over a mock store.

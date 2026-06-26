@@ -19,8 +19,8 @@ Feature: Set a git registry
     When the user sets the git registry from #{.git.default.url} pinned to v1.0.0 using ssh key #{.git.default.sshKey}
     Then the command succeeds
     And the registry is described by:
-      | field    | value  |
-      | spec.ref | v1.0.0 |
+      | field         | value  |
+      | spec.revision | v1.0.0 |
 
   # Regression: a ref that is a commit SHA — neither a branch nor a tag — must
   # resolve via a full clone and checkout. Commit-addressed refs used to fail.
