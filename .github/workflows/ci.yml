@@ -216,7 +216,9 @@ jobs:
     name: publish
     runs-on: ubuntu-latest
     needs: [version, gate-integration]
-    if: needs.version.outputs.publish == 'true'
+    # Publication is disabled until v1.0.0 — no binaries are released yet.
+    # To re-enable, restore: if: needs.version.outputs.publish == 'true'
+    if: false
     steps:
       - uses: actions/checkout@v4
       - name: Download binaries
