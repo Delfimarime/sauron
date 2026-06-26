@@ -7,4 +7,8 @@ const (
 	FieldRegistryURI       = "sauron.registry.uri"
 	FieldRegistryTransport = "sauron.registry.transport"
 	FieldArtifactCount     = "sauron.artifact.count"
+	FieldArtifactName      = "sauron.artifact.name"
+	FieldProviderName      = "sauron.provider.name"
+	FieldProviderFrom      = "sauron.provider.from"
+	FieldProviderTo        = "sauron.provider.to"
 )

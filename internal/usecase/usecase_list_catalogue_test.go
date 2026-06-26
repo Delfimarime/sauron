@@ -22,14 +22,14 @@ const catalogueURI = "https://acme.example"
 type catalogueFixture struct {
 	uc    *ListCatalogueUseCase
 	store *storage.MockBasedRegistriesStore
-	open  *MockBasedOpenRegistry
+	open  *MockBasedOpenRegistryUseCase
 	fs    *source.MockBasedFileSystem
 }
 
 // newCatalogueFixture wires the use case over fresh mocks.
 func newCatalogueFixture() *catalogueFixture {
 	store := &storage.MockBasedRegistriesStore{}
-	open := &MockBasedOpenRegistry{}
+	open := &MockBasedOpenRegistryUseCase{}
 	return &catalogueFixture{
 		store: store,
 		open:  open,

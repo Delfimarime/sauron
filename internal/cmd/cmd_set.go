@@ -12,5 +12,6 @@ func Set() *cobra.Command {
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(SetRegistry())
+	cmd.AddCommand(SetProvider())
 	return cmd
 }

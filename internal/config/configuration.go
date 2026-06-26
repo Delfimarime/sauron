@@ -13,7 +13,11 @@ const (
 
 // Configuration is Sauron's resolved runtime configuration.
 type Configuration struct {
+	// HomeDirectory is Sauron's own state root ($SAURON_HOME or ~/.sauron).
 	HomeDirectory string
+	// UserHomeDirectory is the user's real home, the root the provider artifact
+	// directories (.claude, .zencoder) live under.
+	UserHomeDirectory string
 }
 
 // New resolves the Configuration from the environment.
@@ -22,7 +26,11 @@ func New() (Configuration, error) {
 	if err != nil {
 		return Configuration{}, err
 	}
-	return Configuration{HomeDirectory: home}, nil
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return Configuration{}, fmt.Errorf("resolve user home directory: %w", err)
+	}
+	return Configuration{HomeDirectory: home, UserHomeDirectory: userHome}, nil
 }
 
 // GetHomeDirectory resolves Sauron's home: $SAURON_HOME when set, else ~/.sauron.

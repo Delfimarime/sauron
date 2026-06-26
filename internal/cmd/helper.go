@@ -76,11 +76,11 @@ func runUseCase[U, P any](ctx context.Context, exec func(context.Context, U) (*P
 	defer cancel()
 
 	var product *P
-	var execErr error
+	var prob error
 	app := NewApp(runCtx, append([]fx.Option{
 		repository.NewFxOptions(),
 		usecase.NewFxOptions(),
-		fx.Invoke(func(uc U) { product, execErr = exec(runCtx, uc) }),
+		fx.Invoke(func(uc U) { product, prob = exec(runCtx, uc) }),
 	}, opts...)...)
 	if err := app.Err(); err != nil {
 		return nil, fmt.Errorf("build application: %w", err)
@@ -91,7 +91,7 @@ func runUseCase[U, P any](ctx context.Context, exec func(context.Context, U) (*P
 	cancel()
 	_ = app.Stop(context.WithoutCancel(ctx))
 
-	return product, execErr
+	return product, prob
 }
 
 // usageArgs wraps a cobra positional-args validator so a violation is classified

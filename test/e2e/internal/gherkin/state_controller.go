@@ -202,11 +202,11 @@ func decodeRegistries(data []byte) ([]types.Registry, error) {
 // decodeSkills decodes a multi-document YAML stream and keeps the Skill documents
 // (skipping the Agents that share track.yaml). Pure so it is unit-tested without the
 // fs.
-func decodeSkills(data []byte) ([]types.Skill, error) {
+func decodeSkills(data []byte) ([]types.Artifact, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
-	var out []types.Skill
+	var out []types.Artifact
 	for {
-		var doc types.Skill
+		var doc types.Artifact
 		err := dec.Decode(&doc)
 		if errors.Is(err, io.EOF) {
 			break
