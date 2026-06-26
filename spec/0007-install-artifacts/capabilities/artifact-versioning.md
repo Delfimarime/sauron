@@ -4,9 +4,9 @@
 
 **Enables:** [install](../spec.md)
 
-**Enables:** [sync](../../0007-sync/spec.md)
+**Enables:** [sync](../../0011-sync/spec.md)
 
-**Enables:** [upgrade](../../0008-upgrade/spec.md)
+**Enables:** [upgrade](../../0012-upgrade/spec.md)
 
 ## Overview
 

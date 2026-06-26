@@ -185,14 +185,14 @@ are recorded as project-level ADRs under [architecture/](architecture/).
 | [0002](0002-describe-registry/spec.md) | Describe registry | **Built** |
 | [0003](0003-unset-registry/spec.md) | Unset registry | **Built** |
 | [0004](0004-list-catalogue/spec.md) | List catalogue | Specified |
-| [0005](0005-install-artifacts/spec.md) | Install artifacts | Specified |
-| [0006](0006-uninstall-artifacts/spec.md) | Uninstall artifacts | Specified |
-| [0007](0007-sync/spec.md) | Sync | Specified |
-| [0008](0008-upgrade/spec.md) | Upgrade | Specified |
-| [0009](0009-list-artifacts/spec.md) | List artifacts | Specified |
-| [0010](0010-describe-artifact/spec.md) | Describe artifact | Specified |
-| [0011](0011-set-provider/spec.md) | Set provider | Specified |
-| [0012](0012-describe-provider/spec.md) | Describe provider | Specified |
+| [0005](0005-set-provider/spec.md) | Set provider | Specified |
+| [0006](0006-describe-provider/spec.md) | Describe provider | Specified |
+| [0007](0007-install-artifacts/spec.md) | Install artifacts | Specified |
+| [0008](0008-list-artifacts/spec.md) | List artifacts | Specified |
+| [0009](0009-describe-artifact/spec.md) | Describe artifact | Specified |
+| [0010](0010-uninstall-artifacts/spec.md) | Uninstall artifacts | Specified |
+| [0011](0011-sync/spec.md) | Sync | Specified |
+| [0012](0012-upgrade/spec.md) | Upgrade | Specified |
 
 Authoring conventions and the requirement taxonomy live in
 [AUTHORING.md](AUTHORING.md); the domain vocabulary in [GLOSSARY.md](GLOSSARY.md);

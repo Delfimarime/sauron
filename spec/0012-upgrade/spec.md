@@ -4,7 +4,7 @@
 
 **Status:** Specified
 
-**Depends on:** [install](../0005-install-artifacts/spec.md)
+**Depends on:** [install](../0007-install-artifacts/spec.md)
 
 ## Overview
 

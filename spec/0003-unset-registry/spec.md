@@ -9,7 +9,7 @@
 A developer needs to disconnect the configured source. `unset registry` removes
 the single `Registry` document, leaving every already-installed artifact in place
 — removing the source does not remove what it delivered. Installed artifacts are
-removed only with [uninstall](../0006-uninstall-artifacts/spec.md).
+removed only with [uninstall](../0010-uninstall-artifacts/spec.md).
 
 ## Requirements
 

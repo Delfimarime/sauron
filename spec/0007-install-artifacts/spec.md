@@ -8,7 +8,7 @@
 
 **Depends on:** [set registry](../0001-set-registry/spec.md)
 
-**Depends on:** [set provider](../0011-set-provider/spec.md)
+**Depends on:** [set provider](../0005-set-provider/spec.md)
 
 ## Overview
 
