@@ -54,7 +54,7 @@ metadata:
   createdAt: 2026-06-21T07:30:00Z   # writer-stamped, RFC3339 UTC
   lastUpdatedAt: 2026-06-21T07:30:00Z
 spec:
-  ...                   # kind-specific; see the kind's schema (Provider has none)
+  ...                   # kind-specific; see the kind's schema (Provider carries the sync timestamps)
 ```
 
 - `apiVersion` is `sauron.raitonbl.com/v1`. Schema evolution advances the version
@@ -130,6 +130,9 @@ meaning layered on top.
 
 - There is exactly one `Provider` document; its identity is its `metadata.name`
   (`claude` | `zencoder`).
+- `spec` carries the sync timestamps `lastSyncedAt` / `lastSyncAttemptAt`, written
+  by `sync` ([0011](../0011-sync/spec.md)) and tolerated absent on read — a
+  provider that has never synced carries neither.
 
 ### `Preferences` — `settings.yaml`
 

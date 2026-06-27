@@ -25,7 +25,7 @@ paging, with a line reporting the applied page/limit (no total count).
 
 ```
 $ sauron list catalogue agent --limit 20
-NAME           KIND
+name           kind
 code-reviewer  agent
 showing 1–1 (page 1, limit 20)
 ```

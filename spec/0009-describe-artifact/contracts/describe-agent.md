@@ -16,7 +16,7 @@ Show one installed agent's full detail.
 
 | Flag | Meaning |
 |---|---|
-| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `version`, `digest`, `path`, `installed`, `updated` |
+| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `version`, `digest`, `path`, `installedAt`, `lastUpdatedAt` |
 
 ## Fields
 
@@ -26,8 +26,8 @@ Show one installed agent's full detail.
 | `version` | Optional human-meaningful version; `—` when none |
 | `digest` | Content identity used to detect change and local drift |
 | `path` | Exact installed location under the provider |
-| `installed` | When it was first installed |
-| `updated` | When it was last updated |
+| `installedAt` | When it was first installed |
+| `lastUpdatedAt` | When it was last updated |
 
 ## Output
 
@@ -37,12 +37,12 @@ The agent's fields on stdout.
 
 ```
 $ sauron describe agent code-reviewer
-name:        code-reviewer
-version:     3af1c2e
-digest:      sha256:9c4d…
-path:        agents/sauron-acme-code-reviewer
-installed:   2026-06-12T08:30:00Z
-updated:     2026-06-14T11:15:00Z
+name:           code-reviewer
+version:        3af1c2e
+digest:         sha256:9c4d…
+path:           agents/sauron-acme-code-reviewer
+installedAt:    2026-06-12T08:30:00Z
+lastUpdatedAt:  2026-06-14T11:15:00Z
 ```
 
 ## Exit codes

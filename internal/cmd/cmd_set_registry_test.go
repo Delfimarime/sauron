@@ -47,12 +47,12 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 		{
 			name: "git ref and credentials carried",
 			flags: setRegistryFlags{
-				transportFlags:     transportFlags{Transport: transportGit},
-				timeoutFlags:  timeoutFlags{Timeout: 5 * time.Second},
-				Revision:      "v1.2.3",
-				Username:      envRef,
-				SkipTLSVerify: true,
-				SSHKey:        "/keys/id_ed25519",
+				transportFlags: transportFlags{Transport: transportGit},
+				timeoutFlags:   timeoutFlags{Timeout: 5 * time.Second},
+				Revision:       "v1.2.3",
+				Username:       envRef,
+				SkipTLSVerify:  true,
+				SSHKey:         "/keys/id_ed25519",
 			},
 			args:      []string{regURI},
 			wantKind:  transportGit,

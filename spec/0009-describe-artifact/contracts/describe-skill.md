@@ -16,7 +16,7 @@ Show one installed skill's full detail.
 
 | Flag | Meaning |
 |---|---|
-| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `version`, `digest`, `path`, `installed`, `updated` |
+| `--fields <list>` | Fields to display, in order; `name` is always present and first. Valid: `name`, `version`, `digest`, `path`, `installedAt`, `lastUpdatedAt` |
 
 ## Fields
 
@@ -26,8 +26,8 @@ Show one installed skill's full detail.
 | `version` | Optional human-meaningful version; `—` when none |
 | `digest` | Content identity used to detect change and local drift |
 | `path` | Exact installed location under the provider |
-| `installed` | When it was first installed |
-| `updated` | When it was last updated |
+| `installedAt` | When it was first installed |
+| `lastUpdatedAt` | When it was last updated |
 
 ## Output
 
@@ -37,12 +37,12 @@ The skill's fields on stdout.
 
 ```
 $ sauron describe skill go-style
-name:        go-style
-version:     v1.4.0
-digest:      sha256:1a2b…
-path:        skills/sauron-acme-go-style
-installed:   2026-06-10T09:00:00Z
-updated:     2026-06-15T10:00:00Z
+name:           go-style
+version:        v1.4.0
+digest:         sha256:1a2b…
+path:           skills/sauron-acme-go-style
+installedAt:    2026-06-10T09:00:00Z
+lastUpdatedAt:  2026-06-15T10:00:00Z
 ```
 
 ## Exit codes

@@ -25,7 +25,7 @@ paging, with a line reporting the applied page/limit (no total count).
 
 ```
 $ sauron list catalogue skill --limit 20
-NAME        KIND
+name        kind
 go-style    skill
 sql-review  skill
 showing 1–2 (page 1, limit 20)

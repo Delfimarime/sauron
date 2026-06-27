@@ -17,8 +17,8 @@ const (
 	describeFieldTLS         = "tls"
 	describeFieldSSHKey      = "sshKey"
 	describeFieldTimeout     = "timeout"
-	describeFieldCreated     = "created"
-	describeFieldUpdated     = "updated"
+	describeFieldCreated     = "createdAt"
+	describeFieldUpdated     = "lastUpdatedAt"
 )
 
 // describeFieldOrder is the ordered set --fields may select from. The single

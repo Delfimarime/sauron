@@ -16,8 +16,8 @@ import (
 const (
 	labelTLS     = "tls:"
 	labelSSHKey  = "sshKey:"
-	labelCreated = "created:"
-	labelUpdated = "updated:"
+	labelCreated = "createdAt:"
+	labelUpdated = "lastUpdatedAt:"
 	vUserRef     = "${env:ACME_USER}"
 	vTokenRef    = "${env:ACME_TOKEN}"
 	vGitURI      = "git@github.com:acme/artifacts.git"
@@ -41,15 +41,15 @@ func allDescribeFields() []string {
 func fullViewRegistry() types.Registry {
 	return types.Registry{
 		Metadata: types.Metadata{
-			CreatedAt:    createdStamp,
+			CreatedAt:     createdStamp,
 			LastUpdatedAt: updatedStamp,
 		},
 		Spec: types.RegistrySpec{
-			Transport: types.TransportGit,
-			Source:       vGitURI,
-			Revision:       vRefV120,
-			Credentials:      &types.Credentials{Username: vUserRef, Password: vTokenRef},
-			Timeout:   v45s,
+			Transport:   types.TransportGit,
+			Source:      vGitURI,
+			Revision:    vRefV120,
+			Credentials: &types.Credentials{Username: vUserRef, Password: vTokenRef},
+			Timeout:     v45s,
 		},
 	}
 }
@@ -112,7 +112,7 @@ func TestRenderDescribeRegistry(t *testing.T) {
 			registry: types.Registry{
 				Spec: types.RegistrySpec{
 					Transport: types.TransportHTTP,
-					Source:       "u",
+					Source:    "u",
 					SSHKey:    "/home/dev/.ssh/id_ed25519",
 					TLS: &types.TLS{
 						SkipVerify: true,

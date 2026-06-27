@@ -14,10 +14,10 @@ import (
 
 // shared literals the unset tests assert against.
 const (
-	docNameAcme   = "source: git@github.com:acme/artifacts.git"
-	unknownFlag   = "--nope"
-	summaryUnset  = "registry unset; installed artifacts preserved"
-	oneRegistry   = authRegistries
+	docNameAcme  = "source: git@github.com:acme/artifacts.git"
+	unknownFlag  = "--nope"
+	summaryUnset = "registry unset; installed artifacts preserved"
+	oneRegistry  = authRegistries
 )
 
 // runUnsetRegistry assembles and runs the subcommand, returning stdout and the

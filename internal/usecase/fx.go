@@ -14,6 +14,7 @@ func NewFxOptions() fx.Option {
 		NewSetRegistryUseCase,
 		NewSetProviderUseCase,
 		NewDescribeRegistryUseCase,
+		NewDescribeProviderUseCase,
 		NewListCatalogueUseCase,
 		NewUnsetRegistryUseCase,
 	)

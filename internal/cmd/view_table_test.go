@@ -15,7 +15,7 @@ const (
 	tblRowAcme = "acme"
 )
 
-// TestTableRender exercises the rendering rules: uppercase headers, aligned
+// TestTableRender exercises the rendering rules: verbatim headers, aligned
 // columns, the empty-cell placeholder, and the no-output-for-zero-rows rule.
 func TestTableRender(t *testing.T) {
 	tests := []struct {
@@ -32,7 +32,7 @@ func TestTableRender(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "headers upper-cased and columns aligned",
+			name: "headers verbatim and columns aligned",
 			view: table{
 				Headers: []string{tblColName, "transport", "uri"},
 				Rows: [][]string{
@@ -40,9 +40,18 @@ func TestTableRender(t *testing.T) {
 					{"internal", "http", "https://reg.example.com/"},
 				},
 			},
-			want: "NAME      TRANSPORT  URI\n" +
+			want: "name      transport  uri\n" +
 				"acme      git        git@github.com:acme/artifacts.git\n" +
 				"internal  http       https://reg.example.com/\n",
+		},
+		{
+			name: "camelCase header renders verbatim, never uppercased",
+			view: table{
+				Headers: []string{tblColName, "lastUpdatedAt"},
+				Rows:    [][]string{{tblRowAcme, "2026-06-21T07:30:00Z"}},
+			},
+			want: "name  lastUpdatedAt\n" +
+				"acme  2026-06-21T07:30:00Z\n",
 		},
 		{
 			name: "empty cell renders the placeholder",
@@ -50,7 +59,7 @@ func TestTableRender(t *testing.T) {
 				Headers: []string{tblColName, "ref"},
 				Rows:    [][]string{{tblRowAcme, ""}},
 			},
-			want: "NAME  REF\n" +
+			want: "name  ref\n" +
 				"acme  —\n",
 		},
 	}

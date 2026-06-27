@@ -11,7 +11,7 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
-// TestRenderCatalogue covers the NAME/KIND table and the paging line for a
+// TestRenderCatalogue covers the name/kind table and the paging line for a
 // populated window and an empty page.
 func TestRenderCatalogue(t *testing.T) {
 	tests := []struct {
@@ -33,7 +33,7 @@ func TestRenderCatalogue(t *testing.T) {
 				Limit:  20,
 				Offset: 0,
 			},
-			wantContains: []string{"NAME", "KIND", "review", "doc", "agent", "showing 1–2 (page 1, limit 20)"},
+			wantContains: []string{headerName, headerKind, "review", "doc", "agent", "showing 1–2 (page 1, limit 20)"},
 		},
 		{
 			name: "empty page renders no table and the zero-results line",
@@ -45,7 +45,7 @@ func TestRenderCatalogue(t *testing.T) {
 				Offset: 160,
 			},
 			wantContains: []string{"showing 0 results (page 9, limit 20)"},
-			wantAbsent:   []string{"NAME"},
+			wantAbsent:   []string{headerName},
 		},
 		{
 			name: "single-row window reports the inclusive window",
@@ -113,7 +113,7 @@ func TestRenderCatalogueWriteError(t *testing.T) {
 	}
 }
 
-// TestPagingLineKindRendered confirms the kind is rendered in the KIND column.
+// TestPagingLineKindRendered confirms the kind is rendered in the kind column.
 func TestPagingLineKindRendered(t *testing.T) {
 	// Arrange.
 	var buf bytes.Buffer
@@ -124,6 +124,6 @@ func TestPagingLineKindRendered(t *testing.T) {
 
 	// Assert.
 	rows := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
-	assert.Equal(t, "KIND", strings.Fields(rows[0])[1])
+	assert.Equal(t, headerKind, strings.Fields(rows[0])[1])
 	assert.Contains(t, rows[1], "skill")
 }

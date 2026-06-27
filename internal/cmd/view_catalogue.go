@@ -9,8 +9,8 @@ import (
 
 // the catalogue table column headers.
 const (
-	headerName = "NAME"
-	headerKind = "KIND"
+	headerName = "name"
+	headerKind = "kind"
 )
 
 // catalogueSortName is the only field a catalogue listing sorts by; this view
@@ -37,7 +37,7 @@ func validateCatalogueSort(sort string) error {
 	return fmt.Errorf("%w: unknown sort field %q", errInvalidFlag, sort)
 }
 
-// renderCatalogue writes the NAME/KIND table for the listed artifacts, then
+// renderCatalogue writes the name/kind table for the listed artifacts, then
 // always writes the paging line.
 func renderCatalogue(w io.Writer, result *usecase.ListCatalogueResult) error {
 	if err := catalogueTable(result).render(w); err != nil {
@@ -50,7 +50,7 @@ func renderCatalogue(w io.Writer, result *usecase.ListCatalogueResult) error {
 	return nil
 }
 
-// catalogueTable builds the NAME/KIND table; every row carries the listing kind.
+// catalogueTable builds the name/kind table; every row carries the listing kind.
 func catalogueTable(result *usecase.ListCatalogueResult) table {
 	rows := make([][]string, len(result.Items))
 	for i, name := range result.Items {

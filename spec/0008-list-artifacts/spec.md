@@ -25,7 +25,7 @@ selection, and sorting. This is the local counterpart to
 - FR-003: Where `--search <term>` is provided, Sauron shall include only artifacts
   whose name contains the term (case-insensitive).
 - FR-004: Where `--sort <field>` and `--order` are provided, Sauron shall order
-  the rows; `--sort` accepts `name` (default) and `updated`.
+  the rows; `--sort` accepts `name` (default) and `lastUpdatedAt`.
 
 ### State-driven
 
