@@ -188,6 +188,54 @@ func TestRegistrySpecRef(t *testing.T) {
 	}
 }
 
+// TestProviderSpecSyncTimestamps asserts that ProviderSpec's sync timestamps
+// round-trip through YAML, are omitted from the encoded form when the spec is
+// empty (a provider that has never synced), and are preserved when set. It is
+// purely in-memory — no filesystem.
+func TestProviderSpecSyncTimestamps(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		spec        types.ProviderSpec
+		wantPresent bool
+	}{
+		{name: "spec omitted when never synced", spec: types.ProviderSpec{}, wantPresent: false},
+		{
+			name: "spec preserved when synced",
+			spec: types.ProviderSpec{
+				LastSyncedAt:      "2026-06-25T09:15:00Z",
+				LastSyncAttemptAt: "2026-06-26T06:00:00Z",
+			},
+			wantPresent: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			doc := &types.Provider{
+				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindProvider},
+				Metadata: types.Metadata{Name: types.ProviderClaude},
+				Spec:     tt.spec,
+			}
+
+			data, err := yaml.Marshal(doc)
+			require.NoError(t, err)
+
+			var raw map[string]any
+			require.NoError(t, yaml.Unmarshal(data, &raw))
+			_, present := raw["spec"]
+			assert.Equal(t, tt.wantPresent, present)
+
+			into := &types.Provider{}
+			require.NoError(t, yaml.Unmarshal(data, into))
+			assert.Equal(t, tt.spec, into.Spec)
+		})
+	}
+}
+
 // TestEnvelopeKeysAtTopLevel pins the load-bearing detail that the embedded
 // TypeMeta serializes apiVersion/kind at the document's top level (yaml.v3
 // requires the ",inline" tag for this), alongside metadata and spec.

@@ -47,6 +47,6 @@ shows the single registry's fields, with column selection.
   resolve to exit 1, so no new exit-code mapping arm is introduced; the type is
   reused by later `describe`/`get`-style features.
 - **The `--fields` valid set agrees across spec, state, and contract:**
-  `{source, transport, revision, credentials, tls, sshKey, timeout, created,
-  updated}`, with `source` always present and first. The two audit
+  `{source, transport, revision, credentials, tls, sshKey, timeout, createdAt,
+  lastUpdatedAt}`, with `source` always present and first. The two audit
   timestamps display by default when populated (FR-006). No drift to reconcile.

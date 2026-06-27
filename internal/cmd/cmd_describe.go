@@ -12,5 +12,6 @@ func Describe() *cobra.Command {
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(DescribeRegistry())
+	cmd.AddCommand(DescribeProvider())
 	return cmd
 }

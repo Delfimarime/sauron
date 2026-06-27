@@ -24,13 +24,13 @@ const (
 // shared test-data literals reused across the cmd package's tests, named to
 // satisfy goconst across the package.
 const (
-	argExtra   = "extra"
-	flagOrder  = "order"
-	flagSearch = "search"
-	flagSort   = "sort"
-	fieldsName = "fields"
-	flagTransport   = "transport"
-	sortName   = "name"
+	argExtra      = "extra"
+	flagOrder     = "order"
+	flagSearch    = "search"
+	flagSort      = "sort"
+	fieldsName    = "fields"
+	flagTransport = "transport"
+	sortName      = "name"
 )
 
 // seedCatalogueRegistry pins SAURON_HOME to a fresh temp dir, materializes a

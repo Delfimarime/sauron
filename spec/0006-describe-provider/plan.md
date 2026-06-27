@@ -26,7 +26,7 @@ The implementation is **test-driven, end-to-end first**:
 Add the `describe provider` command: render the active provider's detail through
 the shared descriptor view (FR-001) — `name`, the derived `directory`
 (`claude` → `~/.claude`, `zencoder` → `~/.zencoder`), `labels`, the audit
-`created`/`updated` timestamps, and the sync `lastSynced`/`lastSyncAttempt`
+`createdAt`/`lastUpdatedAt` timestamps, and the sync `lastSyncedAt`/`lastSyncAttemptAt`
 timestamps. `--fields <list>` selects and orders the displayed fields, `name`
 always present and first (FR-002). When no provider is set, print
 `no provider is set` and exit `0` (FR-003). An unreadable `settings.yaml` is a
@@ -40,7 +40,7 @@ and the **shared** [state contract](../contracts/state.md); the describe slice;
 deriving `directory` for display.
 
 **Out of scope (YAGNI):** *writing* the sync timestamps — that is
-[sync](../0011-sync/spec.md), not built yet. Here `lastSynced`/`lastSyncAttempt`
+[sync](../0011-sync/spec.md), not built yet. Here `lastSyncedAt`/`lastSyncAttemptAt`
 are **read-only, render-when-present**: omitted while absent, exactly as
 `createdAt`/`lastUpdatedAt` already tolerate absence. No new store —
 `ProvidersStore.Get` already exists (from 0005).
@@ -65,7 +65,7 @@ touched files:
 | `pkg/sauron/types/provider.go` | add `ProviderSpec{LastSyncedAt, LastSyncAttemptAt string}` and a `Spec ProviderSpec` field on `Provider` |
 | `spec/contracts/schemas/Provider.schema.json` | add an optional `spec` object — two `date-time` properties, `additionalProperties: false` |
 | `spec/contracts/state.md` | Provider per-kind: replace "Provider has none" — note the `spec` carries sync timestamps **written by `sync` (0011)**, tolerated absent on read |
-| `spec/0006-describe-provider/spec.md` | FR-002 valid fields → `name, directory, labels, created, updated, lastSynced, lastSyncAttempt` |
+| `spec/0006-describe-provider/spec.md` | FR-002 valid fields → `name, directory, labels, createdAt, lastUpdatedAt, lastSyncedAt, lastSyncAttemptAt` |
 | `spec/0006-describe-provider/contracts/describe-provider.md` | `--fields` table + example updated to the full field set |
 | `spec/0006-describe-provider/data/state.md` | field realization rows: derived `directory`, `spec.lastSyncedAt`, `spec.lastSyncAttemptAt` |
 | `internal/usecase/usecase_describe_provider.go` | **new** — `DescribeProviderUseCase.Execute` → `ProvidersStore.Get`; returns `(nil, nil)` when none set, `NewIOError` on read failure |
@@ -78,14 +78,14 @@ touched files:
 ### Field set and provider directory
 
 The valid `--fields` set, in default order, is `name`, `directory`, `labels`,
-`created`, `updated`, `lastSynced`, `lastSyncAttempt`. `name` is identity — always
+`createdAt`, `lastUpdatedAt`, `lastSyncedAt`, `lastSyncAttemptAt`. `name` is identity — always
 present and first. `directory` is **derived** from the provider name in the view
 (`claude` → `~/.claude`, `zencoder` → `~/.zencoder`), reusing the
 provider→home mapping from set-provider/migrate if a constant exists, else a
 two-entry switch — never stored. `labels` renders as an indented section with its
 keys sorted for deterministic output. Leaf timestamp fields render only when
-present, so the common pre-sync provider shows `name`, `directory`, `created`,
-`updated` and nothing else.
+present, so the common pre-sync provider shows `name`, `directory`, `createdAt`,
+`lastUpdatedAt` and nothing else.
 
 ### Success display
 
@@ -96,33 +96,33 @@ Common case today (set, never synced — sync fields absent, so omitted):
 
 ```
 $ sauron describe provider
-name:       claude
-directory:  ~/.claude
-created:    2026-06-21T07:30:00Z
-updated:    2026-06-21T07:30:00Z
+name:           claude
+directory:      ~/.claude
+createdAt:      2026-06-21T07:30:00Z
+lastUpdatedAt:  2026-06-21T07:30:00Z
 ```
 
-Full detail once a sync has run (column auto-aligns to `lastSyncAttempt`):
+Full detail once a sync has run (column auto-aligns to `lastSyncAttemptAt`):
 
 ```
 $ sauron describe provider
-name:            claude
-directory:       ~/.claude
+name:               claude
+directory:          ~/.claude
 labels:
-  team:          backend
-created:         2026-06-21T07:30:00Z
-updated:         2026-06-22T08:00:00Z
-lastSynced:      2026-06-25T09:15:00Z
-lastSyncAttempt: 2026-06-26T06:00:00Z
+  team:             backend
+createdAt:          2026-06-21T07:30:00Z
+lastUpdatedAt:      2026-06-22T08:00:00Z
+lastSyncedAt:       2026-06-25T09:15:00Z
+lastSyncAttemptAt:  2026-06-26T06:00:00Z
 ```
 
 `--fields` selects and orders (`name` always first):
 
 ```
-$ sauron describe provider --fields directory,lastSynced
-name:       claude
-directory:  ~/.claude
-lastSynced: 2026-06-25T09:15:00Z
+$ sauron describe provider --fields directory,lastSyncedAt
+name:          claude
+directory:     ~/.claude
+lastSyncedAt:  2026-06-25T09:15:00Z
 ```
 
 No provider set (FR-003 — plain line, exit `0`, not an error):

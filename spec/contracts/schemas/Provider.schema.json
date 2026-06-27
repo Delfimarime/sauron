@@ -33,6 +33,22 @@
           "description": "RFC3339 UTC timestamp stamped by sauron on the document's most recent write; never hand-edited."
         }
       }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lastSyncedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp of the most recent successful sync; written by sync, tolerated absent."
+        },
+        "lastSyncAttemptAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp of the most recent sync attempt; written by sync, tolerated absent."
+        }
+      }
     }
   }
 }

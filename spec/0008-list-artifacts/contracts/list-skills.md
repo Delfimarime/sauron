@@ -1,7 +1,7 @@
 # `list skills` — command line
 
 ```
-sauron list skills [--search <term>] [--fields <list>] [--sort name|updated] [--order asc|desc]
+sauron list skills [--search <term>] [--fields <list>] [--sort name|lastUpdatedAt] [--order asc|desc]
 ```
 
 List the installed skills.
@@ -11,8 +11,8 @@ List the installed skills.
 | Flag | Meaning |
 |---|---|
 | `--search <term>` | Case-insensitive substring filter on the skill name |
-| `--fields <list>` | Columns to display, in order; `name` is always present and first. Valid: `name`, `version`, `updated` |
-| `--sort <field>` | Sort field: `name` (default) or `updated` |
+| `--fields <list>` | Columns to display, in order; `name` is always present and first. Valid: `name`, `version`, `lastUpdatedAt` |
+| `--sort <field>` | Sort field: `name` (default) or `lastUpdatedAt` |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
 
 ## Fields
@@ -21,7 +21,7 @@ List the installed skills.
 |---|---|
 | `name` | The skill's name |
 | `version` | Optional human-meaningful version; `—` when none |
-| `updated` | When the artifact was last updated |
+| `lastUpdatedAt` | When the artifact was last updated |
 
 ## Output
 
@@ -32,7 +32,7 @@ result and exits `0`.
 
 ```
 $ sauron list skills
-NAME        VERSION  UPDATED
+name        version  lastUpdatedAt
 go-style    v1.4.0   2026-06-15
 sql-review  —        2026-06-12
 ```

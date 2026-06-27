@@ -19,7 +19,8 @@ active provider's detail.
 ### Optional
 
 - FR-002: Where `--fields <list>` is provided, Sauron shall show those fields in
-  order.
+  order, with `name` always present and first. The valid fields are `name`,
+  `directory`, `labels`, `createdAt`, `lastUpdatedAt`, `lastSyncedAt`, `lastSyncAttemptAt`.
 
 ### State-driven
 

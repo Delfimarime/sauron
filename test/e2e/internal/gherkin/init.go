@@ -18,6 +18,7 @@ func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
 		&describeController{command: commands},
 		&unsetController{commands: commands},
 		&setProviderController{rt: rt, commands: commands},
+		&describeProviderController{commands: commands},
 		&catalogueController{rt: rt, command: commands},
 		newRegistryFsController(rt),
 		newRegistryHTTPController(rt),
