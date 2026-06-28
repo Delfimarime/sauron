@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 func TestParseManifestsSplitsOnFileDirective(t *testing.T) {
@@ -39,20 +37,6 @@ func TestParseManifestsRejectsContentBeforeFirstDirectiveAndEmptyBody(t *testing
 
 	_, err = parseManifests("   \n\n")
 	assert.Error(t, err, "a doc-string with no directive is rejected")
-}
-
-func TestFilesystemRegistryStreamIsSchemaValid(t *testing.T) {
-	stream, err := filesystemRegistryStream("/tmp/registry/acme")
-	require.NoError(t, err)
-
-	regs, err := decodeRegistries(stream)
-	require.NoError(t, err)
-	require.Len(t, regs, 1)
-
-	assert.Equal(t, types.APIVersion, regs[0].APIVersion)
-	assert.Equal(t, types.KindRegistry, regs[0].Kind)
-	assert.Equal(t, types.TransportFilesystem, regs[0].Spec.Transport)
-	assert.Equal(t, "/tmp/registry/acme", regs[0].Spec.Source)
 }
 
 func TestCatalogueHasRowMatchesOnFields(t *testing.T) {

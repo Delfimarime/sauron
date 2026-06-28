@@ -32,7 +32,6 @@ var (
 // composes.
 type SetRegistryUseCaseParams struct {
 	fx.In
-	Filesystem extension.Registry `name:"registry.filesystem"`
 	Git        extension.Registry `name:"registry.git"`
 	HTTP       extension.Registry `name:"registry.http"`
 	Open       OpenRegistryUseCase
@@ -55,9 +54,8 @@ type SetRegistryUseCase struct {
 func NewSetRegistryUseCase(params SetRegistryUseCaseParams) *SetRegistryUseCase {
 	return &SetRegistryUseCase{
 		adapters: map[types.Transport]extension.Registry{
-			types.TransportFilesystem: params.Filesystem,
-			types.TransportGit:        params.Git,
-			types.TransportHTTP:       params.HTTP,
+			types.TransportGit:  params.Git,
+			types.TransportHTTP: params.HTTP,
 		},
 		open:       params.Open,
 		registries: params.Registries,

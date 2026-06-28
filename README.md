@@ -4,7 +4,7 @@ Distribute skills and agents to any AI coding assistant — across provider
 boundaries — and keep them in sync.
 
 sauron is a spec-driven CLI that delivers skills and agents from a single
-remote registry (git, HTTP, or filesystem) to the assistant you use (Claude,
+remote registry (git or HTTP) to the assistant you use (Claude,
 Zencoder, …). It reconciles your provider to a desired set with a reviewable
 plan, manually or on a schedule you wire into your OS scheduler. Grouping
 artifacts into shareable personas is a planned concept, deferred past v1 — see
@@ -23,7 +23,7 @@ schedule it.
    ┌──────────────────────┐                          ┌──────────────────────┐
    │       Registry       │                          │         User         │
    │   artifact source    │                          │  a developer using   │
-   │   git · http · fs    │                          │   an AI assistant    │
+   │   git · http         │                          │   an AI assistant    │
    └──────────┬───────────┘                          └──────────┬───────────┘
               ▲                                                  │
               │ fetch artifacts                                  │ runs `sauron`

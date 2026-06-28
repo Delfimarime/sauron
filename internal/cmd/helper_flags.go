@@ -11,13 +11,12 @@ import (
 
 // the transports a source may be reached over.
 const (
-	transportGit        = "git"
-	transportHTTP       = "http"
-	transportFilesystem = "filesystem"
+	transportGit  = "git"
+	transportHTTP = "http"
 )
 
 // transportValues are the transports a source may be reached over.
-var transportValues = []string{transportGit, transportHTTP, transportFilesystem}
+var transportValues = []string{transportGit, transportHTTP}
 
 // transportFlags groups the transport selector shared by source-defining commands.
 type transportFlags struct {

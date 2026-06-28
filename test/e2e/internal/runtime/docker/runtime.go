@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/testcontainers/testcontainers-go/log"
@@ -15,6 +14,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime/httpregistry"
 )
 
 // mainService is the compose service that hosts the binary under test;
@@ -23,11 +23,12 @@ const (
 	mainService = "main"
 	sauronHome  = "/root/.sauron/"
 	sauronPath  = "/opt/bin/sauron"
-)
 
-// webserverStartupTimeout bounds the wait for an nginx sidecar to announce its
-// workers, so a sidecar that never readies fails fast instead of hanging.
-const webserverStartupTimeout = 30 * time.Second
+	// hostDockerInternal is the DNS name the containerized binary uses to reach the
+	// in-process http registry fixture running on the host; it resolves through the
+	// host-gateway extra_hosts entry wired onto "main".
+	hostDockerInternal = "host.docker.internal"
+)
 
 type dockerRuntime struct {
 	bin        string
@@ -35,7 +36,7 @@ type dockerRuntime struct {
 	logger     log.Logger
 	specs      []ContainerSpec
 	folders    map[string]*folderSource
-	webservers map[string]*webserverSource
+	webservers map[string]*httpregistry.Source
 	gits       map[string]*gitSource
 	stack      compose.ComposeStack
 }
@@ -81,7 +82,7 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		logger:     options.logger,
 		specs:      specs,
 		folders:    map[string]*folderSource{},
-		webservers: map[string]*webserverSource{},
+		webservers: map[string]*httpregistry.Source{},
 		gits:       map[string]*gitSource{},
 	}, nil
 }
@@ -123,16 +124,10 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	for _, alias := range sortedKeys(c.gits) {
 		stack = stack.WaitForService(gitService(alias), wait.ForLog("Server listening on"))
 	}
-	// The nginx sidecar binds port 80 only after its entrypoint finishes; wait
-	// until nginx announces its workers are up, otherwise the binary's validation
-	// probe races the bind and is refused. A log wait (not ForListeningPort) is
-	// used because compose services publish no host port to poll; the explicit
-	// startup timeout bounds the wait so a sidecar that never readies fails the
-	// scenario rather than hanging.
-	for _, alias := range sortedKeys(c.webservers) {
-		stack = stack.WaitForService(webserverService(alias),
-			wait.ForLog("start worker processes").WithStartupTimeout(webserverStartupTimeout))
-	}
+	// Webserver sources need no readiness wait: the http registry fixture runs in the
+	// test process and its listener backlog accepts connections the instant it binds
+	// (it binds lazily when #{.webserver.*.url} is first resolved, before the binary's
+	// validation probe runs).
 	c.stack = stack
 
 	return stack.Up(ctx)
@@ -148,6 +143,9 @@ func (c *dockerRuntime) newStack(path string) (compose.ComposeStack, error) {
 }
 
 func (c *dockerRuntime) Stop(ctx context.Context) error {
+	for _, alias := range sortedKeys(c.webservers) {
+		_ = c.webservers[alias].Server().Stop(ctx)
+	}
 	var err error
 	if c.stack != nil {
 		err = c.stack.Down(ctx, compose.RemoveOrphans(true), compose.RemoveVolumes(true))
@@ -161,13 +159,19 @@ func (c *dockerRuntime) Stop(ctx context.Context) error {
 
 func (c *dockerRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
 	if c.stack == nil {
-		for _, each := range c.specs {
-			if each.Service != mainService {
+		// Seed before Start: defer the bytes as an inline-content mount on "main",
+		// materialized when the stack comes up. The bind target must be the absolute
+		// in-container path (a relative compose target is invalid), and the mount
+		// must be written back into c.specs by index — ranging by value would discard
+		// it on the loop variable's copy.
+		target := containerPath(locationURI)
+		for i := range c.specs {
+			if c.specs[i].Service != mainService {
 				continue
 			}
-			each.Mount = append(each.Mount, FileSpec{
+			c.specs[i].Mount = append(c.specs[i].Mount, FileSpec{
 				Content: content,
-				Path:    locationURI,
+				Path:    target,
 			})
 		}
 		return nil
@@ -272,12 +276,13 @@ func (c *dockerRuntime) Folder(alias string) runtime.Source {
 	return src
 }
 
-// Webserver declares an nginx sidecar serving the registry REST API over http on the
-// compose network, created once per alias so repeated Expose calls accumulate.
+// Webserver declares an http registry source served by the in-process fixture in the
+// test process; the containerized binary reaches it at host.docker.internal. The
+// source is created once per alias so repeated Expose calls accumulate.
 func (c *dockerRuntime) Webserver(alias string) runtime.Source {
 	src, ok := c.webservers[alias]
 	if !ok {
-		src = &webserverSource{alias: alias}
+		src = httpregistry.NewSource(httpregistry.New(), hostDockerInternal)
 		c.webservers[alias] = src
 	}
 	return src

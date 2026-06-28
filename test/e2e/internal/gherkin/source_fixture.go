@@ -7,9 +7,9 @@ import (
 )
 
 // sourceFixture is the shared behaviour of the registry source fixtures: declare a
-// runtime source and expose provider content on it. The filesystem, http, and git
-// controllers differ only in which source they select (and their Gherkin wording),
-// so the translation logic lives here once. The source selector closes over the
+// runtime source and expose provider content on it. The http and git controllers
+// differ only in which source they select (and their Gherkin wording), so the
+// translation logic lives here once. The source selector closes over the
 // runtime and the capability, so a fixture never threads rt itself.
 type sourceFixture struct {
 	source func() runtime.Source

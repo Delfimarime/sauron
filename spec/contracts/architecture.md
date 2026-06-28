@@ -53,7 +53,6 @@ internal/
       registry/            extension.Registry adapters (one package; one file per transport)
         fx.go              exposes NewFxOptions() fx.Option
         api/               shared adapter primitives: error classes, option helpers, the directory-backed source.FileSystem
-        os_filesystem.go   filesystem (local-directory) adapter
         git_filesystem.go  git adapter (shallow clone)
         rest_filesystem.go HTTP adapter (REST client)
       agent/               extension.Provider adapters (the destination agent environments)
@@ -92,7 +91,7 @@ public toolkits: `pkg/telemetry` (the ECS field-key vocabulary, see
 client). The port adapters live under `internal/infrastructure/repository/` — the
 driven-adapter layer reaching external systems, grouped under a single
 `repository` module whose `fx.go` aggregates them: `registry/` — one package with
-a file per transport (filesystem, git, http) over a shared `registry/api` of
+a file per transport (git, http) over a shared `registry/api` of
 common primitives — implements `extension.Registry`, and `agent/{claude,zencoder}`
 implements `extension.Provider` (a provider destination is modeled as an agent
 environment).

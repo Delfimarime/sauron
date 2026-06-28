@@ -118,10 +118,10 @@ meaning layered on top.
 - The unique key for any artifact is the pair `(kind, name)`; the same name may
   appear across kinds. There is one registry, so the source is implicit and is not
   recorded per artifact.
-- `spec.digest` is the content identity `sync`/`upgrade` compare to detect upstream
-  change and local drift; it is always present.
-- `spec.version` is the optional human-meaningful label — derived for `git`,
-  declared-only for `http`/`filesystem`.
+- `spec.version` is the artifact's identity, read from the source and never
+  computed: the directory's git tree hash for `git`, the declared object version
+  for `http`. `sync`/`upgrade` compare it to detect upstream change; it is always
+  present.
 - `spec.path` is the exact installed location (`sauron-<name>` under the provider's
   directory for the kind), so removal and provider migration are precise and
   independent of recomputing the naming scheme.

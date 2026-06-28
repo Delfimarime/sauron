@@ -20,7 +20,6 @@ func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
 		&setProviderController{rt: rt, commands: commands},
 		&describeProviderController{commands: commands},
 		&catalogueController{rt: rt, command: commands},
-		newRegistryFsController(rt),
 		newRegistryHTTPController(rt),
 		newRegistryGitController(rt),
 	} {

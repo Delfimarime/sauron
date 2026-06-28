@@ -43,7 +43,7 @@ contradict it.
 | Flag | Meaning |
 |---|---|
 | `--dry-run` | Print the plan without changing the environment or the track file |
-| `--transport <kind>` | Registry transport: `git`, `http`, or `filesystem` (persisted as `spec.transport`) |
+| `--transport <kind>` | Registry transport: `git` or `http` (persisted as `spec.transport`) |
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
@@ -103,7 +103,6 @@ showing 1–20 (page 1, limit 20)
 ```
 name:     go-style
 version:  9f4d2a1
-digest:   sha256:1c8f…
 path:     sauron-go-style
 updated:  2026-06-15
 ```

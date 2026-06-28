@@ -17,6 +17,6 @@ schema is owned by the [state data contract](../../contracts/state.md).
 
 | Field | Requirement |
 |---|---|
-| `spec.digest` | FR-001 |
+| `spec.version` | FR-001 |
 | (no removal) | FR-002 |
 | `Provider` presence | FR-007 |

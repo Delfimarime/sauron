@@ -25,12 +25,12 @@ type commandResult struct {
 
 func (c *commandController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the user runs (.+)$`, c.userRuns)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+)$`, c.setRegistry)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+) pinned to (\S+)$`, c.setRegistryPinned)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+) with username (\S+) and password (\S+)$`, c.setRegistryWithAuth)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+) using ssh key (\S+)$`, c.setRegistryWithSSHKey)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+) pinned to (\S+) using ssh key (\S+)$`, c.setRegistryPinnedWithSSHKey)
-	sc.Step(`^the user sets the (filesystem|http|git) registry from (\S+) with client certificate (\S+) and key (\S+)$`, c.setRegistryWithClientCert)
+	sc.Step(`^the user sets the (http|git) registry from (\S+)$`, c.setRegistry)
+	sc.Step(`^the user sets the (http|git) registry from (\S+) pinned to (\S+)$`, c.setRegistryPinned)
+	sc.Step(`^the user sets the (http|git) registry from (\S+) with username (\S+) and password (\S+)$`, c.setRegistryWithAuth)
+	sc.Step(`^the user sets the (http|git) registry from (\S+) using ssh key (\S+)$`, c.setRegistryWithSSHKey)
+	sc.Step(`^the user sets the (http|git) registry from (\S+) pinned to (\S+) using ssh key (\S+)$`, c.setRegistryPinnedWithSSHKey)
+	sc.Step(`^the user sets the (http|git) registry from (\S+) with client certificate (\S+) and key (\S+)$`, c.setRegistryWithClientCert)
 
 	sc.Step(`^the command succeeds$`, c.succeeds)
 	sc.Step(`^the command exits with status (\d+)$`, c.exitsWith)

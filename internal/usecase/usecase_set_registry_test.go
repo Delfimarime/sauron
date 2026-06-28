@@ -24,42 +24,37 @@ const (
 	testFSURI   = "/srv"
 	testHTTPURI = "https://acme.example"
 
-	transportFilesystem = "filesystem"
-	transportHTTP       = "http"
-	transportGit        = "git"
+	transportHTTP = "http"
+	transportGit  = "git"
 
 	testRef = "main"
 )
 
 // fixture bundles the use case and its mocked collaborators.
 type fixture struct {
-	uc         *SetRegistryUseCase
-	filesystem *extension.MockBasedRegistry
-	git        *extension.MockBasedRegistry
-	http       *extension.MockBasedRegistry
-	store      *storage.MockBasedRegistriesStore
-	fs         *source.MockBasedFileSystem
+	uc    *SetRegistryUseCase
+	git   *extension.MockBasedRegistry
+	http  *extension.MockBasedRegistry
+	store *storage.MockBasedRegistriesStore
+	fs    *source.MockBasedFileSystem
 }
 
 // newFixture wires a use case over fresh mocks.
 func newFixture() *fixture {
 	f := &fixture{
-		filesystem: &extension.MockBasedRegistry{},
-		git:        &extension.MockBasedRegistry{},
-		http:       &extension.MockBasedRegistry{},
-		store:      &storage.MockBasedRegistriesStore{},
-		fs:         &source.MockBasedFileSystem{},
+		git:   &extension.MockBasedRegistry{},
+		http:  &extension.MockBasedRegistry{},
+		store: &storage.MockBasedRegistriesStore{},
+		fs:    &source.MockBasedFileSystem{},
 	}
 
 	open := NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
-		Filesystem: f.filesystem,
-		Git:        f.git,
-		HTTP:       f.http,
-		Logger:     zap.NewNop(),
+		Git:    f.git,
+		HTTP:   f.http,
+		Logger: zap.NewNop(),
 	})
 
 	f.uc = NewSetRegistryUseCase(SetRegistryUseCaseParams{
-		Filesystem: f.filesystem,
 		Git:        f.git,
 		HTTP:       f.http,
 		Open:       open,
@@ -176,35 +171,35 @@ func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 
 	t.Run("validate non-usage error yields unreachable", func(t *testing.T) {
 		f := newFixture()
-		f.filesystem.On("Validate", mock.Anything).Return(errors.New("weird"))
+		f.http.On("Validate", mock.Anything).Return(errors.New("weird"))
 
 		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testFSURI, Transport: transportFilesystem,
+			URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
 
 	t.Run("list error yields unreachable", func(t *testing.T) {
 		f := newFixture()
-		f.filesystem.On("Validate", mock.Anything).Return(nil)
-		f.filesystem.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
+		f.http.On("Validate", mock.Anything).Return(nil)
+		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.fs.On("List", mock.Anything, ".skills", mock.Anything).
 			Return(nil, errors.New("io"))
 
 		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testFSURI, Transport: transportFilesystem,
+			URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
 
 	t.Run("empty presence scan yields unreachable hosts no artifact", func(t *testing.T) {
 		f := newFixture()
-		f.filesystem.On("Validate", mock.Anything).Return(nil)
-		f.filesystem.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
+		f.http.On("Validate", mock.Anything).Return(nil)
+		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.stampAbsent()
 
 		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testFSURI, Transport: transportFilesystem,
+			URI: testHTTPURI, Transport: transportHTTP,
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
 		assert.Equal(t, "hosts no artifact", ucErr.Reason)
@@ -212,13 +207,13 @@ func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 
 	t.Run("persist error yields io", func(t *testing.T) {
 		f := newFixture()
-		f.filesystem.On("Validate", mock.Anything).Return(nil)
-		f.filesystem.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
+		f.http.On("Validate", mock.Anything).Return(nil)
+		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.stampPresent()
 		f.store.On("Set", mock.Anything, mock.Anything).Return(errors.New("full"))
 
 		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testFSURI, Transport: transportFilesystem,
+			URI: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeIO)
 	})

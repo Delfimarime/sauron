@@ -246,8 +246,8 @@ A feature is not complete until it passes the project's verification gate:
     the reason.
 - **Integration tests pass.** The black-box BDD suite under `test/e2e` — driving
   the built binary end-to-end (Chapter III, Articles 6–7) — passes on Linux before
-  a feature ships. Every transport — filesystem, HTTP, and git — is first-class:
-  its scenarios run in the gate like any other.
+  a feature ships. Every transport — git and HTTP — is first-class: its scenarios
+  run in the gate like any other.
 
 Each such exception is an ADR that names the advisory and a **Revisit when**
 condition, authored only with explicit user intent (Chapter I, Article 4) — never

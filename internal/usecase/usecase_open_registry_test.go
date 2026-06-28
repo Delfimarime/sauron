@@ -19,27 +19,24 @@ import (
 
 // openFixture bundles the use case and its mocked transport adapters.
 type openFixture struct {
-	action     *openRegistryUseCase
-	filesystem *extension.MockBasedRegistry
-	git        *extension.MockBasedRegistry
-	http       *extension.MockBasedRegistry
-	fs         *source.MockBasedFileSystem
+	action *openRegistryUseCase
+	git    *extension.MockBasedRegistry
+	http   *extension.MockBasedRegistry
+	fs     *source.MockBasedFileSystem
 }
 
 // newOpenFixture wires a use case over fresh mocks with an injected env lookup.
 func newOpenFixture(env map[string]string) *openFixture {
 	f := &openFixture{
-		filesystem: &extension.MockBasedRegistry{},
-		git:        &extension.MockBasedRegistry{},
-		http:       &extension.MockBasedRegistry{},
-		fs:         &source.MockBasedFileSystem{},
+		git:  &extension.MockBasedRegistry{},
+		http: &extension.MockBasedRegistry{},
+		fs:   &source.MockBasedFileSystem{},
 	}
 
 	f.action = NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
-		Filesystem: f.filesystem,
-		Git:        f.git,
-		HTTP:       f.http,
-		Logger:     zap.NewNop(),
+		Git:    f.git,
+		HTTP:   f.http,
+		Logger: zap.NewNop(),
 	}).(*openRegistryUseCase)
 	f.action.lookupEnv = func(key string) (string, bool) {
 		v, ok := env[key]
@@ -58,11 +55,6 @@ func TestOpenRegistryUseCase_Execute_TransportSelection(t *testing.T) {
 		// adapter selects the mock expected to be opened.
 		adapter func(*openFixture) *extension.MockBasedRegistry
 	}{
-		{
-			name:      "filesystem transport opens the filesystem adapter",
-			transport: types.TransportFilesystem,
-			adapter:   func(f *openFixture) *extension.MockBasedRegistry { return f.filesystem },
-		},
 		{
 			name:      "git transport opens the git adapter",
 			transport: types.TransportGit,
@@ -107,7 +99,7 @@ func TestOpenRegistryUseCase_Execute_UnknownTransport(t *testing.T) {
 	// Assert: a usage error names the unknown transport; no adapter is opened.
 	ucErr := asUseCaseError(t, err, TypeUsage)
 	assert.Contains(t, ucErr.Reason, "ftp")
-	f.filesystem.AssertNotCalled(t, "Open", mock.Anything, mock.Anything)
+	f.http.AssertNotCalled(t, "Open", mock.Anything, mock.Anything)
 }
 
 func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {

@@ -38,7 +38,7 @@
       "additionalProperties": false,
       "required": ["transport", "source"],
       "properties": {
-        "transport": { "enum": ["git", "http", "filesystem"] },
+        "transport": { "enum": ["git", "http"] },
         "source": { "type": "string", "minLength": 1 },
         "revision": {
           "type": "string",

@@ -4,10 +4,8 @@ package docker
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime/httpregistry"
 )
 
 func TestNewPrependsMainService(t *testing.T) {
@@ -77,15 +76,16 @@ func TestContainerPath(t *testing.T) {
 }
 
 // TestBuildSpecsFoldsSources verifies the pure, pre-Up accumulation: a folder source
-// adds content mounts onto "main", and a webserver source adds an nginx sidecar with
-// content (and htpasswd + conf when basic auth is declared).
+// adds content mounts onto "main", and a webserver source (served in-process, not as a
+// sidecar) wires the host gateway and binds its ${env:VAR} basic-auth secret onto
+// "main".
 func TestBuildSpecsFoldsSources(t *testing.T) {
 	rt, err := New("/host/sauron", "/tmp/work")
 	require.NoError(t, err)
 
 	rt.Folder("default").Expose(runtime.Resource{Path: ".skills/go/skill.yaml", Content: []byte("name: go")})
 	rt.Webserver("default").Expose(runtime.Resource{Path: ".skills/go/skill.yaml", Content: []byte("name: go")})
-	rt.Webserver("default").Expose(runtime.Resource{Username: "acme", Password: "s3cr3t"})
+	rt.Webserver("default").Expose(runtime.Resource{Username: "acme", Password: "${env:ACME_TOKEN}"})
 
 	specs, err := buildSpecs(rt.specs, rt.folders, rt.webservers, rt.gits)
 	require.NoError(t, err)
@@ -93,17 +93,18 @@ func TestBuildSpecsFoldsSources(t *testing.T) {
 	main := findService(t, specs, mainService)
 	assert.True(t, hasMountAt(main, folderPath("default")+"/.skills/go/skill.yaml"),
 		"folder content is mounted into main")
+	assert.Contains(t, main.ExtraHosts, hostGatewayExtraHost,
+		"the host gateway lets the container reach the in-process fixture")
+	assert.Equal(t, httpregistry.Secret, main.Env["ACME_TOKEN"],
+		"the ${env:VAR} basic-auth secret is bound on the binary's container")
 
-	web := findService(t, specs, webserverService("default"))
-	assert.Equal(t, nginxImage, web.Image)
-	assert.True(t, hasMountAt(web, nginxHTMLRoot+"/skills"), "the REST /skills listing is served by nginx")
-	assert.True(t, hasMountAt(web, nginxHTMLRoot+"/agents"), "the REST /agents listing is served by nginx")
-	assert.True(t, hasMountAt(web, nginxConfPath), "the REST server block is installed")
-	assert.True(t, hasMountAt(web, htpasswdPath), "basic auth installs an htpasswd file")
+	// No webserver sidecar: the fixture runs in the test process, so specs is just main.
+	assert.Len(t, specs, 1, "a webserver source adds no container")
 
 	// buildSpecs is pure: the runtime's own specs are not mutated.
 	assert.Equal(t, mainService, rt.specs[0].Service)
-	assert.Len(t, rt.specs, 1, "buildSpecs does not append the sidecar onto rt.specs")
+	assert.Len(t, rt.specs, 1, "buildSpecs does not append onto rt.specs")
+	assert.Empty(t, rt.specs[0].ExtraHosts, "the input base's main is not mutated")
 }
 
 // TestBuildSpecsFoldsGitSource verifies a git source adds an sshd sidecar serving a
@@ -128,38 +129,6 @@ func TestBuildSpecsFoldsGitSource(t *testing.T) {
 	assert.True(t, hasMountAt(main, gitClientKey), "the private key is mounted into main")
 	assert.True(t, hasMountAt(main, gitKnownHosts), "the pinned host key is a known_hosts entry")
 	assert.True(t, hasMountAt(main, gitSSHConfPath), "an ssh config selects the key for the sidecar")
-}
-
-// TestRegistryListingJSON verifies the REST envelope: distinct artifact names under
-// the prefix become items, total counts them, and an empty kind yields total 0.
-func TestRegistryListingJSON(t *testing.T) {
-	content := []runtime.Resource{
-		{Path: ".skills/go-style/skill.yaml", Content: []byte("a")},
-		{Path: ".skills/go-style/extra.md", Content: []byte("bb")},
-		{Path: ".skills/rest-api/skill.yaml", Content: []byte("c")},
-		{Path: ".agents/code-reviewer/agent.yaml", Content: []byte("d")},
-	}
-
-	var skills registryListing
-	require.NoError(t, json.Unmarshal(registryListingJSON(content, ".skills/"), &skills))
-	require.Len(t, skills.Items, 2)
-	assert.Equal(t, "go-style", skills.Items[0].Name)
-	assert.Equal(t, 3, skills.Items[0].Size, "sizes of files under the artifact are summed")
-	assert.Equal(t, "rest-api", skills.Items[1].Name)
-
-	var agents registryListing
-	require.NoError(t, json.Unmarshal(registryListingJSON(content, ".agents/"), &agents))
-	require.Len(t, agents.Items, 1)
-
-	var personas registryListing
-	require.NoError(t, json.Unmarshal(registryListingJSON(content, ".personas/"), &personas))
-	assert.NotNil(t, personas.Items, "items is an empty array, never null")
-}
-
-func TestHtpasswdLineUsesShaScheme(t *testing.T) {
-	line := htpasswdLine("acme", "s3cr3t")
-	assert.True(t, strings.HasPrefix(line, "acme:{SHA}"), "nginx-supported {SHA} scheme")
-	assert.NotContains(t, line, "s3cr3t", "the cleartext password is not embedded")
 }
 
 func findService(t *testing.T, specs []ContainerSpec, name string) ContainerSpec {

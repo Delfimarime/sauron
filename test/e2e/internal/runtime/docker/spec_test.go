@@ -14,7 +14,7 @@ import (
 func TestGenerateDockerComposeFile(t *testing.T) {
 	specs := []ContainerSpec{
 		{Service: "git", Image: "gitea/gitea:1", Ports: []string{"3000/tcp"}, Env: map[string]string{"K": "V"}},
-		{Service: "http", Image: "nginx:alpine"},
+		{Service: "main", Image: "alpine:3", ExtraHosts: []string{"host.docker.internal:host-gateway"}},
 	}
 
 	doc, err := GenerateDockerComposeFile(specs)
@@ -32,12 +32,14 @@ func TestGenerateDockerComposeFile(t *testing.T) {
 	assert.Equal(t, "gitea/gitea:1", git["image"])
 	assert.Equal(t, []any{"3000/tcp"}, git["ports"])
 	assert.Equal(t, map[string]any{"K": "V"}, git["environment"])
+	assert.NotContains(t, git, "extra_hosts")
 
-	http, ok := services["http"].(map[string]any)
+	main, ok := services["main"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "nginx:alpine", http["image"])
-	assert.NotContains(t, http, "ports")
-	assert.NotContains(t, http, "environment")
+	assert.Equal(t, "alpine:3", main["image"])
+	assert.NotContains(t, main, "ports")
+	assert.NotContains(t, main, "environment")
+	assert.Equal(t, []any{"host.docker.internal:host-gateway"}, main["extra_hosts"])
 }
 
 func TestGenerateDockerComposeFileRendersEntrypointAndVolumes(t *testing.T) {

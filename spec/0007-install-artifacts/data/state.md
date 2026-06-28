@@ -18,6 +18,6 @@ schema is owned by the [state data contract](../../contracts/state.md).
 | Field | Requirement |
 |---|---|
 | `metadata.name`, `spec.path` | FR-001 |
-| `spec.digest`, `spec.version`, `spec.installedAt`, `spec.updatedAt` | FR-002 |
-| existing-document reconcile | FR-004 |
-| `Provider` presence | FR-006 |
+| `spec.version`, `spec.installedAt`, `spec.updatedAt` | FR-002 |
+| existing-document reconcile | FR-003 |
+| `Provider` presence | FR-005 |

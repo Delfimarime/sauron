@@ -6,9 +6,8 @@ type Transport string
 
 // The supported registry transports.
 const (
-	TransportGit        Transport = "git"
-	TransportHTTP       Transport = "http"
-	TransportFilesystem Transport = "filesystem"
+	TransportGit  Transport = "git"
+	TransportHTTP Transport = "http"
 )
 
 // Registry is the single registered source of artifacts, persisted in settings.yaml.

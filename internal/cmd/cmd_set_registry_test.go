@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -225,18 +223,16 @@ func TestExitCodeMapper(t *testing.T) {
 }
 
 // TestSetRegistryEndToEnd drives the assembled subcommand through the real fx
-// graph against a filesystem source that hosts an artifact, asserting it
-// configures the registry and writes the confirmation to stdout. The source
-// lives in a temp directory and the state in a temp SAURON_HOME, so nothing
-// durable is touched.
+// graph against an in-process http source that lists an artifact, asserting it
+// configures the registry and writes the confirmation to stdout. The source is an
+// httptest.Server and the state lives in a temp SAURON_HOME, so nothing durable
+// is touched.
 func TestSetRegistryEndToEnd(t *testing.T) {
-	// Arrange: a source directory that hosts one skill artifact.
-	source := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(source, ".skills", regName), 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(source, ".skills", regName, "skill.yaml"),
-		[]byte("placeholder\n"), 0o644,
-	))
+	// Arrange: an http source that lists one skill artifact.
+	source := startHTTPRegistry(t,
+		[]artifactSummary{{Name: regName, Version: "1.0.0", Size: 1024}},
+		nil,
+	)
 	t.Setenv("SAURON_HOME", t.TempDir())
 
 	cmd := SetRegistry()
@@ -244,14 +240,14 @@ func TestSetRegistryEndToEnd(t *testing.T) {
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
 	cmd.SetContext(context.Background())
-	cmd.SetArgs([]string{"--transport", transportFilesystem, source})
+	cmd.SetArgs([]string{"--transport", transportHTTP, source})
 
 	// Act.
 	err := cmd.Execute()
 
 	// Assert.
 	require.NoError(t, err, "stderr: %s", stderr.String())
-	assert.Contains(t, stdout.String(), "registry set to "+source+" (filesystem)")
+	assert.Contains(t, stdout.String(), "registry set to "+source+" (http)")
 	assert.Empty(t, stderr.String())
 }
 

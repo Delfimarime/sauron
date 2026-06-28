@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,6 +45,56 @@ func seedRegistries(t *testing.T, stream string) {
 		return
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
+}
+
+// artifactSummary mirrors the Sauron HTTP Registry API's ArtifactSummary: the
+// condensed artifact view the http transport's marketplace client decodes from a
+// collection listing.
+type artifactSummary struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Size    int64  `json:"size"`
+}
+
+// startHTTPRegistry stands up an in-process httptest.Server implementing the
+// minimal Sauron HTTP Registry API the http transport consumes: GET /skills and
+// GET /agents answer with the supplied summaries wrapped in an ArtifactList. The
+// server is closed when the test ends, keeping the test offline and self-contained.
+func startHTTPRegistry(t *testing.T, skills, agents []artifactSummary) string {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/skills", listArtifacts(skills))
+	mux.HandleFunc("/agents", listArtifacts(agents))
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	return srv.URL
+}
+
+// listArtifacts answers a collection listing with the given summaries wrapped in
+// an ArtifactList body.
+func listArtifacts(items []artifactSummary) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(struct {
+			Items []artifactSummary `json:"items"`
+		}{Items: items})
+	}
+}
+
+// closedHTTPRegistry returns the URL of an httptest.Server that has already been
+// closed: the URL is well-formed but refuses connections, so opening it fails as
+// a runtime (unreachable) error rather than a usage error.
+func closedHTTPRegistry(t *testing.T) string {
+	t.Helper()
+
+	srv := httptest.NewServer(http.NewServeMux())
+	url := srv.URL
+	srv.Close()
+
+	return url
 }
 
 // TestNewApp asserts the transversal fx graph wires and validates cleanly — the

@@ -11,14 +11,13 @@ import (
 )
 
 // TestNewFxOptions verifies the registry options compose into a valid container
-// and expose the three transports as named extension.Registry values.
+// and expose the transports as named extension.Registry values.
 func TestNewFxOptions(t *testing.T) {
 	// Arrange.
 	type registries struct {
 		fx.In
-		Filesystem extension.Registry `name:"registry.filesystem"`
-		Git        extension.Registry `name:"registry.git"`
-		HTTP       extension.Registry `name:"registry.http"`
+		Git  extension.Registry `name:"registry.git"`
+		HTTP extension.Registry `name:"registry.http"`
 	}
 
 	var resolved registries
@@ -32,7 +31,6 @@ func TestNewFxOptions(t *testing.T) {
 
 	// Assert.
 	assert.NoError(t, app.Err())
-	assert.NotNil(t, resolved.Filesystem)
 	assert.NotNil(t, resolved.Git)
 	assert.NotNil(t, resolved.HTTP)
 }

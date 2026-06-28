@@ -43,7 +43,7 @@ Author, in this order, omitting what the feature does not touch:
 | [`spec.md`](0001-set-registry/spec.md) | always | overview, EARS `FR-NNN` requirements, key entities; **`Status:` Specified** |
 | [`contracts/<verb>-<noun>.md`](0001-set-registry/contracts/set-registry.md) | per owned command | synopsis, args, flags, output, exit codes — conforms to the [CLI contract](contracts/cli.md) |
 | [`data/state.md`](contracts/state.md) | touches persisted state | which documents/fields it owns + the `FR-NNN` realization; the schema stays in the [state data contract](contracts/state.md) |
-| `capabilities/<name>.md` | needs technical sub-behavior | one capability, no CLI surface ([set registry](0001-set-registry/spec.md) has git/http/filesystem transports) |
+| `capabilities/<name>.md` | needs technical sub-behavior | one capability, no CLI surface ([set registry](0001-set-registry/spec.md) has git and http transports) |
 | `architecture/ADR-NNNN-*.md` | a significant decision needs recording | one decision — authored **only with the maintainer's explicit intent** ([Ch. I, Art. 4](../CONSTITUTION.md)), never auto-generated |
 
 Requirements are EARS, describing observable behavior, not implementation

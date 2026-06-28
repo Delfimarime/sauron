@@ -20,8 +20,8 @@ metadata:
   createdAt: "2026-06-21T07:30:00Z"
   lastUpdatedAt: "2026-06-21T07:30:00Z"
 spec:
-  transport: filesystem
-  source: /opt/registry/default
+  transport: git
+  source: git@github.com:acme/artifacts.git
 ---
 apiVersion: sauron.raitonbl.com/v1
 kind: Provider

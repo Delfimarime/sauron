@@ -24,19 +24,15 @@ directory tree. The API exposes skills under `/skills` and agents under `/agents
   [HTTP Registry API](../../contracts/registry-http-api.oas3.yaml), supporting
   HTTP Basic credentials passed as environment references and TLS options
   (`--skip-tls-verify`, `--ca-cert`, `--client-cert`, `--client-key`).
-- FR-002: Sauron shall compute an artifact's `digest` from its downloaded content.
+- FR-002: Sauron shall set an artifact's `version` to the version the API declares
+  for it (the `Artifact-Version` response header).
 
 ### Event-driven
 
 - FR-003: When validating an http registry, Sauron shall confirm the API is
   reachable and lists at least one skill or agent.
 
-### Optional
-
-- FR-004: Where the API declares an artifact's version (the `Artifact-Version`
-  response header), Sauron shall record it as the artifact's optional `version`.
-
 ### Unwanted behavior
 
-- FR-005: If the source is unreachable, returns an error status, or fails TLS
+- FR-004: If the source is unreachable, returns an error status, or fails TLS
   verification, then Sauron shall fail with a runtime error.

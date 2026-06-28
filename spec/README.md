@@ -31,7 +31,7 @@ runs in the background; to reconcile periodically, a developer wires `sync` or
    ┌──────────────────────┐                          ┌──────────────────────┐
    │       Registry       │                          │         User         │
    │   artifact source    │                          │  a developer using   │
-   │   git · http · fs    │                          │   an AI assistant    │
+   │   git · http         │                          │   an AI assistant    │
    └──────────┬───────────┘                          └──────────┬───────────┘
               ▲                                                  │
               │ fetch artifacts                                  │ runs `sauron`
@@ -54,9 +54,9 @@ runs in the background; to reconcile periodically, a developer wires `sync` or
 
 Everything Sauron touches at delivery time lives in the user's environment: the
 CLI itself, an optional OS-scheduler entry the developer wires themselves, and the
-provider's artifact directories. The registry is an external source — a
-`filesystem` registry may happen to be on the same machine, but Sauron treats it
-as a source like any other.
+provider's artifact directories. The registry is an external source — it may
+happen to be on the same machine, but Sauron treats it as a source like any
+other.
 
 ## Concepts
 
@@ -71,7 +71,7 @@ as a source like any other.
   its resolved **membership**. The full design is recorded in
   [ADR-0003](architecture/ADR-0003-persona-deferred.md).
 - **Registry** — the single registered source of artifacts. Its **transport** —
-  `git`, `http`, or `filesystem` — determines how it is reached, validated, and
+  `git` or `http` — determines how it is reached, validated, and
   fetched from. Sauron has exactly one registry; supporting more is deferred — see
   [ADR-0002](architecture/ADR-0002-single-registry.md).
 - **Provider** — the destination environment where artifacts are installed
@@ -156,7 +156,7 @@ new on its own.
 ```
    installed set  (track.yaml)
         │
-        │ for each artifact: compare digest against its source
+        │ for each artifact: compare version against its source
         ▼
    ┌─────────────────────────┐
    │          PLAN           │   --dry-run ──▶ print plan, change nothing, exit 0

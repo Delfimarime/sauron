@@ -33,22 +33,20 @@ const (
 	sortName      = "name"
 )
 
-// seedCatalogueRegistry pins SAURON_HOME to a fresh temp dir, materializes a
-// filesystem-backed registry source holding one agent manifest, and records the
-// single registry in settings.yaml — so nothing durable is touched.
+// seedCatalogueRegistry pins SAURON_HOME to a fresh temp dir, stands up an
+// in-process http registry listing one agent, and records the single registry in
+// settings.yaml — so nothing durable is touched.
 func seedCatalogueRegistry(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("SAURON_HOME", home)
 
-	source := filepath.Join(home, "source")
-	agents := filepath.Join(source, ".agents")
-	require.NoError(t, os.MkdirAll(agents, 0o755))
-	manifest := "apiVersion: sauron.raitonbl.com/v1\nkind: Agent\nmetadata:\n  name: code-reviewer\n"
-	require.NoError(t, os.WriteFile(filepath.Join(agents, "code-reviewer.yaml"), []byte(manifest), 0o644))
+	source := startHTTPRegistry(t, nil,
+		[]artifactSummary{{Name: "code-reviewer", Version: "1.0.0", Size: 2048}},
+	)
 
 	stream := "apiVersion: sauron.raitonbl.com/v1\nkind: Registry\nmetadata:\n  name: " + acmeName +
-		"\nspec:\n  transport: filesystem\n  source: " + source + "\n"
+		"\nspec:\n  transport: http\n  source: " + source + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
 }
 
@@ -208,7 +206,7 @@ func TestListCatalogueRejectsBadInput(t *testing.T) {
 }
 
 // TestListCatalogueEndToEnd drives the assembled subcommand through the real fx
-// graph against a seeded filesystem registry, covering a populated page and the
+// graph against a seeded http registry, covering a populated page and the
 // no-registry runtime error.
 func TestListCatalogueEndToEnd(t *testing.T) {
 	t.Run("lists the agents with the paging line", func(t *testing.T) {
@@ -238,14 +236,14 @@ func TestListCatalogueEndToEnd(t *testing.T) {
 	})
 }
 
-// TestListCatalogueUnreachableSource asserts a registry whose filesystem source
-// is absent fails as a runtime error (exit 1), not a usage error.
+// TestListCatalogueUnreachableSource asserts a registry whose http source
+// refuses connections fails as a runtime error (exit 1), not a usage error.
 func TestListCatalogueUnreachableSource(t *testing.T) {
 	// Arrange.
 	home := t.TempDir()
 	t.Setenv("SAURON_HOME", home)
 	stream := "apiVersion: sauron.raitonbl.com/v1\nkind: Registry\nmetadata:\n  name: " + acmeName +
-		"\nspec:\n  transport: filesystem\n  source: " + filepath.Join(home, "nonexistent") + "\n"
+		"\nspec:\n  transport: http\n  source: " + closedHTTPRegistry(t) + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
 
 	// Act.

@@ -19,8 +19,8 @@ run previews the plan.
 ### Ubiquitous
 
 - FR-001: Sauron shall reconcile every tracked artifact against the registry,
-  comparing the registry's content `digest` to the tracked one.
-- FR-002: Sauron shall update an artifact whose source `digest` changed, and
+  comparing the registry's `version` to the tracked one.
+- FR-002: Sauron shall update an artifact whose source `version` changed, and
   repair drift by reinstalling a tracked artifact whose provider files are missing
   while it still exists upstream.
 - FR-003: Sauron shall remove a tracked artifact that no longer exists in the

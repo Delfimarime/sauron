@@ -47,8 +47,8 @@ kind: Registry
 metadata:
   name: local
 spec:
-  transport: filesystem
-  source: /opt/registry/default
+  transport: git
+  source: git@github.com:acme/local.git
 `
 
 const oneSkillTrack = `apiVersion: sauron.raitonbl.com/v1
@@ -56,7 +56,7 @@ kind: Skill
 metadata:
   name: sauron-acme-go-style
 spec:
-  digest: sha256:abc
+  version: abc
   path: skills/sauron-acme-go-style
   installedAt: "2026-06-21T07:30:00Z"
   updatedAt: "2026-06-21T07:30:00Z"

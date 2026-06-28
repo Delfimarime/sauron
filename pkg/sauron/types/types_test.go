@@ -60,11 +60,11 @@ func TestRoundTrip(t *testing.T) {
 			into: &types.Registry{},
 		},
 		{
-			name: "filesystem registry",
+			name: "http registry",
 			doc: &types.Registry{
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
 				Metadata: types.Metadata{Name: "local"},
-				Spec:     types.RegistrySpec{Transport: types.TransportFilesystem, Source: "/srv/artifacts"},
+				Spec:     types.RegistrySpec{Transport: types.TransportHTTP, Source: "https://acme.example/artifacts"},
 			},
 			into: &types.Registry{},
 		},
@@ -83,7 +83,6 @@ func TestRoundTrip(t *testing.T) {
 				Metadata: types.Metadata{Name: "go-style", Labels: map[string]string{"team": "backend"}},
 				Spec: types.ArtifactSpec{
 					Version:     "v1.4.0",
-					Digest:      "sha256:abc",
 					Path:        "sauron-go-style",
 					InstalledAt: timestamp,
 					UpdatedAt:   timestamp,
@@ -97,7 +96,7 @@ func TestRoundTrip(t *testing.T) {
 				TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindAgent},
 				Metadata: types.Metadata{Name: "code-reviewer"},
 				Spec: types.ArtifactSpec{
-					Digest:      "sha256:def",
+					Version:     "v2.0.0",
 					Path:        "sauron-code-reviewer",
 					InstalledAt: timestamp,
 					UpdatedAt:   timestamp,

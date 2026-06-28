@@ -7,7 +7,7 @@
 ## Context
 
 Sauron installs skills, agents, and personas from a registry — a source of
-artifacts reached over a transport (`git`, `http`, or `filesystem`). An early
+artifacts reached over a transport (`git` or `http`). An early
 design treated the registry as a **named, plural** concept: a developer could
 register many sources side by side and Sauron would track, per artifact, which
 source delivered it.
@@ -59,7 +59,7 @@ Sauron v1.0.0 supports **exactly one registry**.
   `REGISTRY` column.
 
 The single configured registry is still reached over one of the existing
-transports (`git`, `http`, or `filesystem`) and validated the same way; only its
+transports (`git` or `http`) and validated the same way; only its
 multiplicity and its naming are removed.
 
 ## Consequences

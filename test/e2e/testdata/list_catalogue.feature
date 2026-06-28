@@ -1,4 +1,3 @@
-@no-sandbox
 Feature: List catalogue
   As a developer
   I want to browse the registry's offered skills and agents
@@ -8,18 +7,19 @@ Feature: List catalogue
   Scenario: lists every agent the registry offers
     Given the registry offers the following agents:
       """
-      # file: .agents/code-reviewer.yaml
+      # file: .agents/code-reviewer/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: code-reviewer
-      # file: .agents/release-bot.yaml
+      # file: .agents/release-bot/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: release-bot
       """
-    When the user runs sauron list catalogue agent
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue agent
     Then the command succeeds
     And the catalogue lists code-reviewer agent
     And the catalogue lists release-bot agent
@@ -28,18 +28,19 @@ Feature: List catalogue
   Scenario: lists the skills the registry offers as NAME KIND
     Given the registry offers the following skills:
       """
-      # file: .skills/go-style.yaml
+      # file: .skills/go-style/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: go-style
-      # file: .skills/sql-review.yaml
+      # file: .skills/sql-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: sql-review
       """
-    When the user runs sauron list catalogue skill
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue skill
     Then the command succeeds
     And the catalogue lists go-style skill
     And the catalogue lists sql-review skill
@@ -49,18 +50,19 @@ Feature: List catalogue
   Scenario: pages results with --page and --limit
     Given the registry offers the following agents:
       """
-      # file: .agents/alpha.yaml
+      # file: .agents/alpha/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: alpha
-      # file: .agents/bravo.yaml
+      # file: .agents/bravo/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: bravo
       """
-    When the user runs sauron list catalogue agent --page 2 --limit 1
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue agent --page 2 --limit 1
     Then the command succeeds
     And the catalogue lists bravo agent
     And the paging line reads showing 2–2 (page 2, limit 1)
@@ -69,13 +71,14 @@ Feature: List catalogue
   Scenario: reports an empty page when paged past the end
     Given the registry offers the following agents:
       """
-      # file: .agents/alpha.yaml
+      # file: .agents/alpha/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: alpha
       """
-    When the user runs sauron list catalogue agent --page 9 --limit 20
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue agent --page 9 --limit 20
     Then the command succeeds
     And the paging line reads showing 0 results (page 9, limit 20)
 
@@ -84,23 +87,24 @@ Feature: List catalogue
   Scenario: filters entries with --search
     Given the registry offers the following skills:
       """
-      # file: .skills/code-review.yaml
+      # file: .skills/code-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: code-review
-      # file: .skills/go-style.yaml
+      # file: .skills/go-style/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: go-style
-      # file: .skills/sql-review.yaml
+      # file: .skills/sql-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: sql-review
       """
-    When the user runs sauron list catalogue skill --search rev
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue skill --search rev
     Then the command succeeds
     And the catalogue lists code-review skill
     And the catalogue lists sql-review skill
@@ -110,23 +114,24 @@ Feature: List catalogue
   Scenario: orders entries with --sort name --order desc
     Given the registry offers the following skills:
       """
-      # file: .skills/alpha.yaml
+      # file: .skills/alpha/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: alpha
-      # file: .skills/bravo.yaml
+      # file: .skills/bravo/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: bravo
-      # file: .skills/charlie.yaml
+      # file: .skills/charlie/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: charlie
       """
-    When the user runs sauron list catalogue skill --sort name --order desc --limit 1
+    When the user sets the http registry from #{.webserver.default.url}
+    And the user runs sauron list catalogue skill --sort name --order desc --limit 1
     Then the command succeeds
     And the catalogue lists charlie skill
     And the paging line reads showing 1–1 (page 1, limit 1)
@@ -139,25 +144,19 @@ Feature: List catalogue
     Then the command exits with status 1
 
   # FR-005 — a registry pointing at an unreachable/absent source fails with a runtime
-  # error (exit 1).
+  # error (exit 1). The host is a reserved .invalid name that never resolves.
   Scenario: fails when the registry source is unreachable
     Given the registry is configured:
-      | transport  | source                 |
-      | filesystem | /nonexistent/acme/repo |
+      | transport | source                      |
+      | http      | http://registry.invalid/api |
     When the user runs sauron list catalogue agent
     Then the command exits with status 1
 
   # A bare `list catalogue` (no kind noun) shows help and exits 0, as any command
   # group does. FR-007 — an invalid --page/--order value — is a usage error (exit 2).
+  # Help and usage errors are resolved before any registry lookup, so no source is
+  # configured here.
   Scenario: shows help for a missing kind noun, and rejects invalid flags
-    Given the registry offers the following agents:
-      """
-      # file: .agents/code-reviewer.yaml
-      apiVersion: sauron.raitonbl.com/v1
-      kind: Agent
-      metadata:
-        name: code-reviewer
-      """
     When the user runs sauron list catalogue
     Then the command exits with status 0
     When the user runs sauron list catalogue agent --page 0

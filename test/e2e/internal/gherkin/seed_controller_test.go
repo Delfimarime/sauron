@@ -79,6 +79,6 @@ func TestTrackedSkillStreamIsSchemaValid(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, skills, 1)
 	assert.Equal(t, "sauron-acme-go-style", skills[0].Metadata.Name)
-	assert.NotEmpty(t, skills[0].Spec.Digest)
+	assert.NotEmpty(t, skills[0].Spec.Version)
 	assert.NotEmpty(t, skills[0].Spec.Path)
 }

@@ -19,10 +19,6 @@ func TestNewFxOptions(t *testing.T) {
 		fx.Provide(
 			fx.Annotate(
 				func() extension.Registry { return &extension.MockBasedRegistry{} },
-				fx.ResultTags(`name:"registry.filesystem"`),
-			),
-			fx.Annotate(
-				func() extension.Registry { return &extension.MockBasedRegistry{} },
 				fx.ResultTags(`name:"registry.git"`),
 			),
 			fx.Annotate(

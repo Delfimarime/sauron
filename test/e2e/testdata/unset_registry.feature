@@ -1,4 +1,3 @@
-@no-sandbox
 Feature: Unset registry
   As an operator
   I want to disconnect the configured source
@@ -9,10 +8,10 @@ Feature: Unset registry
   # (set registry) and the installed skill is seeded into track.yaml, which unset
   # only preserves and never writes.
   Scenario: removes the configured registry and preserves installed artifacts
-    Given a filesystem registry
-    And the filesystem registry hosts a skill named go-style
+    Given an http server hosting a registry
+    And the http server hosts a skill named go-style
     And a tracked skill named sauron-acme-go-style
-    When the user sets the filesystem registry from #{.folder.default.path}
+    When the user sets the http registry from #{.webserver.default.url}
     And the user runs sauron unset registry
     Then the command succeeds
     And the output contains registry unset; installed artifacts preserved
@@ -28,9 +27,9 @@ Feature: Unset registry
 
   # FR-004 — --dry-run previews without changing state: the registry survives.
   Scenario: dry-run previews without changing state
-    Given a filesystem registry
-    And the filesystem registry hosts a skill named go-style
-    When the user sets the filesystem registry from #{.folder.default.path}
+    Given an http server hosting a registry
+    And the http server hosts a skill named go-style
+    When the user sets the http registry from #{.webserver.default.url}
     And the user runs sauron unset registry --dry-run
     Then the command succeeds
     And there is exactly one registry

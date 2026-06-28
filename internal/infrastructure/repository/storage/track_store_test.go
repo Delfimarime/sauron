@@ -17,7 +17,7 @@ kind: Skill
 metadata:
   name: sauron-acme-go-style
 spec:
-  digest: sha256:aaa
+  version: sha256:aaa
   path: sauron-acme-go-style
   installedAt: "2024-01-01T00:00:00Z"
   updatedAt: "2024-01-01T00:00:00Z"
@@ -29,7 +29,7 @@ kind: Agent
 metadata:
   name: sauron-acme-code-reviewer
 spec:
-  digest: sha256:bbb
+  version: sha256:bbb
   path: sauron-acme-code-reviewer
   installedAt: "2024-01-01T00:00:00Z"
   updatedAt: "2024-01-01T00:00:00Z"
@@ -104,7 +104,7 @@ func TestTrackStoreUpdateRoundTrips(t *testing.T) {
 		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindSkill},
 		Metadata: types.Metadata{Name: "sauron-acme-go-style"},
 		Spec: types.ArtifactSpec{
-			Digest:      "sha256:aaa",
+			Version:     "sha256:aaa",
 			Path:        "sauron-acme-go-style",
 			InstalledAt: tsZero,
 			UpdatedAt:   "2024-02-02T00:00:00Z",
@@ -128,7 +128,7 @@ func TestTrackStoreUpdateAppendsWhenAbsent(t *testing.T) {
 		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindAgent},
 		Metadata: types.Metadata{Name: "sauron-new-agent"},
 		Spec: types.ArtifactSpec{
-			Digest:      "sha256:ccc",
+			Version:     "sha256:ccc",
 			Path:        "sauron-new-agent",
 			InstalledAt: tsZero,
 			UpdatedAt:   tsZero,

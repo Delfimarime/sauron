@@ -148,7 +148,7 @@ func trackedSkillStream(name string) []byte {
 		"metadata:\n" +
 		"  name: " + name + "\n" +
 		"spec:\n" +
-		"  digest: sha256:seed\n" +
+		"  version: seed\n" +
 		"  path: skills/" + name + "\n" +
 		"  installedAt: \"2026-06-21T07:30:00Z\"\n" +
 		"  updatedAt: \"2026-06-21T07:30:00Z\"\n")

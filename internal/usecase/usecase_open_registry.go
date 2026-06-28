@@ -18,10 +18,9 @@ import (
 // the action composes.
 type OpenRegistryUseCaseParams struct {
 	fx.In
-	Filesystem extension.Registry `name:"registry.filesystem"`
-	Git        extension.Registry `name:"registry.git"`
-	HTTP       extension.Registry `name:"registry.http"`
-	Logger     *zap.Logger
+	Git    extension.Registry `name:"registry.git"`
+	HTTP   extension.Registry `name:"registry.http"`
+	Logger *zap.Logger
 }
 
 // OpenRegistryUseCase opens a stored registry's source. It is the seam
@@ -48,9 +47,8 @@ type openRegistryUseCase struct {
 func NewOpenRegistryUseCase(params OpenRegistryUseCaseParams) OpenRegistryUseCase {
 	return &openRegistryUseCase{
 		adapters: map[types.Transport]extension.Registry{
-			types.TransportFilesystem: params.Filesystem,
-			types.TransportGit:        params.Git,
-			types.TransportHTTP:       params.HTTP,
+			types.TransportGit:  params.Git,
+			types.TransportHTTP: params.HTTP,
 		},
 		lookupEnv: os.LookupEnv,
 		logger:    params.Logger,

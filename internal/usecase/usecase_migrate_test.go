@@ -28,7 +28,7 @@ kind: Skill
 metadata:
   name: ` + name + `
 spec:
-  digest: sha256:abc
+  version: sha256:abc
   path: ` + path + `
   installedAt: "2024-01-01T00:00:00Z"
   updatedAt: "2024-01-01T00:00:00Z"

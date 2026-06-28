@@ -52,7 +52,7 @@ tag-selected backend; both backends implement the **same wide interface**.
    ├─ Execute / ReadFile / CopyTo
    ├─ Folder(alias)    → Source { Path() }
    ├─ Webserver(alias) → Source { URL()  }
-   ├─ Git(alias)       → Source { URL()  }     (docker: sshd git sidecar; host: errors)
+   ├─ Git(alias)       → Source { URL()  }     (docker sshd git sidecar; errors on host)
    └─ Start / Stop / IsReadOnly
 
    interface Source ── a declared, resource-loaded exposure of provider content
@@ -68,21 +68,21 @@ A capability a backend cannot satisfy returns an **error** from the relevant
 a gap is an honest error, surfaced exactly where a scenario needs the address.
 
 ```
-                     ┌──── host  (@no-sandbox) ────┬──── docker (default) ────┐
-   Execute / ReadFile │  ✅                          │  ✅                      │
-   CopyTo             │  ✅ (per-scenario temp dir)  │  ✅ (into "main")        │
-   Folder(…).Path()   │  ✅ owns a local temp dir    │  ✅ path inside "main"   │
-   Webserver(…).URL() │  ❌ error "not on @no-sandbox"│ ✅ nginx sidecar        │
-   Git(…).URL()       │  ❌ error "not on @no-sandbox"│ ✅ gitea sshd sidecar   │
-                      └─────────────────────────────┴──────────────────────────┘
+                     ┌──── host  (@no-sandbox) ────┬──── docker (default) ─────────┐
+   Execute / ReadFile │  ✅                          │  ✅                          │
+   CopyTo             │  ✅ (per-scenario temp dir)  │  ✅ (into "main")            │
+   Folder(…).Path()   │  ✅ owns a local temp dir    │  ✅ path inside "main"       │
+   Webserver(…).URL() │  ✅ in-process @127.0.0.1    │  ✅ in-process @host-gateway │
+   Git(…).URL()       │  ❌ error "not on @no-sandbox"│ ✅ gitea sshd sidecar       │
+                      └─────────────────────────────┴───────────────────────────────┘
                             IsReadOnly() = true            IsReadOnly() = false
 ```
 
-The host backend is **execution + a local folder and nothing networked**, which
-keeps `IsReadOnly() == true` honest: a host that stood up servers would no
-longer be read-only. Under docker, a `folderSource` and a `webserverSource` are
-distinct types (each implements only its meaningful accessor and errors the
-other) — the same capability-gap-as-error principle applied within a backend.
+The **http fixture is one in-process Go server** in both runtimes (see "The http
+registry fixture"), so paging/search/sort are honored faithfully and the registry
+is ordinary Go in the test process. The host backend still stands up no sidecars
+and never writes outside the per-scenario home, so `IsReadOnly() == true` stays
+honest; only Git needs the sandbox (its sshd sidecar) and so errors on the host.
 
 ## Controllers
 
@@ -100,9 +100,9 @@ becomes a shared "world".
       gherkin.Init(sc, rt)
              ▼
    ┌──────────────── Controllers (godog step registrars) ────────────────┐
-   │ basic   command   state           registry-fs   registry-http   git │
-   └────┬───────┬───────────┬──────────────┬──────────────┬──────────────┘
-        └───────┴───────────┴──────────────┴──────────────┘
+   │ basic   command   state   catalogue   registry-http   git           │
+   └────┬───────┬───────────┬───────┬──────────────┬──────────────────────┘
+        └───────┴───────────┴───────┴──────────────┘
                               │ all share ONE handle; resolve via valueOf[T]
                               ▼
                  compositionBasedRuntime  (per-scenario PROXY; lazy start)
@@ -113,8 +113,8 @@ becomes a shared "world".
          os/exec $SAURON_BIN     compose: main(/opt/bin/sauron) + sidecars
 ```
 
-The filesystem, http, and git fixtures share one `sourceFixture` (declare +
-content steps); they differ only in the source they select and their wording.
+The http and git fixtures share one `sourceFixture` (declare + content steps);
+they differ only in the source they select and their wording.
 
 ## Templating: {{…}} and #{…}
 
@@ -187,8 +187,27 @@ dependence on the Docker daemon seeing a host path.
         ▼              ▼              ▼
    Folder source   Webserver source   Git source
    #{.folder.path} #{.webserver.url}  #{.git.url}
-   host ✅ docker ✅  host ❌ docker ✅   host ❌ docker ✅
+   host ✅ docker ✅  host ✅ docker ✅   host ❌ docker ✅
 ```
+
+## The http registry fixture
+
+Every http scenario is served by **one in-process Go server**
+(`internal/runtime/httpregistry`) that implements the Sauron HTTP Registry API
+(`spec/contracts/registry-http-api.oas3.yaml`): `GET /skills` and `GET /agents`
+return the `{"items":[…]}` listing the marketplace client decodes, honoring
+`q`/`sort`/`limit`/`offset` faithfully so paging, search, and sort scenarios assert
+real page slices and labels. Basic auth (the `requires basic auth` step) checks the
+declared credential, binding a `${env:VAR}` password reference to the same secret it
+exports on the binary's environment.
+
+The server runs in the **test process** for both runtimes and binds `0.0.0.0:0` (not
+`127.0.0.1`) so a container can reach it through the host gateway. `Webserver(…).URL()`
+returns the runtime-appropriate address: `http://127.0.0.1:<port>` on the host runtime,
+`http://host.docker.internal:<port>` under docker, where "main" carries an
+`extra_hosts: host.docker.internal:host-gateway` entry (required on Linux/CI, not just
+Docker Desktop). It replaces the former nginx sidecar, so the registry "server" is
+ordinary Go with full per-scenario control.
 
 ## Arrange / Act / Assert and reuse
 
@@ -223,17 +242,19 @@ The suite drives one binary across the commands it ships. Each command is
 exercised uniformly: the same `When` family runs it and the same `Then` family
 inspects its stdout, exit code, and the state files it reads or writes — no
 matter how the inputs were sourced. Only the `Given` fixtures differ per command
-and transport. Where a command spans transports (`filesystem`, `http`, `git`),
-its action and assertions stay **transport-agnostic**: the same `When` acts and
+and transport. Where a command spans transports (`http`, `git`), its action and
+assertions stay **transport-agnostic**: the same `When` acts and
 the same `Then` inspects, however the source was reached.
 
 ## Tags select the runtime
 
-`@no-sandbox` selects the host runtime (`Execute` + `Folder` only — requesting a
-`Webserver` or `Git` errors, so http/git scenarios must not carry it); the
-default selects the docker runtime. `@git` scenarios need the docker runtime's
-sshd git sidecar, so they must not carry `@no-sandbox`; they run in the gate like
-any other scenario — git is first-class (root Constitution IV.2).
+`@no-sandbox` selects the host runtime (`Execute`, `Folder`, and the in-process
+`Webserver` fixture — only `Git` errors there); the default selects the docker
+runtime. The http scenarios stay on the docker runtime so the realistic graybox —
+a containerized binary reaching the fixture over the host gateway — is exercised.
+`@git` scenarios need the docker runtime's sshd git sidecar, so they must not carry
+`@no-sandbox`; they run in the gate like any other scenario — git is first-class
+(root Constitution IV.2).
 
 ## The integration gate
 
