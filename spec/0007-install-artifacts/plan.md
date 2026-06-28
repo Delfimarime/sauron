@@ -30,16 +30,37 @@ transports. The use case and command compose on top.
 needs; sync/upgrade (0011/0012); local-drift detection (dropped with `digest`);
 persona; multi-registry; any provider beyond `claude`/`zencoder`.
 
-## Pre-requirements
+## Test-driven approach (Constitution Ch. III, Art. 1)
 
-- `types.Artifact`/`ArtifactSpec` with the single `version` identity already exist
+Every behaviour is pinned by a test **written to fail before** the code that makes it
+pass; coverage target 90%, hard floor 80%.
+
+- **Outer loop — acceptance first.** The user-observable behaviour is pinned by the
+  `test/e2e` Gherkin scenarios (Art. 6). They are authored **first** (T1) and **fail**
+  (`install` does not yet exist); `task gate-integration` stays RED for these scenarios
+  until the command lands at T6, then goes GREEN. This is the acceptance harness the
+  inner loops drive toward.
+- **Inner loops — unit first.** Each implementation task (T2–T6) starts by writing the
+  failing unit test(s) that pin its slice (port contract, git source, http source, use
+  case, command/view), watching them fail (RED), then writing the minimum code to pass
+  (GREEN), then refactoring under green. No production line is added before a test
+  demands it.
+- **Mocks at the seams.** Use-case tests mock the `source.FileSystem`, stores, and the
+  open-registry step (`mock_based_*`); the transport tests use in-memory/`httptest`
+  fixtures — never the network or the real FS.
+
+## Pre-requirements (already in place)
+
+- The registry's artifact roots are `skills/` and `agents/` (dot-less); both transports
+  key on `rootSkills`/`rootAgents`. Install reuses them verbatim.
+- `types.Artifact`/`ArtifactSpec` with the single `version` identity exist
   ([`pkg/sauron/types/artifact.go`](../../pkg/sauron/types/artifact.go)).
 - `TrackStore.Update` (upsert by `(kind,name)`), `ProvidersStore.Get`,
   `OpenRegistryUseCase` (live source open; unreachable surfaces as a runtime error),
   the `name:"provider"` afero.Fs and `providerDirs` map, and the `marketplace` client
-  `List` already exist. The catalogue roots `.skills`/`.agents` are reused.
+  `List` exist.
 
-## Design
+## Design (implementation map)
 
 | File | Change |
 |---|---|
@@ -56,7 +77,7 @@ persona; multi-registry; any provider beyond `claude`/`zencoder`.
 | `internal/cmd/cmd_install.go` | **new** — `Install()` parent + `InstallSkill()`/`InstallAgent()` → `newInstallCommand(kind,…)` + cobra-free `install()` handler via `fx.Populate` |
 | `internal/cmd/view_install.go` | **new** — `+`/`~` plan under the kind heading + summary count (per the CLI contracts) |
 | `internal/cmd/cmd_root.go` | register `Install()` |
-| `test/e2e/testdata/install_*.feature` + `.../gherkin/` | **new** — install/reconcile/not-offered/no-provider/exit codes over the http fixture |
+| `test/e2e/testdata/install_*.feature` + `.../gherkin/` | **new (authored first, T1)** — install/reconcile/not-offered/no-provider/exit codes over the http fixture |
 
 ### Provider directory layout (D4)
 
@@ -86,7 +107,7 @@ artifact-relative `File`s. Keeps the `pkg/` port `afero`-free (rejected: returni
 1. `ProvidersStore.Get` the active provider; absent → runtime error, install nothing
    (FR-005).
 2. Open the registry via `OpenRegistryUseCase`; unreachable → runtime error (FR-007).
-3. For each name: resolve the source dir `<.skills|.agents>/<name>`; not offered →
+3. For each name: resolve the source dir `<skills|agents>/<name>`; not offered →
    record a per-name failure and continue (FR-006); read `version` (http with none →
    skip per [versioning FR-005](capabilities/artifact-versioning.md)); `Fetch` the
    tree and write it under the provider fs at `<kind>/sauron-<name>`; `TrackStore.Update`
@@ -114,25 +135,38 @@ artifact-relative `File`s. Keeps the `pkg/` port `afero`-free (rejected: returni
 - **Memory ceiling (D2).** The in-memory clone holds the repo in RAM; a shallow
   depth-1 clone of a text registry is small. Mark with a `ponytail:` comment naming
   the ceiling (move to a bounded on-disk clone only if a registry is ever large).
-- **FR-002 is now `version`, not `digest`.** The state contract and schema record a
-  single source-read `version`; install owns `spec.path` and the timestamps.
+- **FR-002 is `version`, not `digest`.** The state contract and schema record a single
+  source-read `version`; install owns `spec.path` and the timestamps.
 
-## Checkpoints
+## Checkpoints (RED → GREEN)
 
 | # | Milestone | Verify |
 |---|---|---|
-| C1 | port `Fetch` + path helper compile | `go build ./...` |
-| C2 | git in-memory source: List parity, `Fetch` tree, `Version`==tree hash | `go test ./internal/infrastructure/repository/registry/...` |
-| C3 | http: client `Content`, `Fetch` unpack, version from header | `go test ./internal/infrastructure/repository/registry/... ./pkg/sauron/marketplace/...` |
-| C4 | `InstallUseCase` unit-tested (add/update/no-op, no-provider, per-name failure, version recorded) | `go test ./internal/usecase/...` |
-| C5 | command + view wired; whole tree builds; style/coverage held | `go build ./... && go test ./internal/cmd/... && task gate-lint && task gate-coverage` |
-| C6 | `install_*.feature` pass end-to-end; full gate green | `task all` |
+| C1 | install acceptance scenarios authored and **failing** (command absent) | `task gate-integration` fails only on the new install scenarios |
+| C2 | port `Fetch` + path helper: failing test → green; tree builds | `go build ./... && go test ./pkg/sauron/source/... ./internal/usecase/...` (helper) |
+| C3 | git in-memory source: failing tests → green (List parity, `Fetch` tree, `Version`==tree hash) | `go test ./internal/infrastructure/repository/registry/...` |
+| C4 | http: failing tests → green (`Content`, `Fetch` unpack, header version) | `go test ./internal/infrastructure/repository/registry/... ./pkg/sauron/marketplace/...` |
+| C5 | `InstallUseCase`: failing test → green (add/update/no-op, no-provider, per-name failure) | `go test ./internal/usecase/...` |
+| C6 | command + view: failing test → green; the C1 acceptance scenarios now **pass** | `go test ./internal/cmd/... && task gate-integration` |
+| C7 | full gate green; coverage ≥90% | `task all` |
 
 ## Execution flow
 
-Sequential chain with one parallel fan-out:
-**T1 → (T2 ∥ T3) → T4 → T5 → T6 → T7** (see [TASKS.md](TASKS.md)). T2 (git) and T3
-(http) are file-disjoint and run in **parallel git worktrees** (`feat/0007-install-git`,
-`feat/0007-install-http`), each merged back into the working tree uncommitted. T6
-touches only `test/e2e/**` and may be drafted in a worktree but passes only once T5
-lands.
+```
+T1  acceptance e2e (outer RED — fails until T6)   ─┐ may run alongside T2
+T2  port Fetch + path helper (RED→GREEN)          ─┘ (foundation)
+        ├─ T3  git in-memory source (RED→GREEN)    ┐ parallel,
+        └─ T4  http archive fetch  (RED→GREEN)     ┘ worktree-isolated
+T5  InstallUseCase (RED→GREEN)
+T6  cmd + view (RED→GREEN) — turns T1 GREEN
+T7  gates (task all, coverage ≥90%)
+```
+
+- **T1** (acceptance) is authored first and left failing; touches only `test/e2e/**`
+  and may be drafted in a worktree (`feat/0007-install-e2e`), merged back uncommitted.
+- **T2** is the foundation (the `Fetch` port shape) everything depends on.
+- **T3** and **T4** are file-disjoint (git vs http/marketplace) → **parallel git
+  worktrees** (`feat/0007-install-git`, `feat/0007-install-http`), each merged back
+  uncommitted.
+- **T5 → T6 → T7** sequential in the working tree; T6 is where the T1 acceptance
+  scenarios flip to GREEN.

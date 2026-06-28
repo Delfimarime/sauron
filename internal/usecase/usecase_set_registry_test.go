@@ -72,15 +72,15 @@ type fileStub struct {
 
 // stampPresent makes the filesystem report one artifact under the first root.
 func (f *fixture) stampPresent() {
-	f.fs.On("List", mock.Anything, ".skills", mock.Anything).
+	f.fs.On("List", mock.Anything, "skills", mock.Anything).
 		Return([]source.File{fileStub{}}, nil)
 }
 
 // stampAbsent makes both artifact roots report no entries.
 func (f *fixture) stampAbsent() {
-	f.fs.On("List", mock.Anything, ".skills", mock.Anything).
+	f.fs.On("List", mock.Anything, "skills", mock.Anything).
 		Return([]source.File{}, nil)
-	f.fs.On("List", mock.Anything, ".agents", mock.Anything).
+	f.fs.On("List", mock.Anything, "agents", mock.Anything).
 		Return([]source.File{}, nil)
 }
 
@@ -183,7 +183,7 @@ func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 		f := newFixture()
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
-		f.fs.On("List", mock.Anything, ".skills", mock.Anything).
+		f.fs.On("List", mock.Anything, "skills", mock.Anything).
 			Return(nil, errors.New("io"))
 
 		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
@@ -234,9 +234,9 @@ func TestSetRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 			}
 		}).
 		Return(f.fs, nil)
-	f.fs.On("List", mock.Anything, ".agents", mock.Anything).
+	f.fs.On("List", mock.Anything, "agents", mock.Anything).
 		Return([]source.File{fileStub{}}, nil)
-	f.fs.On("List", mock.Anything, ".skills", mock.Anything).
+	f.fs.On("List", mock.Anything, "skills", mock.Anything).
 		Return([]source.File{}, nil)
 
 	var stored types.Registry

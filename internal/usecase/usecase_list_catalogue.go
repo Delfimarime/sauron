@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -19,16 +18,16 @@ type CatalogueKind string
 
 // The kinds a catalogue listing can browse.
 const (
-	// CatalogueSkill browses the skills the registry offers under .skills.
+	// CatalogueSkill browses the skills the registry offers under skills.
 	CatalogueSkill CatalogueKind = "skill"
-	// CatalogueAgent browses the agents the registry offers under .agents.
+	// CatalogueAgent browses the agents the registry offers under agents.
 	CatalogueAgent CatalogueKind = "agent"
 )
 
 // the source roots holding each artifact kind's manifests.
 const (
-	rootSkills = ".skills"
-	rootAgents = ".agents"
+	rootSkills = "skills"
+	rootAgents = "agents"
 )
 
 // catalogueRoots maps each kind to the source root holding its manifests.
@@ -151,17 +150,6 @@ func (uc *ListCatalogueUseCase) items(files []source.File) []string {
 	}
 
 	return names
-}
-
-// catalogueName trims a manifest's .yaml or .yml extension to its catalogue name.
-func catalogueName(filename string) string {
-	for _, ext := range []string{".yaml", ".yml"} {
-		if strings.HasSuffix(filename, ext) {
-			return strings.TrimSuffix(filename, ext)
-		}
-	}
-
-	return filename
 }
 
 // ListCatalogueResult is the presentation-agnostic outcome of browsing the

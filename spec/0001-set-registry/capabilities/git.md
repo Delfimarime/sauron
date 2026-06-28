@@ -12,7 +12,7 @@
 
 The git transport reaches a registry hosted in a git repository. It validates the
 source when set and fetches artifact content for browsing, installing, and
-reconciling. Artifacts are read from the repository's `.skills/` and `.agents/`
+reconciling. Artifacts are read from the repository's `skills/` and `agents/`
 directories; a skill or agent is the directory under one of those.
 
 ## Requirements
@@ -22,7 +22,7 @@ directories; a skill or agent is the directory under one of those.
 - FR-001: Sauron shall reach git registries over the URI's scheme, supporting SSH
   remotes with a private key (`--ssh-key`) and HTTPS remotes with credentials
   passed as environment references.
-- FR-002: Sauron shall treat each directory under `.skills/` or `.agents/` as one
+- FR-002: Sauron shall treat each directory under `skills/` or `agents/` as one
   skill or agent.
 - FR-003: Sauron shall set an artifact's `version` to the tree-object hash of its
   directory at the resolved commit.

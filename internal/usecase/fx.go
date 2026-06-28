@@ -11,11 +11,15 @@ func NewFxOptions() fx.Option {
 		fx.Annotate(
 			NewMigrateUseCase, fx.As(new(UseCase[MigrateInput, MigrateResult])),
 		),
+		fx.Annotate(
+			NewDiffUseCase, fx.As(new(UseCase[DiffInput, Diff])),
+		),
 		NewSetRegistryUseCase,
 		NewSetProviderUseCase,
 		NewDescribeRegistryUseCase,
 		NewDescribeProviderUseCase,
 		NewListCatalogueUseCase,
+		NewInstallUseCase,
 		NewUnsetRegistryUseCase,
 	)
 }

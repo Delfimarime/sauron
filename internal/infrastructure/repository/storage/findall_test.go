@@ -105,21 +105,22 @@ spec:
 // errRenameFail is returned by renameFailFs to drive the writeAtomic commit branch.
 var errRenameFail = errors.New("rename failed")
 
-// renameFailFs is an afero.Fs whose Rename always fails, so the temp file written
-// by writeAtomic cannot be committed into place.
+// renameFailFs is an afero.Fs whose Rename always fails, exercising the
+// rename-or-error path in writeAtomic.
 type renameFailFs struct {
 	afero.Fs
 }
 
-// Rename always fails, exercising the writeAtomic cleanup path.
+// Rename always fails, exercising the writeAtomic error path.
 func (renameFailFs) Rename(_, _ string) error {
 	return errRenameFail
 }
 
-// TestStoreWriteAtomicRenameFailureCleansTemp surfaces a commit error and removes
-// the temp file when the rename into place fails.
+// TestStoreWriteAtomicRenameFailureCleansTemp asserts that when Rename fails,
+// writeAtomic returns an error and removes the temp file so no stale artifact
+// is left on the filesystem.
 func TestStoreWriteAtomicRenameFailureCleansTemp(t *testing.T) {
-	// Arrange: a filesystem that accepts the temp write but rejects the rename.
+	// Arrange: a filesystem that accepts writes but always rejects rename.
 	fs := renameFailFs{afero.NewMemMapFs()}
 	store, err := NewStore(fs)
 	require.NoError(t, err)
@@ -127,9 +128,9 @@ func TestStoreWriteAtomicRenameFailureCleansTemp(t *testing.T) {
 	// Act.
 	err = store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML))
 
-	// Assert: the commit fails and the temp artifact is cleaned up.
+	// Assert: a commit error is returned and the stale temp file is removed.
 	require.Error(t, err)
 	exists, existsErr := afero.Exists(fs, registriesFile+".tmp")
 	require.NoError(t, existsErr)
-	assert.False(t, exists)
+	assert.False(t, exists, "the temp file must be removed after a rename failure")
 }

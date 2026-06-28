@@ -3,7 +3,6 @@ package registry
 import (
 	"testing"
 
-	"github.com/alitto/pond/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
 
@@ -24,7 +23,6 @@ func TestNewFxOptions(t *testing.T) {
 
 	// Act.
 	app := fx.New(
-		fx.Provide(func() pond.Pool { return pond.NewPool(1) }),
 		NewFxOptions(),
 		fx.Populate(&resolved),
 	)

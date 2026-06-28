@@ -170,6 +170,18 @@ spec:
 	assert.False(t, exists)
 }
 
+// TestStoreWritesOwnerOnlyPermissions asserts state files are written owner
+// read/write only (0o600) per the state contract — they reveal which registry
+// and artifacts a developer uses, so must not be group- or world-readable.
+func TestStoreWritesOwnerOnlyPermissions(t *testing.T) {
+	store, fs := newTestStore(t)
+	require.NoError(t, store.Append(context.Background(), types.KindRegistry, nodeFromYAML(t, validRegistryYAML)))
+
+	info, err := fs.Stat(registriesFile)
+	require.NoError(t, err)
+	assert.Equal(t, "-rw-------", info.Mode().Perm().String())
+}
+
 // TestStoreAppendSerializes runs concurrent appends and asserts every document
 // survives — the lock prevents lost updates.
 func TestStoreAppendSerializes(t *testing.T) {

@@ -49,10 +49,10 @@ offline behavior.
 ## Notes
 
 - **On-source layout.** A registry exposes its offerings under two roots —
-  `.skills/` and `.agents/` — each holding one `<name>.(yaml|yml)` manifest per
+  `skills/` and `agents/` — each holding one `<name>.(yaml|yml)` manifest per
   artifact. The kind noun selects the root, and an entry's catalogue name is its
   filename with the extension trimmed. (The `set registry` reachability probe
-  already treats `.skills`/`.agents` as proof a source hosts artifacts.)
+  already treats `skills`/`agents` as proof a source hosts artifacts.)
 - **Projection by kind.** `skill` and `agent` list as `NAME`/`KIND`.
 - **Paging.** `--page`/`--limit` are the CLI surface; the client computes the
   backend offset as `(page−1)·limit`. The registry HTTP API returns items with no

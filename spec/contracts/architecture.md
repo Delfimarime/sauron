@@ -389,6 +389,12 @@ redefines it. `internal/telemetry` owns logger construction and its fx wiring.
 
 ## Testing
 
+- **Test-first (TDD).** A change starts from a failing test: the unit test —
+  and, for user-observable behavior, the `test/e2e` Gherkin scenario
+  ([integration tests](#integration-tests)) — is written or updated to fail
+  *before* the production code that satisfies it. Plans and task breakdowns
+  sequence this explicitly, test before implementation
+  ([AUTHORING.md](../AUTHORING.md)).
 - Tests use the **Arrange / Act / Assert** structure.
 - **Table-driven** tests are the encouraged default: one `Test<Subject>`
   function whose cases are parametrized, covering both successful and negative

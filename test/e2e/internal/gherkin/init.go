@@ -22,6 +22,7 @@ func Init(sc *godog.ScenarioContext, rt runtime.Runtime) {
 		&catalogueController{rt: rt, command: commands},
 		newRegistryHTTPController(rt),
 		newRegistryGitController(rt),
+		newInstallController(rt, commands),
 	} {
 		each.Init(sc)
 	}

@@ -11,8 +11,8 @@ engineers reading any spec or contract.
 | Term | Meaning |
 |---|---|
 | artifact | A unit Sauron distributes: a skill or an agent. A third kind, persona, is deferred past v1 — see [ADR-0003](architecture/ADR-0003-persona-deferred.md) |
-| skill | An artifact hosted under a registry's `.skills/` directory |
-| agent | An artifact hosted under a registry's `.agents/` directory |
+| skill | An artifact hosted under a registry's `skills/` directory |
+| agent | An artifact hosted under a registry's `agents/` directory |
 | persona | *(deferred — not implemented in v1; see [ADR-0003](architecture/ADR-0003-persona-deferred.md))* A first-class artifact that references a set of skills and agents within the registry; installed, listed, and described like any artifact |
 | membership | *(deferred — see persona)* The set of skills and agents a persona references; resolved at install and re-resolved by `sync`/`upgrade` |
 | registry | The single registered source of artifacts; Sauron has exactly one. Supporting more is deferred — see [ADR-0002](architecture/ADR-0002-single-registry.md) |

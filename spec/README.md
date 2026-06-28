@@ -63,8 +63,8 @@ other.
 - **Artifact** — a unit Sauron distributes. Two kinds in v1: **skill** and
   **agent**. A third kind, **persona**, is a defined concept deferred past v1 — see
   [ADR-0003](architecture/ADR-0003-persona-deferred.md).
-- **Skill / Agent** — content hosted in a registry under its `.skills/` or
-  `.agents/` directory.
+- **Skill / Agent** — content hosted in a registry under its `skills/` or
+  `agents/` directory.
 - **Persona** *(deferred — not implemented in v1)* — a named grouping that
   references a set of skills and agents within the registry; first-class
   (installed, listed, and described like any artifact), its realized content being
@@ -100,8 +100,8 @@ touches artifacts it installed.
              ▼                                │
    ┌──────────────────────────────────┐       │
    │             ARTIFACT             │       │
-   │  skill (.skills/) ·              │       │
-   │  agent (.agents/)                │       │
+   │  skill (skills/) ·              │       │
+   │  agent (agents/)                │       │
    │  (persona — deferred, ADR-0003)  │       │
    └──────────────────┬───────────────┘       │
                       │ install / uninstall   │  installs into

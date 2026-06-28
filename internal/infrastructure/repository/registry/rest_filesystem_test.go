@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -76,14 +77,14 @@ func TestRESTFactory_Open_List(t *testing.T) {
 	}{
 		{
 			name:        "skills collection maps to /skills",
-			uri:         ".skills",
+			uri:         "skills",
 			wantPath:    "/skills",
 			wantNames:   []string{writerName},
 			wantVersion: "1.2.0",
 		},
 		{
 			name:      "agents collection maps to /agents",
-			uri:       ".agents",
+			uri:       "agents",
 			wantPath:  "/agents",
 			wantNames: []string{writerName},
 		},
@@ -175,7 +176,7 @@ func TestRESTFactory_Open_List_Order(t *testing.T) {
 			require.NoError(t, err)
 
 			// Act.
-			_, listErr := fs.List(context.Background(), ".skills", tt.opts...)
+			_, listErr := fs.List(context.Background(), "skills", tt.opts...)
 
 			// Assert.
 			require.NoError(t, listErr)
@@ -205,7 +206,7 @@ func TestRESTFactory_Open_List_BasicAuth(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act.
-	files, listErr := fs.List(context.Background(), ".skills", source.WithLimit(1))
+	files, listErr := fs.List(context.Background(), "skills", source.WithLimit(1))
 
 	// Assert.
 	require.NoError(t, listErr)
@@ -228,7 +229,7 @@ func TestRESTFactory_Open_List_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		// Act.
-		_, listErr := fs.List(context.Background(), ".skills", source.WithLimit(1))
+		_, listErr := fs.List(context.Background(), "skills", source.WithLimit(1))
 
 		// Assert.
 		require.Error(t, listErr)
@@ -248,7 +249,7 @@ func TestRESTFactory_Open_List_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		// Act.
-		_, listErr := fs.List(context.Background(), ".skills", source.WithLimit(1))
+		_, listErr := fs.List(context.Background(), "skills", source.WithLimit(1))
 
 		// Assert.
 		require.Error(t, listErr)
@@ -267,7 +268,7 @@ func TestRESTFactory_Open_List_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		// Act.
-		_, listErr := fs.List(context.Background(), ".skills", source.WithLimit(1))
+		_, listErr := fs.List(context.Background(), "skills", source.WithLimit(1))
 
 		// Assert.
 		require.Error(t, listErr)
@@ -302,7 +303,7 @@ func TestRESTFactory_Open_List_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		// Act.
-		_, listErr := fs.List(context.Background(), ".skills")
+		_, listErr := fs.List(context.Background(), "skills")
 
 		// Assert.
 		require.Error(t, listErr)
@@ -353,7 +354,7 @@ func TestRESTFactory_Open_TLS(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act.
-	files, listErr := fs.List(context.Background(), ".skills", source.WithLimit(1))
+	files, listErr := fs.List(context.Background(), "skills", source.WithLimit(1))
 
 	// Assert.
 	require.NoError(t, listErr)
@@ -372,7 +373,7 @@ func TestRESTFactory_Open_SkipTLSVerify(t *testing.T) {
 	// Without skipping verification the handshake fails.
 	strict, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
 	require.NoError(t, err)
-	_, strictErr := strict.List(context.Background(), ".skills", source.WithLimit(1))
+	_, strictErr := strict.List(context.Background(), "skills", source.WithLimit(1))
 	require.Error(t, strictErr)
 	assert.ErrorIs(t, strictErr, api.ErrRuntime)
 
@@ -382,7 +383,7 @@ func TestRESTFactory_Open_SkipTLSVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act.
-	files, listErr := lax.List(context.Background(), ".skills", source.WithLimit(1))
+	files, listErr := lax.List(context.Background(), "skills", source.WithLimit(1))
 
 	// Assert.
 	require.NoError(t, listErr)
@@ -447,7 +448,7 @@ func TestRESTFile_ReadIsNotImplemented(t *testing.T) {
 
 	fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
 	require.NoError(t, err)
-	files, listErr := fs.List(context.Background(), ".skills")
+	files, listErr := fs.List(context.Background(), "skills")
 	require.NoError(t, listErr)
 	require.Len(t, files, 1)
 
@@ -466,10 +467,205 @@ func TestRESTFactory_Open_DescribeAndGetNotImplemented(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act.
-	_, describeErr := fs.Describe(context.Background(), ".skills")
-	_, getErr := fs.Get(context.Background(), ".skills/writer")
+	_, describeErr := fs.Describe(context.Background(), "skills")
+	_, getErr := fs.Get(context.Background(), "skills/writer")
 
 	// Assert.
 	assert.ErrorIs(t, describeErr, source.ErrNotImplemented)
 	assert.ErrorIs(t, getErr, source.ErrNotImplemented)
+}
+
+func TestRESTFactory_Open_Fetch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		uri         string
+		prefix      string // prefix used inside the archive entries
+		wantVersion string
+		wantFiles   map[string]string
+	}{
+		{
+			name:        "strips kind/name prefix from archive entries",
+			uri:         "skills/writer",
+			prefix:      "skills/writer/",
+			wantVersion: "abc123",
+			wantFiles: map[string]string{
+				skillMD:     "# writer skill",
+				"lib/util.go": "package lib",
+			},
+		},
+		{
+			name:        "strips name-only prefix from archive entries",
+			uri:         "skills/writer",
+			prefix:      "writer/",
+			wantVersion: "abc123",
+			wantFiles: map[string]string{
+				skillMD: "# writer skill",
+			},
+		},
+		{
+			name:        "agents endpoint is called for agents uri",
+			uri:         "agents/reviewer",
+			prefix:      "reviewer/",
+			wantVersion: "def456",
+			wantFiles: map[string]string{
+				"AGENT.md": "# reviewer agent",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange: serve a real tar.gz archive with the chosen prefix.
+			archive := makeGZipTar(t, tt.prefix, tt.wantFiles)
+			var gotPath string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				w.Header().Set("Artifact-Version", tt.wantVersion)
+				_, _ = w.Write(archive)
+			}))
+			defer server.Close()
+
+			fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
+			require.NoError(t, err)
+
+			// Act.
+			files, fetchErr := fs.Fetch(context.Background(), tt.uri)
+
+			// Assert: correct endpoint, expected file count, relative names, content and version.
+			require.NoError(t, fetchErr)
+			assert.Equal(t, "/"+tt.uri+"/content", gotPath)
+			require.Len(t, files, len(tt.wantFiles))
+
+			byName := make(map[string]source.File, len(files))
+			for _, f := range files {
+				byName[f.Name()] = f
+			}
+			for wantName, wantBody := range tt.wantFiles {
+				f, ok := byName[wantName]
+				require.True(t, ok, "expected file %q in result", wantName)
+				assert.Equal(t, tt.wantVersion, f.Version())
+				assert.False(t, f.IsDirectory())
+				assert.Equal(t, int64(len(wantBody)), f.Size())
+
+				r, readErr := f.Read(context.Background())
+				require.NoError(t, readErr)
+				body, _ := io.ReadAll(r)
+				require.NoError(t, r.Close())
+				assert.Equal(t, wantBody, string(body))
+			}
+		})
+	}
+}
+
+func TestRESTFactory_Open_Fetch_NoVersion(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: server returns no Artifact-Version header.
+	archive := makeGZipTar(t, "writer/", map[string]string{skillMD: "content"})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+
+	fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
+	require.NoError(t, err)
+
+	// Act.
+	files, fetchErr := fs.Fetch(context.Background(), "skills/writer")
+
+	// Assert: files are returned with empty version (not an error).
+	require.NoError(t, fetchErr)
+	require.Len(t, files, 1)
+	assert.Empty(t, files[0].Version())
+}
+
+func TestRESTFactory_Open_Fetch_InvalidURI(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		uri  string
+	}{
+		{name: "kind without name", uri: "skills"},
+		{name: "empty name after slash", uri: "skills/"},
+		{name: "empty string", uri: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange.
+			fs, err := newRESTFactory().Open(context.Background(), extension.WithURI("https://registry.example"))
+			require.NoError(t, err)
+
+			// Act.
+			_, fetchErr := fs.Fetch(context.Background(), tt.uri)
+
+			// Assert.
+			require.Error(t, fetchErr)
+			assert.ErrorIs(t, fetchErr, api.ErrUsage)
+		})
+	}
+}
+
+func TestRESTFactory_Open_Fetch_UnknownKind(t *testing.T) {
+	t.Parallel()
+
+	// Arrange.
+	fs, err := newRESTFactory().Open(context.Background(), extension.WithURI("https://registry.example"))
+	require.NoError(t, err)
+
+	// Act.
+	_, fetchErr := fs.Fetch(context.Background(), "widgets/foo")
+
+	// Assert.
+	require.Error(t, fetchErr)
+	assert.ErrorIs(t, fetchErr, api.ErrUsage)
+}
+
+func TestRESTFactory_Open_Fetch_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: server returns 500.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
+	require.NoError(t, err)
+
+	// Act.
+	_, fetchErr := fs.Fetch(context.Background(), "skills/writer")
+
+	// Assert.
+	require.Error(t, fetchErr)
+	assert.ErrorIs(t, fetchErr, api.ErrRuntime)
+}
+
+func TestRESTFactory_Open_Fetch_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: server returns 404.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"status":404,"title":"Not Found"}`))
+	}))
+	defer server.Close()
+
+	fs, err := newRESTFactory().Open(context.Background(), extension.WithURI(server.URL))
+	require.NoError(t, err)
+
+	// Act.
+	_, fetchErr := fs.Fetch(context.Background(), "skills/absent")
+
+	// Assert: 404 is surfaced as a runtime error (not offered → caller decides).
+	require.Error(t, fetchErr)
+	assert.ErrorIs(t, fetchErr, api.ErrRuntime)
 }

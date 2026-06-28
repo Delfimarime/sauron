@@ -86,12 +86,12 @@ func TestHostRuntimeFolderMaterializesContent(t *testing.T) {
 	h := New("/bin/echo", t.TempDir())
 
 	folder := h.Folder("default")
-	folder.Expose(runtime.Resource{Path: ".skills/go-style/skill.yaml", Content: []byte("name: go-style")})
+	folder.Expose(runtime.Resource{Path: "skills/go-style/skill.yaml", Content: []byte("name: go-style")})
 
 	path, err := folder.Path(ctx)
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(path, ".skills/go-style/skill.yaml"))
+	data, err := os.ReadFile(filepath.Join(path, "skills/go-style/skill.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "name: go-style", string(data))
 }

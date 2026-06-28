@@ -39,6 +39,14 @@ type dockerRuntime struct {
 	webservers map[string]*httpregistry.Source
 	gits       map[string]*gitSource
 	stack      compose.ComposeStack
+	seeds      []pendingSeed
+}
+
+// pendingSeed is a state file a scenario seeds before Start; it is written into the
+// container's own filesystem once the stack is up (see CopyTo).
+type pendingSeed struct {
+	path    string
+	content []byte
 }
 
 // New builds a compose-backed runtime. It always prepends the "main" service: an
@@ -130,7 +138,25 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	// validation probe runs).
 	c.stack = stack
 
-	return stack.Up(ctx)
+	if err := stack.Up(ctx); err != nil {
+		return err
+	}
+	return c.flushSeeds(ctx)
+}
+
+// flushSeeds writes every state file seeded before Start into the now-running
+// container, then clears the queue. Writing them as regular overlay files (rather than
+// bind-mounting each) lets the binary atomically rename a sibling temp file over a
+// seeded file; a bind-mounted individual file makes rename(2) return EBUSY on
+// Docker's OverlayFS.
+func (c *dockerRuntime) flushSeeds(ctx context.Context) error {
+	for _, seed := range c.seeds {
+		if err := c.copyInto(ctx, seed.path, seed.content); err != nil {
+			return err
+		}
+	}
+	c.seeds = nil
+	return nil
 }
 
 // newStack builds the compose stack, attaching the logger only when one was
@@ -159,33 +185,33 @@ func (c *dockerRuntime) Stop(ctx context.Context) error {
 
 func (c *dockerRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
 	if c.stack == nil {
-		// Seed before Start: defer the bytes as an inline-content mount on "main",
-		// materialized when the stack comes up. The bind target must be the absolute
-		// in-container path (a relative compose target is invalid), and the mount
-		// must be written back into c.specs by index — ranging by value would discard
-		// it on the loop variable's copy.
-		target := containerPath(locationURI)
-		for i := range c.specs {
-			if c.specs[i].Service != mainService {
-				continue
-			}
-			c.specs[i].Mount = append(c.specs[i].Mount, FileSpec{
-				Content: content,
-				Path:    target,
-			})
-		}
+		// Seed before Start: queue the bytes and write them into the container's own
+		// filesystem once the stack is up (flushSeeds). Seeding as a regular overlay
+		// file — not a bind-mounted individual file — keeps the temp file and the
+		// rename target siblings in a real directory, so the binary's atomic
+		// rename-over-existing succeeds (a bind-mounted file makes rename(2) EBUSY).
+		c.seeds = append(c.seeds, pendingSeed{path: locationURI, content: content})
 		return nil
+	}
+	return c.copyInto(ctx, locationURI, content)
+}
+
+// copyInto writes content into the running "main" container as a regular file at its
+// absolute in-container path, creating the parent directory first because a seed
+// precedes the binary's first write to $SAURON_HOME.
+func (c *dockerRuntime) copyInto(ctx context.Context, locationURI string, content []byte) error {
+	target := containerPath(locationURI)
+	if code, out, err := c.execIn(ctx, mainService, "mkdir", "-p", filepath.Dir(target)); err != nil {
+		return fmt.Errorf("create seed directory for %q: %w", target, err)
+	} else if code != 0 {
+		return fmt.Errorf("create seed directory for %q: mkdir exited %d: %s", target, code, out)
 	}
 	container, err := c.stack.ServiceContainer(ctx, mainService)
 	if err != nil {
 		return fmt.Errorf("access container %q: %w", mainService, err)
 	}
-	if strings.HasPrefix(locationURI, "~/") {
-		locationURI = "/root/" + locationURI[2:]
-	}
-	err = container.CopyToContainer(ctx, content, locationURI, 0700)
-	if err != nil {
-		return fmt.Errorf("an unexpected error occured while attempting to copy file into container.\ncaused by:%w", err)
+	if err := container.CopyToContainer(ctx, content, target, 0o644); err != nil {
+		return fmt.Errorf("copy seed %q into container: %w", target, err)
 	}
 	return nil
 }

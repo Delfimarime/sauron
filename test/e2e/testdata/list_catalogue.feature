@@ -7,12 +7,12 @@ Feature: List catalogue
   Scenario: lists every agent the registry offers
     Given the registry offers the following agents:
       """
-      # file: .agents/code-reviewer/agent.yaml
+      # file: agents/code-reviewer/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: code-reviewer
-      # file: .agents/release-bot/agent.yaml
+      # file: agents/release-bot/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
@@ -28,12 +28,12 @@ Feature: List catalogue
   Scenario: lists the skills the registry offers as NAME KIND
     Given the registry offers the following skills:
       """
-      # file: .skills/go-style/skill.yaml
+      # file: skills/go-style/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: go-style
-      # file: .skills/sql-review/skill.yaml
+      # file: skills/sql-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
@@ -50,12 +50,12 @@ Feature: List catalogue
   Scenario: pages results with --page and --limit
     Given the registry offers the following agents:
       """
-      # file: .agents/alpha/agent.yaml
+      # file: agents/alpha/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
         name: alpha
-      # file: .agents/bravo/agent.yaml
+      # file: agents/bravo/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
@@ -71,7 +71,7 @@ Feature: List catalogue
   Scenario: reports an empty page when paged past the end
     Given the registry offers the following agents:
       """
-      # file: .agents/alpha/agent.yaml
+      # file: agents/alpha/agent.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Agent
       metadata:
@@ -87,17 +87,17 @@ Feature: List catalogue
   Scenario: filters entries with --search
     Given the registry offers the following skills:
       """
-      # file: .skills/code-review/skill.yaml
+      # file: skills/code-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: code-review
-      # file: .skills/go-style/skill.yaml
+      # file: skills/go-style/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: go-style
-      # file: .skills/sql-review/skill.yaml
+      # file: skills/sql-review/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
@@ -114,17 +114,17 @@ Feature: List catalogue
   Scenario: orders entries with --sort name --order desc
     Given the registry offers the following skills:
       """
-      # file: .skills/alpha/skill.yaml
+      # file: skills/alpha/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: alpha
-      # file: .skills/bravo/skill.yaml
+      # file: skills/bravo/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:
         name: bravo
-      # file: .skills/charlie/skill.yaml
+      # file: skills/charlie/skill.yaml
       apiVersion: sauron.raitonbl.com/v1
       kind: Skill
       metadata:

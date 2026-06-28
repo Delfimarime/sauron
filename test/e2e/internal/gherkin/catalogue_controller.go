@@ -17,7 +17,7 @@ import (
 const fileDirective = "# file:"
 
 // catalogueController owns the catalogue fixture Given (exposing the doc-string's
-// .skills/.agents on an nginx sidecar, which a later `set registry` When configures
+// skills/agents on an nginx sidecar, which a later `set registry` When configures
 // black-box) and the catalogue Then assertions. It reads the recorded output of the
 // last command from the commandController rather than re-running anything, so the
 // rendered rows and paging line are asserted exactly as the user saw them. Parse logic
@@ -74,7 +74,7 @@ func (c *catalogueController) pagingLineReads(_ context.Context, line string) er
 
 // parseManifests splits an "offers" doc-string into one content resource per
 // "# file: <path>" directive, the path being the file's location within the content
-// set (e.g. ".skills/go-style.yaml"). Pure (doc-string in, resources out) so it is
+// set (e.g. "skills/go-style.yaml"). Pure (doc-string in, resources out) so it is
 // unit-tested without the runtime.
 func parseManifests(body string) ([]runtime.Resource, error) {
 	var (

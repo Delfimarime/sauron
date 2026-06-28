@@ -124,7 +124,10 @@ How the code that satisfies the contracts is written.
 Implementation follows the project's Go conventions — uberfx wiring, cobra CLI,
 the Uber Go Style Guide, structured zap + ECS logging, cognitive complexity ≤15,
 and no rogue goroutines (all concurrency runs on a managed pool, never a bare
-`go`) — and is test-first to a 90% coverage target. The full coding, telemetry,
+`go`) — and is **test-first**: the test that pins a behavior — including, for any
+user-observable behavior, the `test/e2e` Gherkin scenario (Article 6) — is
+written or updated to **fail before** the implementation that makes it pass,
+driving the code to a 90% coverage target. The full coding, telemetry,
 and testing practices are fixed by the
 [architecture contract](spec/contracts/architecture.md). The binary is built
 CGO-free (`CGO_ENABLED=0`) so a single Go toolchain cross-compiles every
@@ -147,7 +150,7 @@ Public behavioral interfaces (ports) live under `pkg/sauron/extension`
 (`Registry`, `Provider`), with shared data types in `pkg/sauron/types`, and are
 implemented by adapters under `internal/infrastructure/repository/`
 — the driven-adapter layer reaching external systems, grouped under one
-`repository` module: `registry/{fs,git,http}` and `agent/{claude,zencoder}`. Each
+`repository` module: `registry/{git,http}` and `agent/{claude,zencoder}`. Each
 adapter family exposes its wiring through an uberfx `NewFxOptions() fx.Option`. The
 ports are a public surface: external code may implement new registries or providers
 against them. The `repository` module also houses internal capabilities that

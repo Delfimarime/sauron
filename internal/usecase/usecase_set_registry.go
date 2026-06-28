@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"github.com/delfimarime/sauron/internal/infrastructure/repository/registry/api"
 	"github.com/delfimarime/sauron/internal/infrastructure/repository/storage"
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/pkg/sauron/extension"
@@ -154,19 +152,6 @@ func (uc *SetRegistryUseCase) persist(ctx context.Context, in SetRegistryInput, 
 	)
 
 	return &SetRegistryResult{URI: in.URI, Transport: transport}, nil
-}
-
-// classifyAdapterErr maps an adapter failure to a classified use-case error: a
-// usage class is preserved, anything else becomes unreachable.
-func classifyAdapterErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, api.ErrUsage) {
-		return NewUsageError(err.Error())
-	}
-
-	return NewUnreachableError(err.Error())
 }
 
 // SetRegistryResult is the presentation-agnostic outcome of configuring the

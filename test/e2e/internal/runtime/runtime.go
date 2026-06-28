@@ -74,7 +74,7 @@ type Source interface {
 // the served set; an auth resource (Username/Password set) configures basic auth on
 // a webserver source. The two never carry a port.
 type Resource struct {
-	// Path is the file's location within the content set, e.g. ".skills/go/skill.yaml".
+	// Path is the file's location within the content set, e.g. "skills/go/skill.yaml".
 	Path string
 	// Content is the file's bytes.
 	Content []byte

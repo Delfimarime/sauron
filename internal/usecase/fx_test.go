@@ -3,6 +3,7 @@ package usecase
 import (
 	"testing"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -25,7 +26,13 @@ func TestNewFxOptions(t *testing.T) {
 				func() extension.Registry { return &extension.MockBasedRegistry{} },
 				fx.ResultTags(`name:"registry.http"`),
 			),
+			fx.Annotate(
+				func() afero.Fs { return afero.NewMemMapFs() },
+				fx.ResultTags(`name:"provider"`),
+			),
 			func() storage.RegistriesStore { return &storage.MockBasedRegistriesStore{} },
+			func() storage.TrackStore { return &storage.MockBasedTrackStore{} },
+			func() storage.ProvidersStore { return &storage.MockBasedProvidersStore{} },
 			zap.NewNop,
 		),
 	)
@@ -38,6 +45,8 @@ func TestNewFxOptions(t *testing.T) {
 		fx.Invoke(func(*DescribeRegistryUseCase) {}),
 		fx.Invoke(func(*ListCatalogueUseCase) {}),
 		fx.Invoke(func(*UnsetRegistryUseCase) {}),
+		fx.Invoke(func(*InstallUseCase) {}),
+		fx.Invoke(func(UseCase[DiffInput, Diff]) {}),
 	)
 
 	// Assert.

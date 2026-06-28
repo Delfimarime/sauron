@@ -65,7 +65,10 @@ source.
 **a. Plan the work.** Write `plan.md` (goal & scope, design, checkpoints — each
 with a verify command) and the paired `TASKS.md` (one independently verifiable
 task per unit of work, with dependency order). Both trace back to the `FR-NNN`
-they fulfill ([Ch. IV, Art. 1](../CONSTITUTION.md)). The `sauron-developer` agent
+they fulfill ([Ch. IV, Art. 1](../CONSTITUTION.md)), and both are ordered
+**test-first**: the test — and, for user-observable behavior, the `test/e2e`
+Gherkin scenario — comes before the implementation it verifies
+([Ch. III, Art. 1](../CONSTITUTION.md)). The `sauron-developer` agent
 executes a planned unit; the `plan-implementation` skill shapes the plan.
 
 **b. Branch and implement.** Take a short-lived branch off `main`

@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -15,13 +14,6 @@ import (
 	"github.com/delfimarime/sauron/internal/telemetry"
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
-
-// providerDirs maps a provider name to the home-relative directory its artifacts
-// live under.
-var providerDirs = map[string]string{
-	types.ProviderClaude:   ".claude",
-	types.ProviderZencoder: ".zencoder",
-}
 
 // MigrateUseCaseParams injects the collaborators the migration composes.
 type MigrateUseCaseParams struct {
@@ -102,9 +94,6 @@ func (uc *MigrateUseCase) move(ctx context.Context, artifact types.Artifact, in 
 
 	return artifact, nil
 }
-
-// dirPerm is the mode for created provider directories.
-const dirPerm os.FileMode = 0o755
 
 // MigrateInput names the source and destination providers by name.
 type MigrateInput struct {

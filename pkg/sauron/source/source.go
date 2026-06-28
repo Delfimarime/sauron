@@ -20,6 +20,11 @@ type FileSystem interface {
 	Describe(ctx context.Context, uri string) (Stat, error)
 	// Get returns the entry at uri.
 	Get(ctx context.Context, uri string) (File, error)
+	// Fetch returns the full tree of files for the artifact at uri. Each
+	// returned File's Name() is its path relative to the artifact directory
+	// (not to the registry root), so callers can write the file tree directly
+	// under the artifact's installation directory without further trimming.
+	Fetch(ctx context.Context, uri string) ([]File, error)
 }
 
 // File is an entry that exposes its metadata and content.

@@ -193,7 +193,7 @@ func (s *Server) artifact(w http.ResponseWriter, r *http.Request, kind string) {
 	writeJSON(w, marketplace.ArtifactSummary{Name: name, Version: &version, Size: &size})
 }
 
-// summaries derives the distinct artifacts under prefix (".skills/" or ".agents/"),
+// summaries derives the distinct artifacts under prefix ("skills/" or "agents/"),
 // one per first path segment, sized by the bytes exposed beneath it.
 func (s *Server) summaries(prefix string) []marketplace.ArtifactSummary {
 	s.mu.Lock()
@@ -362,4 +362,4 @@ func writeProblem(w http.ResponseWriter, status int, detail string) {
 }
 
 // prefixOf is the content-set prefix for an artifact kind.
-func prefixOf(kind string) string { return "." + kind + "/" }
+func prefixOf(kind string) string { return kind + "/" }

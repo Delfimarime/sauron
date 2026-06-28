@@ -26,7 +26,7 @@ entrypoint is tagged `//go:build !unit` and the in-process unit tests
     helper_app.go           {{.App.*}} feature-load templating
     testdata/
       *.feature             one feature per behaviour
-      registries/acme/…     authored content sets (.skills/.agents/.personas)
+      registries/acme/…     authored content sets (skills/agents/.personas)
     internal/
       gherkin/              controllers (step definitions) + the #{} resolver
       runtime/              the wide Runtime contract + host & docker backends
@@ -170,7 +170,7 @@ all `Given`s before the first `When`, so this is natural.
 ## One content set, three exposures
 
 `Given … hosts a skill/the directory/the file` builds **one provider content
-set** (`.skills/`, `.agents/`, `.personas/`). A source capability is one exposure
+set** (`skills/`, `agents/`, `.personas/`). A source capability is one exposure
 of that set; the `add registry` URI is always `#{.<source>.<attr>}`. Content
 authored under `testdata/` is read in-process and carried as inline bytes, so the
 exposure is identical on the host folder and inside the container — no
@@ -181,7 +181,7 @@ dependence on the Docker daemon seeing a host path.
                        │ ONE content set
                        ▼
               ┌──────────────────┐
-              │  provider content │  .skills/  .agents/  .personas/
+              │  provider content │  skills/  agents/  .personas/
               └────────┬──────────┘
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼

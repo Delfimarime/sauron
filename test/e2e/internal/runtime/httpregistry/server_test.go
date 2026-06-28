@@ -18,7 +18,7 @@ import (
 
 // skill builds a content resource for one skill artifact, named by its directory.
 func skill(name string) runtime.Resource {
-	return runtime.Resource{Path: ".skills/" + name + "/skill.yaml", Content: []byte("name: " + name)}
+	return runtime.Resource{Path: "skills/" + name + "/skill.yaml", Content: []byte("name: " + name)}
 }
 
 // start brings up a server exposing resources and returns it, stopped on cleanup.
@@ -82,7 +82,7 @@ func TestListFiltersBySubstring(t *testing.T) {
 func TestListItemShape(t *testing.T) {
 	s := start(t,
 		skill("go-style"),
-		runtime.Resource{Path: ".agents/code-reviewer/agent.yaml", Content: []byte("x")},
+		runtime.Resource{Path: "agents/code-reviewer/agent.yaml", Content: []byte("x")},
 	)
 
 	skills := decodeList(t, doGet(t, s, "/skills", "")).Items

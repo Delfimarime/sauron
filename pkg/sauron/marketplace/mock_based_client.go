@@ -45,3 +45,16 @@ func (m *MockBasedArtifactClient) List(ctx context.Context, opts ...ListOption) 
 
 	return list, args.Error(1)
 }
+
+// Content records the call and returns the configured archive bytes, version,
+// and error.
+func (m *MockBasedArtifactClient) Content(ctx context.Context, name string) ([]byte, string, error) {
+	args := m.Called(ctx, name)
+
+	var archive []byte
+	if v := args.Get(0); v != nil {
+		archive = v.([]byte)
+	}
+
+	return archive, args.String(1), args.Error(2)
+}

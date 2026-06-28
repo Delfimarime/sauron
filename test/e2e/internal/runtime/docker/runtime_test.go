@@ -83,15 +83,15 @@ func TestBuildSpecsFoldsSources(t *testing.T) {
 	rt, err := New("/host/sauron", "/tmp/work")
 	require.NoError(t, err)
 
-	rt.Folder("default").Expose(runtime.Resource{Path: ".skills/go/skill.yaml", Content: []byte("name: go")})
-	rt.Webserver("default").Expose(runtime.Resource{Path: ".skills/go/skill.yaml", Content: []byte("name: go")})
+	rt.Folder("default").Expose(runtime.Resource{Path: "skills/go/skill.yaml", Content: []byte("name: go")})
+	rt.Webserver("default").Expose(runtime.Resource{Path: "skills/go/skill.yaml", Content: []byte("name: go")})
 	rt.Webserver("default").Expose(runtime.Resource{Username: "acme", Password: "${env:ACME_TOKEN}"})
 
 	specs, err := buildSpecs(rt.specs, rt.folders, rt.webservers, rt.gits)
 	require.NoError(t, err)
 
 	main := findService(t, specs, mainService)
-	assert.True(t, hasMountAt(main, folderPath("default")+"/.skills/go/skill.yaml"),
+	assert.True(t, hasMountAt(main, folderPath("default")+"/skills/go/skill.yaml"),
 		"folder content is mounted into main")
 	assert.Contains(t, main.ExtraHosts, hostGatewayExtraHost,
 		"the host gateway lets the container reach the in-process fixture")
@@ -113,14 +113,14 @@ func TestBuildSpecsFoldsGitSource(t *testing.T) {
 	rt, err := New("/host/sauron", "/tmp/work")
 	require.NoError(t, err)
 
-	rt.Git("default").Expose(runtime.Resource{Path: ".skills/go/skill.yaml", Content: []byte("name: go")})
+	rt.Git("default").Expose(runtime.Resource{Path: "skills/go/skill.yaml", Content: []byte("name: go")})
 
 	specs, err := buildSpecs(rt.specs, rt.folders, rt.webservers, rt.gits)
 	require.NoError(t, err)
 
 	srv := findService(t, specs, gitService("default"))
 	assert.Equal(t, gitImage, srv.Image)
-	assert.True(t, hasMountAt(srv, gitSeedDir+"/.skills/go/skill.yaml"), "seed content is mounted")
+	assert.True(t, hasMountAt(srv, gitSeedDir+"/skills/go/skill.yaml"), "seed content is mounted")
 	assert.True(t, hasMountAt(srv, gitAuthKeys), "client public key is installed as authorized_keys")
 	assert.True(t, hasMountAt(srv, gitHostKey), "the server host key is pinned")
 	assert.True(t, hasMountAt(srv, gitEntrypoint), "the seed entrypoint is mounted")
