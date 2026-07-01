@@ -17,7 +17,7 @@ kind: Skill
 metadata:
   name: sauron-other
 spec:
-  digest: sha256:zzz
+  version: sha256:zzz
   path: sauron-other
   installedAt: "2024-01-01T00:00:00Z"
   updatedAt: "2024-01-01T00:00:00Z"
@@ -29,7 +29,7 @@ kind: Skill
 metadata:
   name: sauron-acme-go-style
 spec:
-  digest: sha256:new
+  version: sha256:new
   path: sauron-acme-go-style
   installedAt: "2024-01-01T00:00:00Z"
   updatedAt: "2024-03-03T00:00:00Z"

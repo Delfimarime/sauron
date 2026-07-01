@@ -10,10 +10,15 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-// ArtifactClient lists the artifacts of one registry kind.
+// ArtifactClient lists the artifacts of one registry kind and downloads their
+// content archives.
 type ArtifactClient interface {
 	// List returns one page of artifact summaries.
 	List(ctx context.Context, opts ...ListOption) (*ArtifactList, error)
+	// Content downloads the named artifact's file-tree archive. version is the
+	// Artifact-Version response header; it is empty when the registry declares
+	// none.
+	Content(ctx context.Context, name string) (archive []byte, version string, err error)
 }
 
 // artifactClient is the resty-backed ArtifactClient for a single kind.
@@ -55,6 +60,24 @@ func (c *artifactClient) List(ctx context.Context, opts ...ListOption) (*Artifac
 	}
 
 	return &list, nil
+}
+
+// Content issues GET /{kind}/{name}/content, returning the raw archive bytes and
+// the Artifact-Version header value. version is empty when the header is absent.
+func (c *artifactClient) Content(ctx context.Context, name string) ([]byte, string, error) {
+	resp, err := c.rest.R().
+		SetContext(ctx).
+		Get("/" + string(c.kind) + "/" + name + "/content")
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: content %s/%s: %w", ErrTransport, c.kind, name, err)
+	}
+
+	if resp.StatusCode() < http.StatusOK || resp.StatusCode() >= http.StatusMultipleChoices {
+		return nil, "", apiErrorFrom(resp)
+	}
+
+	version := resp.Header().Get("Artifact-Version")
+	return resp.Body(), version, nil
 }
 
 // queryFrom maps listing options to query parameters, mapping Search to the

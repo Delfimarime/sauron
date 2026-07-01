@@ -43,7 +43,7 @@ contradict it.
 | Flag | Meaning |
 |---|---|
 | `--dry-run` | Print the plan without changing the environment or the track file |
-| `--transport <kind>` | Registry transport: `git`, `http`, or `filesystem` (persisted as `spec.transport`) |
+| `--transport <kind>` | Registry transport: `git` or `http` (persisted as `spec.transport`) |
 | `--search <term>` | Case-insensitive substring filter |
 | `--sort <field>` | Sort field for list output |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
@@ -59,10 +59,13 @@ contradict it.
 |---|---|
 | `0` | Success — including idempotent no-ops: uninstalling an absent artifact, an empty list, an already-current sync/upgrade, an already-set value, and any `--dry-run` run |
 | `2` | Usage error — invalid or missing arguments/flags; nothing was executed |
-| `1` | Runtime error — validation failure, unreadable state or track file, unreachable registry, or a failed artifact operation |
+| `1` | Runtime error — validation failure, unreadable state or track file, unreachable registry, an unresolvable revision, a failed artifact operation, or a persistence (IO) failure |
 
 Feature contracts may only refine *which conditions* map to each code; they never
 redefine these meanings.
+
+On `SIGINT` or `SIGTERM`, the binary cancels the running command's context for a
+graceful interrupt.
 
 ## Output discipline
 
@@ -72,8 +75,9 @@ redefine these meanings.
 - Commands that apply changes in bulk (`install`, `uninstall`, `sync`, `upgrade`,
   `set provider`) print a shared plan/report format: artifacts grouped under
   `skills:` and `agents:` headings, one artifact per line, prefixed `+` (added),
-  `~` (updated in place), or `-` (removed), followed by a summary count line when
-  changes are applied. Per-artifact failures are reported without stopping the run.
+  `~` (updated in place), `-` (removed), or `!` (per-artifact failure), followed by
+  a summary count line when changes are applied. Per-artifact failures are reported
+  without stopping the run.
 
 ### Canonical rendering
 
@@ -103,7 +107,6 @@ showing 1–20 (page 1, limit 20)
 ```
 name:     go-style
 version:  9f4d2a1
-digest:   sha256:1c8f…
 path:     sauron-go-style
 updated:  2026-06-15
 ```

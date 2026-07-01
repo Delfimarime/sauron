@@ -34,14 +34,13 @@ Every value the TUI displays uses these canonical names, identical to the
 |---|---|
 | `name` | artifact / provider identity |
 | `source` | registry location (the registry's identity) |
-| `transport` | registry transport: `git`, `http`, or `filesystem` |
+| `transport` | registry transport: `git` or `http` |
 | `revision` | git branch, tag, or commit (git transport only) |
 | `credentials` | `username` / `password`, environment references only (`${env:VAR}`) |
 | `tls` | TLS settings |
 | `sshKey` | SSH private-key reference |
 | `timeout` | bound on network operations |
 | `version` | artifact version |
-| `digest` | content identity |
 | `path` | installed location (`sauron-<name>`) |
 | `kind` | artifact kind: `skill` or `agent` |
 | `created` | document creation time |
@@ -186,7 +185,6 @@ paging format of the [CLI contract](cli.md).
 │                                                                      │
 │ name:       go-style                                                 │
 │ version:    v1.4.0                                                   │
-│ digest:     sha256:1a2b…                                             │
 │ path:       skills/sauron-acme-go-style                             │
 │ installed:  2026-06-10 09:00                                         │
 │ updated:    2026-06-15 10:00                                         │
@@ -229,7 +227,7 @@ Form field labels are the canonical field names.
 ```
 ┌─ SET REGISTRY ──────────────────────────────────────────────────────┐
 │                                                                      │
-│ transport:   ( git )  http   filesystem          (--transport)      │
+│ transport:   ( git )  http                       (--transport)      │
 │ source:      [ git@github.com:acme/artifacts.git            ]       │
 │ revision:    [ main                          ]  optional            │
 │ credentials: [ ${env:ACME_USER} ] / [ ${env:ACME_TOKEN} ]          │
@@ -274,7 +272,6 @@ locked first.
 │ [x] name      (identity — always first)                            │
 │ [x] version                                                         │
 │ [x] updated                                                         │
-│ [ ] digest                                                          │
 │ [ ] path                                                            │
 │                                                        esc to close  │
 └──────────────────────────────────────────────────────────────────  ┘

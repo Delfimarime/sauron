@@ -26,8 +26,8 @@ func writeTree(t *testing.T, files map[string]string) string {
 
 func TestCollectResources(t *testing.T) {
 	root := writeTree(t, map[string]string{
-		".skills/go-style/skill.yaml":      "kind: Skill",
-		".agents/code-reviewer/agent.yaml": "kind: Agent",
+		"skills/go-style/skill.yaml":      "kind: Skill",
+		"agents/code-reviewer/agent.yaml": "kind: Agent",
 		".DS_Store":                        "noise",
 	})
 
@@ -38,8 +38,8 @@ func TestCollectResources(t *testing.T) {
 	for _, r := range resources {
 		got[r.Path] = string(r.Content)
 	}
-	assert.Equal(t, "kind: Skill", got[".skills/go-style/skill.yaml"], "nested file served at its slash path")
-	assert.Equal(t, "kind: Agent", got[".agents/code-reviewer/agent.yaml"])
+	assert.Equal(t, "kind: Skill", got["skills/go-style/skill.yaml"], "nested file served at its slash path")
+	assert.Equal(t, "kind: Agent", got["agents/code-reviewer/agent.yaml"])
 	assert.NotContains(t, got, ".DS_Store", "macOS noise is skipped")
 }
 
@@ -57,9 +57,9 @@ func TestFileResource(t *testing.T) {
 	root := writeTree(t, map[string]string{"manifest.yaml": "kind: Skill"})
 	path := filepath.Join(root, "manifest.yaml")
 
-	r, err := fileResource(path, ".skills/go/skill.yaml")
+	r, err := fileResource(path, "skills/go/skill.yaml")
 	require.NoError(t, err)
-	assert.Equal(t, ".skills/go/skill.yaml", r.Path)
+	assert.Equal(t, "skills/go/skill.yaml", r.Path)
 	assert.Equal(t, "kind: Skill", string(r.Content))
 
 	// An empty served path defaults to the file's base name.
@@ -72,21 +72,21 @@ func TestFileResource(t *testing.T) {
 }
 
 func TestExposeDirectoryFeedsTheSource(t *testing.T) {
-	root := writeTree(t, map[string]string{".skills/go/skill.yaml": "kind: Skill"})
+	root := writeTree(t, map[string]string{"skills/go/skill.yaml": "kind: Skill"})
 	src := &fakeSource{}
 
 	require.NoError(t, exposeDirectory(src, root))
 	require.Len(t, src.exposed, 1)
-	assert.Equal(t, ".skills/go/skill.yaml", src.exposed[0].Path)
+	assert.Equal(t, "skills/go/skill.yaml", src.exposed[0].Path)
 }
 
 func TestExposeFileFeedsTheSource(t *testing.T) {
 	root := writeTree(t, map[string]string{"skill.yaml": "kind: Skill"})
 	src := &fakeSource{}
 
-	require.NoError(t, exposeFile(src, filepath.Join(root, "skill.yaml"), ".skills/go/skill.yaml"))
+	require.NoError(t, exposeFile(src, filepath.Join(root, "skill.yaml"), "skills/go/skill.yaml"))
 	require.Len(t, src.exposed, 1)
-	assert.Equal(t, ".skills/go/skill.yaml", src.exposed[0].Path)
+	assert.Equal(t, "skills/go/skill.yaml", src.exposed[0].Path)
 
 	// exposeFile surfaces loader errors rather than panicking.
 	assert.Error(t, exposeFile(&fakeSource{}, filepath.Join(root, "absent"), "x"))

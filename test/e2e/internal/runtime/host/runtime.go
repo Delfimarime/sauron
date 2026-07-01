@@ -10,32 +10,30 @@ import (
 	"path/filepath"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
-)
-
-// basicAuthEnvVar/basicAuthSecret mirror the docker fixture's binding for the
-// basic-auth scenario: the binary resolves the ${env:basicAuthEnvVar} credential
-// reference to basicAuthSecret at connect time. The host backend cannot serve a
-// webserver source, so this only keeps the two runtimes' environments at parity.
-const (
-	basicAuthEnvVar = "ACME_TOKEN"
-	basicAuthSecret = "s3cr3t"
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime/httpregistry"
 )
 
 // hostRuntime executes the binary directly on the host OS. It owns one per-scenario
 // directory pinned as $SAURON_HOME: the binary writes its state there, and
 // CopyTo/ReadFile/Folder all operate under it, so the suite never touches the real
-// ~/.sauron. Being execution + a local folder and nothing networked keeps
-// IsReadOnly() honest — Webserver and Git require the sandbox and so error here.
+// ~/.sauron. An http registry source is served by the in-process fixture in the test
+// process and reached at 127.0.0.1; Git still requires the sandbox and errors here.
 type hostRuntime struct {
-	bin     string
-	dir     string
-	folders map[string]*folderSource
+	bin        string
+	dir        string
+	folders    map[string]*folderSource
+	webservers map[string]*httpregistry.Source
 }
 
 // New builds a host runtime rooted at dir (the per-scenario home). dir need not
 // exist yet; Start creates it.
 func New(bin, dir string) *hostRuntime {
-	return &hostRuntime{bin: bin, dir: dir, folders: map[string]*folderSource{}}
+	return &hostRuntime{
+		bin:        bin,
+		dir:        dir,
+		folders:    map[string]*folderSource{},
+		webservers: map[string]*httpregistry.Source{},
+	}
 }
 
 func (h *hostRuntime) IsReadOnly() bool { return true }
@@ -52,7 +50,12 @@ func (h *hostRuntime) Start(context.Context) error {
 	return nil
 }
 
-func (h *hostRuntime) Stop(context.Context) error { return nil }
+func (h *hostRuntime) Stop(ctx context.Context) error {
+	for _, src := range h.webservers {
+		_ = src.Server().Stop(ctx)
+	}
+	return nil
+}
 
 // resolve turns a relative path into one under the per-scenario home; absolute and
 // ~/ paths are anchored at the home root too.
@@ -106,12 +109,19 @@ func (h *hostRuntime) Folder(alias string) runtime.Source {
 	return src
 }
 
-// Webserver and Git require the sandbox; requesting them on the host is an error,
-// not a silent skip.
-func (h *hostRuntime) Webserver(string) runtime.Source {
-	return runtime.NewErroringSource(errors.New("host: a webserver source is not available on @no-sandbox"))
+// Webserver declares an http registry source served by the in-process fixture; the
+// host binary reaches it at 127.0.0.1. Created once per alias so repeated Expose
+// calls accumulate.
+func (h *hostRuntime) Webserver(alias string) runtime.Source {
+	src, ok := h.webservers[alias]
+	if !ok {
+		src = httpregistry.NewSource(httpregistry.New(), "127.0.0.1")
+		h.webservers[alias] = src
+	}
+	return src
 }
 
+// Git requires the sandbox; requesting it on the host is an error, not a silent skip.
 func (h *hostRuntime) Git(string) runtime.Source {
 	return runtime.NewErroringSource(errors.New("host: a git source is not available on @no-sandbox; use the docker runtime"))
 }
@@ -126,10 +136,14 @@ func (h *hostRuntime) Execute(ctx context.Context, command ...string) (int, stri
 	cmd.Stderr = &stderr
 	if h.dir != "" {
 		cmd.Env = append(os.Environ(), "SAURON_HOME="+h.dir)
-		// Parity with the sandbox runtime: the basic-auth fixture binds a
-		// ${env:VAR} credential reference to a concrete secret on the binary's
-		// environment so the binary resolves it at connect time.
-		cmd.Env = append(cmd.Env, basicAuthEnvVar+"="+basicAuthSecret)
+		// A basic-auth http fixture binds its ${env:VAR} credential reference to the
+		// concrete secret on the binary's environment, so the binary resolves it at
+		// connect time (the server checks against the same secret).
+		for _, src := range h.webservers {
+			if envVar, secret, ok := src.Server().AuthEnv(); ok {
+				cmd.Env = append(cmd.Env, envVar+"="+secret)
+			}
+		}
 	}
 
 	if err := cmd.Run(); err != nil {

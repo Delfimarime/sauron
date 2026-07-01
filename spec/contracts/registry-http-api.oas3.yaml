@@ -64,6 +64,10 @@ paths:
       description: |
         Return a paginated list of the skill artifacts hosted by this registry,
         optionally filtered by a case-insensitive substring match on the artifact name.
+
+        The Sauron client paginates by `offset`/`limit` and treats a short page (fewer
+        than `limit` items) as end-of-list; it does not follow the advertised
+        `self`/`first`/`prev`/`next` hypermedia links.
       tags: [skills]
       parameters:
         - $ref: '#/components/parameters/Q'
@@ -139,6 +143,10 @@ paths:
       description: |
         Return a paginated list of the agent artifacts hosted by this registry,
         optionally filtered by a case-insensitive substring match on the artifact name.
+
+        The Sauron client paginates by `offset`/`limit` and treats a short page (fewer
+        than `limit` items) as end-of-list; it does not follow the advertised
+        `self`/`first`/`prev`/`next` hypermedia links.
       tags: [agents]
       parameters:
         - $ref: '#/components/parameters/Q'

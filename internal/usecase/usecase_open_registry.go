@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -18,10 +17,9 @@ import (
 // the action composes.
 type OpenRegistryUseCaseParams struct {
 	fx.In
-	Filesystem extension.Registry `name:"registry.filesystem"`
-	Git        extension.Registry `name:"registry.git"`
-	HTTP       extension.Registry `name:"registry.http"`
-	Logger     *zap.Logger
+	Git    extension.Registry `name:"registry.git"`
+	HTTP   extension.Registry `name:"registry.http"`
+	Logger *zap.Logger
 }
 
 // OpenRegistryUseCase opens a stored registry's source. It is the seam
@@ -48,9 +46,8 @@ type openRegistryUseCase struct {
 func NewOpenRegistryUseCase(params OpenRegistryUseCaseParams) OpenRegistryUseCase {
 	return &openRegistryUseCase{
 		adapters: map[types.Transport]extension.Registry{
-			types.TransportFilesystem: params.Filesystem,
-			types.TransportGit:        params.Git,
-			types.TransportHTTP:       params.HTTP,
+			types.TransportGit:  params.Git,
+			types.TransportHTTP: params.HTTP,
 		},
 		lookupEnv: os.LookupEnv,
 		logger:    params.Logger,
@@ -66,7 +63,7 @@ func (a *openRegistryUseCase) Execute(ctx context.Context, registry types.Regist
 		return nil, NewUsageError(fmt.Sprintf("unknown transport %q", registry.Spec.Transport))
 	}
 
-	opts, err := a.connectOptions(registry.Spec)
+	opts, err := connectOptions(registry.Spec, a.resolveRef)
 	if err != nil {
 		return nil, err
 	}
@@ -77,67 +74,6 @@ func (a *openRegistryUseCase) Execute(ctx context.Context, registry types.Regist
 	}
 
 	return fs, nil
-}
-
-// connectOptions builds the extension option set from the spec, resolving any
-// ${env:VAR} credential references to their values for connecting only.
-func (a *openRegistryUseCase) connectOptions(spec types.RegistrySpec) ([]extension.Option, error) {
-	opts := []extension.Option{extension.WithURI(spec.Source)}
-
-	if spec.Transport == types.TransportGit && spec.Revision != "" {
-		opts = append(opts, extension.WithRef(spec.Revision))
-	}
-	if timeout, err := a.timeout(spec.Timeout); err != nil {
-		return nil, err
-	} else if timeout > 0 {
-		opts = append(opts, extension.WithTimeout(timeout))
-	}
-	if spec.SSHKey != "" {
-		opts = append(opts, extension.WithSSHKey(spec.SSHKey))
-	}
-
-	credentialsOpt, err := a.credentialsOption(spec.Credentials)
-	if err != nil {
-		return nil, err
-	}
-	if credentialsOpt != nil {
-		opts = append(opts, credentialsOpt)
-	}
-
-	return append(opts, a.tlsOptions(spec.TLS)...), nil
-}
-
-// timeout parses the spec's Go duration string; an empty value yields no bound.
-func (a *openRegistryUseCase) timeout(value string) (time.Duration, error) {
-	if value == "" {
-		return 0, nil
-	}
-
-	timeout, err := time.ParseDuration(value)
-	if err != nil {
-		return 0, NewUsageError(fmt.Sprintf("invalid timeout %q: %v", value, err))
-	}
-
-	return timeout, nil
-}
-
-// credentialsOption builds the basic-auth option, resolving credential
-// references; it returns nil when no credentials were supplied.
-func (a *openRegistryUseCase) credentialsOption(credentials *types.Credentials) (extension.Option, error) {
-	if credentials == nil || (credentials.Username == "" && credentials.Password == "") {
-		return nil, nil
-	}
-
-	username, err := a.resolveRef(credentials.Username)
-	if err != nil {
-		return nil, err
-	}
-	password, err := a.resolveRef(credentials.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	return extension.WithBasicAuth(username, password), nil
 }
 
 // resolveRef resolves a ${env:VAR} reference to its value; a literal (or empty)
@@ -154,24 +90,4 @@ func (a *openRegistryUseCase) resolveRef(value string) (string, error) {
 	}
 
 	return resolved, nil
-}
-
-// tlsOptions builds the transport-security options from the spec.
-func (a *openRegistryUseCase) tlsOptions(tls *types.TLS) []extension.Option {
-	if tls == nil {
-		return nil
-	}
-
-	var opts []extension.Option
-	if tls.SkipVerify {
-		opts = append(opts, extension.WithSkipTLSVerify(true))
-	}
-	if tls.CACert != "" {
-		opts = append(opts, extension.WithCACert(tls.CACert))
-	}
-	if tls.ClientCert != "" || tls.ClientKey != "" {
-		opts = append(opts, extension.WithClientCert(tls.ClientCert, tls.ClientKey))
-	}
-
-	return opts
 }

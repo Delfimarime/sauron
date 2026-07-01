@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -39,10 +38,10 @@ func NewDescribeProviderUseCase(params DescribeProviderUseCaseParams) *DescribeP
 // error. When none is set it returns (nil, nil) — that is not an error: the
 // caller reports none-set and exits successfully. Otherwise it returns the
 // configured provider.
-func (uc *DescribeProviderUseCase) Execute(ctx context.Context, _ DescribeProviderInput) (*types.Provider, error) {
+func (uc *DescribeProviderUseCase) Execute(ctx context.Context, _ DescribeProviderRequest) (*types.Provider, error) {
 	provider, err := uc.providers.Get(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read provider: %v", err))
+		return nil, ioErr("read provider", err)
 	}
 	if provider == nil {
 		return nil, nil
@@ -54,8 +53,3 @@ func (uc *DescribeProviderUseCase) Execute(ctx context.Context, _ DescribeProvid
 
 	return provider, nil
 }
-
-// DescribeProviderInput is the per-invocation input for describing the provider.
-// Describing the single configured provider takes no business input; field
-// selection is a presentation concern resolved by the caller.
-type DescribeProviderInput struct{}

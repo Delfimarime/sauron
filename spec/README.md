@@ -31,7 +31,7 @@ runs in the background; to reconcile periodically, a developer wires `sync` or
    ┌──────────────────────┐                          ┌──────────────────────┐
    │       Registry       │                          │         User         │
    │   artifact source    │                          │  a developer using   │
-   │   git · http · fs    │                          │   an AI assistant    │
+   │   git · http         │                          │   an AI assistant    │
    └──────────┬───────────┘                          └──────────┬───────────┘
               ▲                                                  │
               │ fetch artifacts                                  │ runs `sauron`
@@ -54,24 +54,24 @@ runs in the background; to reconcile periodically, a developer wires `sync` or
 
 Everything Sauron touches at delivery time lives in the user's environment: the
 CLI itself, an optional OS-scheduler entry the developer wires themselves, and the
-provider's artifact directories. The registry is an external source — a
-`filesystem` registry may happen to be on the same machine, but Sauron treats it
-as a source like any other.
+provider's artifact directories. The registry is an external source — it may
+happen to be on the same machine, but Sauron treats it as a source like any
+other.
 
 ## Concepts
 
 - **Artifact** — a unit Sauron distributes. Two kinds in v1: **skill** and
   **agent**. A third kind, **persona**, is a defined concept deferred past v1 — see
   [ADR-0003](architecture/ADR-0003-persona-deferred.md).
-- **Skill / Agent** — content hosted in a registry under its `.skills/` or
-  `.agents/` directory.
+- **Skill / Agent** — content hosted in a registry under its `skills/` or
+  `agents/` directory.
 - **Persona** *(deferred — not implemented in v1)* — a named grouping that
   references a set of skills and agents within the registry; first-class
   (installed, listed, and described like any artifact), its realized content being
   its resolved **membership**. The full design is recorded in
   [ADR-0003](architecture/ADR-0003-persona-deferred.md).
 - **Registry** — the single registered source of artifacts. Its **transport** —
-  `git`, `http`, or `filesystem` — determines how it is reached, validated, and
+  `git` or `http` — determines how it is reached, validated, and
   fetched from. Sauron has exactly one registry; supporting more is deferred — see
   [ADR-0002](architecture/ADR-0002-single-registry.md).
 - **Provider** — the destination environment where artifacts are installed
@@ -100,8 +100,8 @@ touches artifacts it installed.
              ▼                                │
    ┌──────────────────────────────────┐       │
    │             ARTIFACT             │       │
-   │  skill (.skills/) ·              │       │
-   │  agent (.agents/)                │       │
+   │  skill (skills/) ·              │       │
+   │  agent (agents/)                │       │
    │  (persona — deferred, ADR-0003)  │       │
    └──────────────────┬───────────────┘       │
                       │ install / uninstall   │  installs into
@@ -156,7 +156,7 @@ new on its own.
 ```
    installed set  (track.yaml)
         │
-        │ for each artifact: compare digest against its source
+        │ for each artifact: compare version against its source
         ▼
    ┌─────────────────────────┐
    │          PLAN           │   --dry-run ──▶ print plan, change nothing, exit 0

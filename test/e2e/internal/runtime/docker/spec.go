@@ -24,6 +24,10 @@ type ContainerSpec struct {
 	Ports      []string
 	Mount      []FileSpec
 	Env        map[string]string
+	// ExtraHosts renders as the compose service's extra_hosts (e.g.
+	// "host.docker.internal:host-gateway"), so a containerized binary can reach a
+	// server the test process runs on the host gateway.
+	ExtraHosts []string
 }
 
 // FileSpec mounts a file into a container. Provide exactly one source: SourceFile
@@ -89,6 +93,9 @@ func GenerateDockerComposeFile(specs []ContainerSpec) ([]byte, error) {
 		}
 		if len(s.Env) > 0 {
 			svc["environment"] = s.Env
+		}
+		if len(s.ExtraHosts) > 0 {
+			svc["extra_hosts"] = s.ExtraHosts
 		}
 
 		volumes, err := renderVolumes(s)

@@ -15,7 +15,7 @@ import (
 func TestRenderSetRegistry(t *testing.T) {
 	// Arrange.
 	var buf bytes.Buffer
-	result := &usecase.SetRegistryResult{URI: "https://acme.example", Transport: types.TransportHTTP}
+	result := &usecase.SetRegistryResponse{Source: "https://acme.example", Transport: types.TransportHTTP}
 
 	// Act.
 	err := renderSetRegistry(&buf, result)
@@ -28,7 +28,7 @@ func TestRenderSetRegistry(t *testing.T) {
 // TestRenderSetRegistryWriteError surfaces a writer failure as an io error.
 func TestRenderSetRegistryWriteError(t *testing.T) {
 	// Act.
-	err := renderSetRegistry(&failingWriter{}, &usecase.SetRegistryResult{URI: "u", Transport: types.TransportGit})
+	err := renderSetRegistry(&failingWriter{}, &usecase.SetRegistryResponse{Source: "u", Transport: types.TransportGit})
 
 	// Assert.
 	var ucErr *usecase.Error

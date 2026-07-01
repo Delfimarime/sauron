@@ -8,15 +8,13 @@
 
 **Realized by:** [http transport](capabilities/http.md)
 
-**Realized by:** [filesystem transport](capabilities/filesystem.md)
-
 ## Overview
 
 A developer needs to tell Sauron where artifacts come from before anything can be
 installed. Sauron has a single registry. `set registry` configures that source
 and its connection details, validates that the source is reachable and
 well-formed, and persists it — replacing any registry already configured. The
-registry's transport — `git`, `http`, or `filesystem` — selects how the source is
+registry's transport — `git` or `http` — selects how the source is
 reached and validated; the mechanics of each transport live in the capabilities
 this feature is realized by.
 
@@ -71,7 +69,7 @@ this feature is realized by.
 
 - **Registry** — the single configured source, persisted as a `Registry` document;
   see the [state data contract](../contracts/state.md).
-- **Transport** — `git`, `http`, or `filesystem`, selected by `--transport` and stored
+- **Transport** — `git` or `http`, selected by `--transport` and stored
   as `spec.transport`.
 
 ## Notes

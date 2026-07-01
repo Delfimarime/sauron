@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -36,23 +35,15 @@ func NewDescribeRegistryUseCase(params DescribeRegistryUseCaseParams) *DescribeR
 
 // Execute runs the get → not-found pipeline, returning a classified *Error on the
 // first failing step and otherwise the configured registry.
-func (uc *DescribeRegistryUseCase) Execute(ctx context.Context, _ DescribeRegistryInput) (*types.Registry, error) {
-	registry, err := uc.registries.Get(ctx)
+func (uc *DescribeRegistryUseCase) Execute(ctx context.Context, _ DescribeRegistryRequest) (*types.Registry, error) {
+	registry, err := requireRegistry(ctx, uc.registries)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read registry: %v", err))
-	}
-	if registry == nil {
-		return nil, NewNotFoundError("no registry is configured")
+		return nil, err
 	}
 
 	uc.logger.Debug("registry described",
-		zap.String(telemetry.FieldRegistryURI, registry.Spec.Source),
+		zap.String(telemetry.FieldRegistrySource, registry.Spec.Source),
 	)
 
 	return registry, nil
 }
-
-// DescribeRegistryInput is the per-invocation input for describing the registry.
-// Describing the single configured registry takes no business input; field
-// selection is a presentation concern resolved by the caller.
-type DescribeRegistryInput struct{}

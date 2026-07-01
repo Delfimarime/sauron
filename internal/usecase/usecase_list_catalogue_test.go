@@ -26,14 +26,22 @@ type catalogueFixture struct {
 	fs    *source.MockBasedFileSystem
 }
 
-// newCatalogueFixture wires the use case over fresh mocks.
-func newCatalogueFixture() *catalogueFixture {
+// newCatalogueFixture wires the use case over fresh mocks, verifying their
+// expectations on cleanup so an unused or over-specified stub fails the test.
+func newCatalogueFixture(t *testing.T) *catalogueFixture {
+	t.Helper()
 	store := &storage.MockBasedRegistriesStore{}
 	open := &MockBasedOpenRegistryUseCase{}
+	fs := &source.MockBasedFileSystem{}
+	t.Cleanup(func() {
+		store.AssertExpectations(t)
+		open.AssertExpectations(t)
+		fs.AssertExpectations(t)
+	})
 	return &catalogueFixture{
 		store: store,
 		open:  open,
-		fs:    &source.MockBasedFileSystem{},
+		fs:    fs,
 		uc: NewListCatalogueUseCase(ListCatalogueUseCaseParams{
 			Registries: store,
 			Open:       open,
@@ -43,7 +51,7 @@ func newCatalogueFixture() *catalogueFixture {
 }
 
 // run executes the use case against the input, returning the result and error.
-func (f *catalogueFixture) run(in ListCatalogueInput) (*ListCatalogueResult, error) {
+func (f *catalogueFixture) run(in ListCatalogueRequest) (*ListCatalogueResponse, error) {
 	return f.uc.Execute(context.Background(), in)
 }
 
@@ -91,8 +99,8 @@ func dir(name string) *source.MockBasedFile {
 
 // input builds a catalogue input with the sort/order/paging defaults the handler
 // boundary resolves before Execute.
-func input(kind CatalogueKind) ListCatalogueInput {
-	return ListCatalogueInput{Kind: kind, Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}
+func input(kind CatalogueKind) ListCatalogueRequest {
+	return ListCatalogueRequest{Kind: kind, Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}
 }
 
 func TestListCatalogueSkillAndAgent(t *testing.T) {
@@ -105,7 +113,7 @@ func TestListCatalogueSkillAndAgent(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
-			f := newCatalogueFixture()
+			f := newCatalogueFixture(t)
 			f.expectFound()
 			f.expectOpen()
 			f.expectList(catalogueRoots[tc.kind], []source.File{
@@ -128,7 +136,7 @@ func TestListCatalogueSkillAndAgent(t *testing.T) {
 
 func TestListCatalogueNameTrimming(t *testing.T) {
 	// Arrange — .yaml/.yml are trimmed; a name without a known extension is kept.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.expectOpen()
 	f.expectList(rootSkills, []source.File{
@@ -147,7 +155,7 @@ func TestListCatalogueNameTrimming(t *testing.T) {
 
 func TestListCatalogueListOptions(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.expectOpen()
 	var captured source.Options
@@ -178,7 +186,7 @@ func TestListCatalogueListOptions(t *testing.T) {
 
 func TestListCatalogueNoSearchOption(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.expectOpen()
 	var captured source.Options
@@ -194,7 +202,7 @@ func TestListCatalogueNoSearchOption(t *testing.T) {
 
 func TestListCataloguePagingWindow(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.expectOpen()
 	f.expectList(rootSkills, []source.File{stat("b.yaml")}, nil)
@@ -216,7 +224,7 @@ func TestListCataloguePagingWindow(t *testing.T) {
 
 func TestListCatalogueNotConfigured(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.store.On("Get", mock.Anything).Return(nil, nil)
 
 	// Act.
@@ -231,7 +239,7 @@ func TestListCatalogueNotConfigured(t *testing.T) {
 
 func TestListCatalogueReadError(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.store.On("Get", mock.Anything).Return(nil, errors.New("boom"))
 
 	// Act.
@@ -245,7 +253,7 @@ func TestListCatalogueReadError(t *testing.T) {
 
 func TestListCatalogueUnreachable(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.open.On("Execute", mock.Anything, mock.Anything).
 		Return(nil, NewUnreachableError("source down"))
@@ -262,7 +270,7 @@ func TestListCatalogueUnreachable(t *testing.T) {
 
 func TestListCatalogueListFailureUnreachable(t *testing.T) {
 	// Arrange.
-	f := newCatalogueFixture()
+	f := newCatalogueFixture(t)
 	f.expectFound()
 	f.expectOpen()
 	f.fs.On("List", mock.Anything, rootSkills, mock.Anything).
@@ -280,16 +288,16 @@ func TestListCatalogueListFailureUnreachable(t *testing.T) {
 func TestListCatalogueUsageErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
-		mutate  func(*ListCatalogueInput)
+		mutate  func(*ListCatalogueRequest)
 		wantSub string
 	}{
-		{name: "unknown kind", mutate: func(in *ListCatalogueInput) { in.Kind = "widget" }, wantSub: "kind"},
-		{name: "page below one", mutate: func(in *ListCatalogueInput) { in.Page = 0 }, wantSub: "page"},
-		{name: "limit below one", mutate: func(in *ListCatalogueInput) { in.Limit = 0 }, wantSub: "limit"},
+		{name: "unknown kind", mutate: func(in *ListCatalogueRequest) { in.Kind = "widget" }, wantSub: "kind"},
+		{name: "page below one", mutate: func(in *ListCatalogueRequest) { in.Page = 0 }, wantSub: "page"},
+		{name: "limit below one", mutate: func(in *ListCatalogueRequest) { in.Limit = 0 }, wantSub: "limit"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
-			f := newCatalogueFixture()
+			f := newCatalogueFixture(t)
 			in := input(CatalogueSkill)
 			tc.mutate(&in)
 

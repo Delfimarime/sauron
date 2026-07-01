@@ -14,8 +14,7 @@ A developer needs the full detail of one installed artifact. `describe skill` an
 ### Ubiquitous
 
 - FR-001: Sauron shall show the full detail of the named installed artifact of the
-  chosen kind, reading from `track.yaml` — including its optional version, digest,
-  and path.
+  chosen kind, reading from `track.yaml` — including its version and path.
 
 ### Optional
 

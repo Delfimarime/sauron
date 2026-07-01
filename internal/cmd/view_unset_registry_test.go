@@ -43,7 +43,7 @@ func TestRenderUnsetRegistry(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Act.
-			err := renderUnsetRegistry(&buf, &usecase.UnsetRegistryResult{Outcome: tt.outcome})
+			err := renderUnsetRegistry(&buf, &usecase.UnsetRegistryResponse{Outcome: tt.outcome})
 
 			// Assert.
 			require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestRenderUnsetRegistry(t *testing.T) {
 // TestRenderUnsetRegistryWriteError surfaces a writer failure as an io error.
 func TestRenderUnsetRegistryWriteError(t *testing.T) {
 	// Act.
-	err := renderUnsetRegistry(&failingWriter{}, &usecase.UnsetRegistryResult{Outcome: usecase.UnsetRemoved})
+	err := renderUnsetRegistry(&failingWriter{}, &usecase.UnsetRegistryResponse{Outcome: usecase.UnsetRemoved})
 
 	// Assert.
 	var ucErr *usecase.Error

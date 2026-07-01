@@ -12,7 +12,7 @@
 
 The git transport reaches a registry hosted in a git repository. It validates the
 source when set and fetches artifact content for browsing, installing, and
-reconciling. Artifacts are read from the repository's `.skills/` and `.agents/`
+reconciling. Artifacts are read from the repository's `skills/` and `agents/`
 directories; a skill or agent is the directory under one of those.
 
 ## Requirements
@@ -22,10 +22,10 @@ directories; a skill or agent is the directory under one of those.
 - FR-001: Sauron shall reach git registries over the URI's scheme, supporting SSH
   remotes with a private key (`--ssh-key`) and HTTPS remotes with credentials
   passed as environment references.
-- FR-002: Sauron shall treat each directory under `.skills/` or `.agents/` as one
+- FR-002: Sauron shall treat each directory under `skills/` or `agents/` as one
   skill or agent.
-- FR-003: Sauron shall compute an artifact's `digest` from the tree-object hash of
-  its directory at the resolved commit.
+- FR-003: Sauron shall set an artifact's `version` to the tree-object hash of its
+  directory at the resolved commit.
 
 ### Event-driven
 
@@ -34,10 +34,7 @@ directories; a skill or agent is the directory under one of those.
 
 ### Optional
 
-- FR-005: Where an explicit version is not declared, Sauron shall derive a git
-  artifact's optional `version` from the most recent commit that touched the
-  artifact's directory (that commit's SHA).
-- FR-007: Where a ref is provided, Sauron shall resolve the registry's artifacts
+- FR-005: Where a ref is provided, Sauron shall resolve the registry's artifacts
   from that ref (a branch, tag, or commit); where no ref is provided, Sauron shall
   resolve from the repository's default branch.
 
@@ -45,5 +42,12 @@ directories; a skill or agent is the directory under one of those.
 
 - FR-006: If the repository is unreachable or authentication fails, then Sauron
   shall fail with a runtime error.
-- FR-008: If the provided ref cannot be resolved in the repository, then Sauron
+- FR-007: If the provided ref cannot be resolved in the repository, then Sauron
   shall fail with a runtime error.
+
+## Notes
+
+- A branch or tag ref uses a shallow in-memory clone, while a commit-SHA ref forces
+  a full-history clone (costlier).
+- The revision is resolved in the order **branch → tag → commit**; an ambiguous name
+  resolves as a branch first.

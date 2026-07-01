@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -67,10 +65,10 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act.
-			input := usecase.SetRegistryInput{
-				URI:           tt.args[0],
+			input := usecase.SetRegistryRequest{
+				Source:        tt.args[0],
 				Transport:     tt.flags.Transport,
-				Ref:           tt.flags.Revision,
+				Revision:      tt.flags.Revision,
 				Username:      tt.flags.Username,
 				Password:      tt.flags.Password,
 				SSHKey:        tt.flags.SSHKey,
@@ -82,9 +80,9 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 			}
 
 			// Assert.
-			assert.Equal(t, regURI, input.URI)
+			assert.Equal(t, regURI, input.Source)
 			assert.Equal(t, tt.wantKind, input.Transport)
-			assert.Equal(t, tt.wantRef, input.Ref)
+			assert.Equal(t, tt.wantRef, input.Revision)
 			assert.Equal(t, tt.wantUser, input.Username)
 			assert.Equal(t, tt.wantTLS, input.SkipTLSVerify)
 			assert.Equal(t, tt.wantSSH, input.SSHKey)
@@ -105,7 +103,7 @@ func TestSetRegistryRejectsInvalidKind(t *testing.T) {
 	// Assert.
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errInvalidFlag)
-	assert.Equal(t, exitUsage, exitCode(err))
+	assert.Equal(t, exitUsage, ExitCode(err))
 }
 
 // TestSetRegistryCommand exercises the assembled subcommand: flag binding, the
@@ -156,7 +154,7 @@ func TestSetRegistryCommand(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.wantUsage {
-					assert.Equal(t, exitUsage, exitCode(err))
+					assert.Equal(t, exitUsage, ExitCode(err))
 				}
 				return
 			}
@@ -202,7 +200,7 @@ func TestExitCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, exitCode(tt.err))
+			assert.Equal(t, tt.want, ExitCode(tt.err))
 		})
 	}
 }
@@ -225,18 +223,16 @@ func TestExitCodeMapper(t *testing.T) {
 }
 
 // TestSetRegistryEndToEnd drives the assembled subcommand through the real fx
-// graph against a filesystem source that hosts an artifact, asserting it
-// configures the registry and writes the confirmation to stdout. The source
-// lives in a temp directory and the state in a temp SAURON_HOME, so nothing
-// durable is touched.
+// graph against an in-process http source that lists an artifact, asserting it
+// configures the registry and writes the confirmation to stdout. The source is an
+// httptest.Server and the state lives in a temp SAURON_HOME, so nothing durable
+// is touched.
 func TestSetRegistryEndToEnd(t *testing.T) {
-	// Arrange: a source directory that hosts one skill artifact.
-	source := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(source, ".skills", regName), 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(source, ".skills", regName, "skill.yaml"),
-		[]byte("placeholder\n"), 0o644,
-	))
+	// Arrange: an http source that lists one skill artifact.
+	source := startHTTPRegistry(t,
+		[]artifactSummary{{Name: regName, Version: versionOne, Size: 1024}},
+		nil,
+	)
 	t.Setenv("SAURON_HOME", t.TempDir())
 
 	cmd := SetRegistry()
@@ -244,14 +240,14 @@ func TestSetRegistryEndToEnd(t *testing.T) {
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
 	cmd.SetContext(context.Background())
-	cmd.SetArgs([]string{"--transport", transportFilesystem, source})
+	cmd.SetArgs([]string{"--transport", transportHTTP, source})
 
 	// Act.
 	err := cmd.Execute()
 
 	// Assert.
 	require.NoError(t, err, "stderr: %s", stderr.String())
-	assert.Contains(t, stdout.String(), "registry set to "+source+" (filesystem)")
+	assert.Contains(t, stdout.String(), "registry set to "+source+" (http)")
 	assert.Empty(t, stderr.String())
 }
 

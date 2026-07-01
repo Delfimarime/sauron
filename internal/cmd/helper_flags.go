@@ -11,13 +11,12 @@ import (
 
 // the transports a source may be reached over.
 const (
-	transportGit        = "git"
-	transportHTTP       = "http"
-	transportFilesystem = "filesystem"
+	transportGit  = "git"
+	transportHTTP = "http"
 )
 
 // transportValues are the transports a source may be reached over.
-var transportValues = []string{transportGit, transportHTTP, transportFilesystem}
+var transportValues = []string{transportGit, transportHTTP}
 
 // transportFlags groups the transport selector shared by source-defining commands.
 type transportFlags struct {
@@ -36,23 +35,6 @@ func (f *transportFlags) validate() error {
 	}
 
 	return fmt.Errorf("%w: transport must be one of %s", errInvalidFlag, strings.Join(transportValues, "|"))
-}
-
-// listingFlags groups the filter, sort, and column flags shared by list and
-// describe commands.
-type listingFlags struct {
-	Search string
-	Sort   string
-	Order  string
-	Fields []string
-}
-
-func bindListingFlags(cmd *cobra.Command, f *listingFlags) {
-	flags := cmd.Flags()
-	flags.StringVar(&f.Search, "search", "", "case-insensitive substring filter")
-	flags.StringVar(&f.Sort, "sort", "", "sort field")
-	flags.StringVar(&f.Order, "order", "asc", "sort direction (asc|desc)")
-	flags.StringSliceVar(&f.Fields, "fields", nil, "columns to display, in order")
 }
 
 // the sort directions a listing accepts.

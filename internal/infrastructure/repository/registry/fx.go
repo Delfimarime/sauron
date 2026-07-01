@@ -12,10 +12,6 @@ func NewFxOptions() fx.Option {
 	return fx.Options(
 		fx.Provide(
 			fx.Annotate(
-				func() extension.Registry { return newOSFactory() },
-				fx.ResultTags(`name:"registry.filesystem"`),
-			),
-			fx.Annotate(
 				newGitFactory,
 				fx.As(new(extension.Registry)),
 				fx.ResultTags(`name:"registry.git"`),

@@ -18,7 +18,7 @@ list scopes the run; a dry run previews the plan.
 ### Ubiquitous
 
 - FR-001: Sauron shall refresh every tracked artifact whose source content
-  `digest` changed, updating it under the provider and in `track.yaml`.
+  `version` changed, updating it under the provider and in `track.yaml`.
 - FR-002: Sauron shall never remove an artifact during upgrade, including
   artifacts that have vanished from their source.
 

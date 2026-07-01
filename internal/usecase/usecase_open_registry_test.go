@@ -19,32 +19,37 @@ import (
 
 // openFixture bundles the use case and its mocked transport adapters.
 type openFixture struct {
-	action     *openRegistryUseCase
-	filesystem *extension.MockBasedRegistry
-	git        *extension.MockBasedRegistry
-	http       *extension.MockBasedRegistry
-	fs         *source.MockBasedFileSystem
+	action *openRegistryUseCase
+	git    *extension.MockBasedRegistry
+	http   *extension.MockBasedRegistry
+	fs     *source.MockBasedFileSystem
 }
 
-// newOpenFixture wires a use case over fresh mocks with an injected env lookup.
-func newOpenFixture(env map[string]string) *openFixture {
+// newOpenFixture wires a use case over fresh mocks with an injected env lookup,
+// verifying their expectations on cleanup so an unused stub fails the test.
+func newOpenFixture(t *testing.T, env map[string]string) *openFixture {
+	t.Helper()
 	f := &openFixture{
-		filesystem: &extension.MockBasedRegistry{},
-		git:        &extension.MockBasedRegistry{},
-		http:       &extension.MockBasedRegistry{},
-		fs:         &source.MockBasedFileSystem{},
+		git:  &extension.MockBasedRegistry{},
+		http: &extension.MockBasedRegistry{},
+		fs:   &source.MockBasedFileSystem{},
 	}
 
 	f.action = NewOpenRegistryUseCase(OpenRegistryUseCaseParams{
-		Filesystem: f.filesystem,
-		Git:        f.git,
-		HTTP:       f.http,
-		Logger:     zap.NewNop(),
+		Git:    f.git,
+		HTTP:   f.http,
+		Logger: zap.NewNop(),
 	}).(*openRegistryUseCase)
 	f.action.lookupEnv = func(key string) (string, bool) {
 		v, ok := env[key]
 		return v, ok
 	}
+
+	t.Cleanup(func() {
+		f.git.AssertExpectations(t)
+		f.http.AssertExpectations(t)
+		f.fs.AssertExpectations(t)
+	})
 
 	return f
 }
@@ -58,11 +63,6 @@ func TestOpenRegistryUseCase_Execute_TransportSelection(t *testing.T) {
 		// adapter selects the mock expected to be opened.
 		adapter func(*openFixture) *extension.MockBasedRegistry
 	}{
-		{
-			name:      "filesystem transport opens the filesystem adapter",
-			transport: types.TransportFilesystem,
-			adapter:   func(f *openFixture) *extension.MockBasedRegistry { return f.filesystem },
-		},
 		{
 			name:      "git transport opens the git adapter",
 			transport: types.TransportGit,
@@ -78,7 +78,7 @@ func TestOpenRegistryUseCase_Execute_TransportSelection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			f := newOpenFixture(nil)
+			f := newOpenFixture(t, nil)
 			adapter := tt.adapter(f)
 			adapter.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 
@@ -97,7 +97,7 @@ func TestOpenRegistryUseCase_Execute_TransportSelection(t *testing.T) {
 
 func TestOpenRegistryUseCase_Execute_UnknownTransport(t *testing.T) {
 	// Arrange.
-	f := newOpenFixture(nil)
+	f := newOpenFixture(t, nil)
 
 	// Act.
 	_, err := f.action.Execute(context.Background(), types.Registry{
@@ -107,13 +107,13 @@ func TestOpenRegistryUseCase_Execute_UnknownTransport(t *testing.T) {
 	// Assert: a usage error names the unknown transport; no adapter is opened.
 	ucErr := asUseCaseError(t, err, TypeUsage)
 	assert.Contains(t, ucErr.Reason, "ftp")
-	f.filesystem.AssertNotCalled(t, "Open", mock.Anything, mock.Anything)
+	f.http.AssertNotCalled(t, "Open", mock.Anything, mock.Anything)
 }
 
 func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {
 	t.Run("set references resolve before open", func(t *testing.T) {
 		// Arrange.
-		f := newOpenFixture(map[string]string{"GIT_USER": "real-user", "GIT_PASS": "real-pass"})
+		f := newOpenFixture(t, map[string]string{"GIT_USER": "real-user", "GIT_PASS": "real-pass"})
 		var opened extension.Options
 		f.git.On("Open", mock.Anything, mock.Anything).
 			Run(func(args mock.Arguments) {
@@ -140,7 +140,7 @@ func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {
 
 	t.Run("literal credentials, ssh key and tls pass through unchanged", func(t *testing.T) {
 		// Arrange.
-		f := newOpenFixture(nil)
+		f := newOpenFixture(t, nil)
 		var opened extension.Options
 		f.http.On("Open", mock.Anything, mock.Anything).
 			Run(func(args mock.Arguments) {
@@ -155,7 +155,7 @@ func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {
 			Spec: types.RegistrySpec{
 				Transport: types.TransportHTTP, Source: testHTTPURI, Timeout: "15s", SSHKey: "/key",
 				Credentials: &types.Credentials{Username: "literal-user", Password: "literal-pass"},
-				TLS:  &types.TLS{SkipVerify: true, CACert: "/ca.pem", ClientCert: "/c.pem", ClientKey: "/k.pem"},
+				TLS:         &types.TLS{SkipVerify: true, CACert: "/ca.pem", ClientCert: "/c.pem", ClientKey: "/k.pem"},
 			},
 		})
 
@@ -172,7 +172,7 @@ func TestOpenRegistryUseCase_Execute_CredentialReferences(t *testing.T) {
 
 	t.Run("unset reference yields unreachable before open", func(t *testing.T) {
 		// Arrange: ACME_USER is absent from the injected environment.
-		f := newOpenFixture(nil)
+		f := newOpenFixture(t, nil)
 
 		// Act.
 		_, err := f.action.Execute(context.Background(), types.Registry{
@@ -218,7 +218,7 @@ func TestOpenRegistryUseCase_Execute_OpenFailureClassification(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			f := newOpenFixture(nil)
+			f := newOpenFixture(t, nil)
 			f.http.On("Open", mock.Anything, mock.Anything).Return(nil, tt.openErr)
 
 			// Act.
@@ -234,7 +234,7 @@ func TestOpenRegistryUseCase_Execute_OpenFailureClassification(t *testing.T) {
 
 func TestOpenRegistryUseCase_Execute_InvalidTimeout(t *testing.T) {
 	// Arrange.
-	f := newOpenFixture(nil)
+	f := newOpenFixture(t, nil)
 
 	// Act.
 	_, err := f.action.Execute(context.Background(), types.Registry{

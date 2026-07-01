@@ -19,7 +19,7 @@ type SetProviderUseCaseParams struct {
 	fx.In
 	Logger    *zap.Logger
 	Providers storage.ProvidersStore
-	Migrate   UseCase[MigrateInput, MigrateResult]
+	Migrate   UseCase[MigrateRequest, MigrateResponse]
 }
 
 // SetProviderUseCase records the single global provider: it validates the name,
@@ -28,7 +28,7 @@ type SetProviderUseCaseParams struct {
 type SetProviderUseCase struct {
 	logger    *zap.Logger
 	providers storage.ProvidersStore
-	migrate   UseCase[MigrateInput, MigrateResult]
+	migrate   UseCase[MigrateRequest, MigrateResponse]
 }
 
 // NewSetProviderUseCase builds the use case from the injected stores and
@@ -45,36 +45,40 @@ func NewSetProviderUseCase(params SetProviderUseCaseParams) *SetProviderUseCase 
 // active, and otherwise migrates the installed set (on a real switch) and
 // persists the provider — recording it even when some migration steps failed, so
 // the setting and the track file stay consistent with what migrated.
-func (uc *SetProviderUseCase) Execute(ctx context.Context, in SetProviderInput) (*SetProviderResult, error) {
+func (uc *SetProviderUseCase) Execute(ctx context.Context, in SetProviderRequest) (*SetProviderResponse, error) {
 	if err := uc.validateProviderName(in.Provider); err != nil {
 		return nil, err
 	}
 
 	current, err := uc.providers.Get(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read provider: %v", err))
+		return nil, ioErr("read provider", err)
 	}
 	if current != nil && current.Metadata.Name == in.Provider {
-		return &SetProviderResult{Provider: in.Provider, Unchanged: true}, nil
+		return &SetProviderResponse{Provider: in.Provider, Unchanged: true}, nil
 	}
 
 	var moved []types.Artifact
+	var failures []MigrateFailure
 	if current != nil {
-		result, err := uc.migrate.Execute(ctx, MigrateInput{
+		result, err := uc.migrate.Execute(ctx, MigrateRequest{
 			From: current.Metadata.Name, To: in.Provider,
 		})
 		if err != nil {
 			return nil, err
 		}
 		moved = result.Moved
+		failures = result.Failures
 	}
 
-	return uc.persist(ctx, in.Provider, moved)
+	return uc.persist(ctx, in.Provider, moved, failures)
 }
 
 // persist records the new provider with freshly stamped audit timestamps and
 // projects the moved set into the presentation-agnostic plan groups.
-func (uc *SetProviderUseCase) persist(ctx context.Context, name string, moved []types.Artifact) (*SetProviderResult, error) {
+func (uc *SetProviderUseCase) persist(
+	ctx context.Context, name string, moved []types.Artifact, failures []MigrateFailure,
+) (*SetProviderResponse, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	provider := types.Provider{Metadata: types.Metadata{
 		Name:          name,
@@ -82,28 +86,29 @@ func (uc *SetProviderUseCase) persist(ctx context.Context, name string, moved []
 		LastUpdatedAt: now,
 	}}
 	if err := uc.providers.Set(ctx, provider); err != nil {
-		return nil, NewIOError(fmt.Sprintf("persist provider: %v", err))
+		return nil, ioErr("persist provider", err)
 	}
 
 	uc.logger.Debug("provider set", zap.String(telemetry.FieldProviderName, name))
 
 	skills, agents := uc.groupByKind(moved)
-	return &SetProviderResult{
+	return &SetProviderResponse{
 		Provider: name,
 		Skills:   skills,
 		Agents:   agents,
 		Migrated: len(moved),
+		Failures: failures,
 	}, nil
 }
 
-// validateProviderName rejects any name Sauron does not support.
+// validateProviderName rejects any name Sauron does not support, checking the
+// single providerDirs registry so the supported set has one source of truth.
 func (uc *SetProviderUseCase) validateProviderName(name string) error {
-	switch name {
-	case types.ProviderClaude, types.ProviderZencoder:
-		return nil
-	default:
+	if _, ok := providerDirs[name]; !ok {
 		return NewUsageError(fmt.Sprintf("unknown provider %q", name))
 	}
+
+	return nil
 }
 
 // groupByKind splits the moved artifacts into skill and agent name lists by their
@@ -118,20 +123,4 @@ func (uc *SetProviderUseCase) groupByKind(artifacts []types.Artifact) (skills, a
 		}
 	}
 	return skills, agents
-}
-
-// SetProviderInput is the per-invocation input for setting the provider.
-type SetProviderInput struct {
-	Provider string
-}
-
-// SetProviderResult is the presentation-agnostic outcome of setting the
-// provider: the provider now in effect, whether nothing changed, and the
-// migration plan groups with their count.
-type SetProviderResult struct {
-	Migrated  int
-	Unchanged bool
-	Provider  string
-	Skills    []string
-	Agents    []string
 }

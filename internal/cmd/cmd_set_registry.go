@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -38,10 +37,7 @@ func SetRegistry() *cobra.Command {
 			return setRegistry(cmd.Context(), &flags, args, cmd.OutOrStdout())
 		},
 	}
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return fmt.Errorf("%w: %w", errInvalidFlag, err)
-	})
-
+	silenceFlagErrors(cmd)
 	bindTransportFlags(cmd, &flags.transportFlags)
 	bindTimeoutFlags(cmd, &flags.timeoutFlags)
 	set := cmd.Flags()
@@ -65,11 +61,11 @@ func setRegistry(ctx context.Context, flags *setRegistryFlags, args []string, st
 		return err
 	}
 
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetRegistryUseCase) (*usecase.SetRegistryResult, error) {
-		return uc.Execute(runCtx, usecase.SetRegistryInput{
-			URI:           args[0],
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetRegistryUseCase) (*usecase.SetRegistryResponse, error) {
+		return uc.Execute(runCtx, usecase.SetRegistryRequest{
+			Source:        args[0],
 			Transport:     flags.Transport,
-			Ref:           flags.Revision,
+			Revision:      flags.Revision,
 			Username:      flags.Username,
 			Password:      flags.Password,
 			SSHKey:        flags.SSHKey,

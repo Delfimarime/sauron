@@ -34,21 +34,17 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["digest", "path", "installedAt", "updatedAt"],
+      "required": ["version", "path", "installedAt", "updatedAt"],
       "properties": {
         "version": {
           "type": "string",
-          "description": "Optional human-meaningful version; derivable for git, declared-only otherwise."
-        },
-        "digest": {
-          "type": "string",
           "minLength": 1,
-          "description": "Content identity used to detect change and local drift; always present."
+          "description": "Identity read from the source — the artifact directory's git tree hash, or the http object version — compared by sync and upgrade to detect change."
         },
         "path": {
           "type": "string",
           "minLength": 1,
-          "description": "Exact installed location relative to the provider root (sauron-<name>)."
+          "description": "Exact installed location relative to the provider root: `<kind>/sauron-<name>` (e.g. `skills/sauron-<name>`)."
         },
         "installedAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }

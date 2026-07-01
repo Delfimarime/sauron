@@ -280,6 +280,167 @@ func TestNew_FullConfig(t *testing.T) {
 	require.Len(t, list.Items, 1)
 }
 
+func TestArtifactClient_Content(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		collection func(Client) ArtifactClient
+		wantPath   string
+	}{
+		{
+			name:       "skills content hits /skills/writer/content",
+			collection: func(c Client) ArtifactClient { return c.Skills() },
+			wantPath:   "/skills/writer/content",
+		},
+		{
+			name:       "agents content hits /agents/writer/content",
+			collection: func(c Client) ArtifactClient { return c.Agents() },
+			wantPath:   "/agents/writer/content",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange.
+			fakeArchive := []byte("fake archive bytes")
+			var gotPath string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				w.Header().Set("Artifact-Version", "abc123")
+				_, _ = w.Write(fakeArchive)
+			}))
+			defer server.Close()
+
+			c, err := New(WithBaseURL(server.URL))
+			require.NoError(t, err)
+
+			// Act.
+			archive, version, contentErr := tt.collection(c).Content(context.Background(), "writer")
+
+			// Assert.
+			require.NoError(t, contentErr)
+			assert.Equal(t, tt.wantPath, gotPath)
+			assert.Equal(t, fakeArchive, archive)
+			assert.Equal(t, "abc123", version)
+		})
+	}
+}
+
+func TestArtifactClient_Content_NoVersion(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: server returns the archive without an Artifact-Version header.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("archive"))
+	}))
+	defer server.Close()
+
+	c, err := New(WithBaseURL(server.URL))
+	require.NoError(t, err)
+
+	// Act.
+	_, version, contentErr := c.Skills().Content(context.Background(), "writer")
+
+	// Assert: version is empty, not an error.
+	require.NoError(t, contentErr)
+	assert.Empty(t, version)
+}
+
+func TestArtifactClient_Content_Errors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		status    int
+		body      string
+		predicate func(error) bool
+	}{
+		{
+			name:      "404 is not-found",
+			status:    http.StatusNotFound,
+			body:      `{"status":404,"title":"Not Found","detail":"no such skill"}`,
+			predicate: IsNotFound,
+		},
+		{
+			name:      "401 is unauthorized",
+			status:    http.StatusUnauthorized,
+			body:      `{"status":401,"title":"Unauthorized"}`,
+			predicate: IsUnauthorized,
+		},
+		{
+			name:      "403 is forbidden",
+			status:    http.StatusForbidden,
+			body:      `{"status":403,"title":"Forbidden"}`,
+			predicate: IsForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange.
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
+
+			c, err := New(WithBaseURL(server.URL))
+			require.NoError(t, err)
+
+			// Act.
+			_, _, contentErr := c.Skills().Content(context.Background(), "absent")
+
+			// Assert.
+			require.Error(t, contentErr)
+			assert.True(t, tt.predicate(contentErr))
+		})
+	}
+}
+
+func TestArtifactClient_Content_TransportError(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: close the server before issuing the request.
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	baseURL := server.URL
+	server.Close()
+
+	c, err := New(WithBaseURL(baseURL))
+	require.NoError(t, err)
+
+	// Act.
+	_, _, contentErr := c.Skills().Content(context.Background(), "writer")
+
+	// Assert.
+	require.Error(t, contentErr)
+	assert.ErrorIs(t, contentErr, ErrTransport)
+}
+
+func TestMockBasedArtifactClient_Content(t *testing.T) {
+	t.Parallel()
+
+	// Arrange.
+	wantArchive := []byte("archive bytes")
+	wantVersion := "v1.0.0"
+	artifacts := &MockBasedArtifactClient{}
+	artifacts.On("Content", mock.Anything, "writer").Return(wantArchive, wantVersion, nil)
+
+	// Act.
+	gotArchive, gotVersion, err := artifacts.Content(context.Background(), "writer")
+
+	// Assert.
+	require.NoError(t, err)
+	assert.Equal(t, wantArchive, gotArchive)
+	assert.Equal(t, wantVersion, gotVersion)
+	artifacts.AssertExpectations(t)
+}
+
 func TestAPIError_Error(t *testing.T) {
 	t.Parallel()
 

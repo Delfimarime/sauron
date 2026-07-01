@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +13,6 @@ import (
 
 	"github.com/alitto/pond/v2"
 	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -29,6 +31,8 @@ const (
 	acmeName          = "acme"
 	settingsFile      = "settings.yaml"
 	caseUnexpectedArg = "rejects an unexpected argument"
+	// versionOne is the fixture version shared across artifact test setups.
+	versionOne = "1.0.0"
 )
 
 // seedRegistries pins SAURON_HOME to a fresh temp dir and writes stream as the
@@ -42,6 +46,56 @@ func seedRegistries(t *testing.T, stream string) {
 		return
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(home, settingsFile), []byte(stream), 0o644))
+}
+
+// artifactSummary mirrors the Sauron HTTP Registry API's ArtifactSummary: the
+// condensed artifact view the http transport's marketplace client decodes from a
+// collection listing.
+type artifactSummary struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Size    int64  `json:"size"`
+}
+
+// startHTTPRegistry stands up an in-process httptest.Server implementing the
+// minimal Sauron HTTP Registry API the http transport consumes: GET /skills and
+// GET /agents answer with the supplied summaries wrapped in an ArtifactList. The
+// server is closed when the test ends, keeping the test offline and self-contained.
+func startHTTPRegistry(t *testing.T, skills, agents []artifactSummary) string {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/skills", listArtifacts(skills))
+	mux.HandleFunc("/agents", listArtifacts(agents))
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	return srv.URL
+}
+
+// listArtifacts answers a collection listing with the given summaries wrapped in
+// an ArtifactList body.
+func listArtifacts(items []artifactSummary) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(struct {
+			Items []artifactSummary `json:"items"`
+		}{Items: items})
+	}
+}
+
+// closedHTTPRegistry returns the URL of an httptest.Server that has already been
+// closed: the URL is well-formed but refuses connections, so opening it fails as
+// a runtime (unreachable) error rather than a usage error.
+func closedHTTPRegistry(t *testing.T) string {
+	t.Helper()
+
+	srv := httptest.NewServer(http.NewServeMux())
+	url := srv.URL
+	srv.Close()
+
+	return url
 }
 
 // TestNewApp asserts the transversal fx graph wires and validates cleanly — the
@@ -235,35 +289,4 @@ func TestRunUseCase(t *testing.T) {
 		assert.Contains(t, err.Error(), "build application")
 		assert.False(t, ran, "exec must not run when the graph fails to build")
 	})
-}
-
-// TestBindFlags verifies each shared flag group registers its flags with the
-// documented defaults and binds them to its struct.
-func TestBindFlags(t *testing.T) {
-	// Arrange.
-	cmd := &cobra.Command{Use: "x"}
-	var listing listingFlags
-	var dry dryRunFlags
-	var timeout timeoutFlags
-	var kind transportFlags
-
-	// Act.
-	bindListingFlags(cmd, &listing)
-	bindDryRunFlags(cmd, &dry)
-	bindTimeoutFlags(cmd, &timeout)
-	bindTransportFlags(cmd, &kind)
-
-	// Assert: defaults bound onto the structs.
-	assert.Equal(t, "", listing.Search)
-	assert.Equal(t, "", listing.Sort)
-	assert.Equal(t, "asc", listing.Order)
-	assert.Empty(t, listing.Fields)
-	assert.False(t, dry.DryRun)
-	assert.Equal(t, 30*time.Second, timeout.Timeout)
-	assert.Equal(t, transportHTTP, kind.Transport)
-
-	// Assert: flags are registered on the command.
-	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName, "dry-run", "timeout", flagTransport} {
-		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
-	}
 }

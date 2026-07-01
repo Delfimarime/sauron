@@ -30,9 +30,12 @@ type describeFixture struct {
 	store *storage.MockBasedRegistriesStore
 }
 
-// newDescribeFixture wires a describe use case over a fresh store mock.
-func newDescribeFixture() *describeFixture {
+// newDescribeFixture wires a describe use case over a fresh store mock, verifying
+// its expectations on cleanup so an unused stub fails the test.
+func newDescribeFixture(t *testing.T) *describeFixture {
+	t.Helper()
 	store := &storage.MockBasedRegistriesStore{}
+	t.Cleanup(func() { store.AssertExpectations(t) })
 	return &describeFixture{
 		store: store,
 		uc: NewDescribeRegistryUseCase(DescribeRegistryUseCaseParams{
@@ -46,13 +49,13 @@ func newDescribeFixture() *describeFixture {
 func fullRegistry() *types.Registry {
 	return &types.Registry{
 		Metadata: types.Metadata{
-			CreatedAt:    createdStamp,
+			CreatedAt:     createdStamp,
 			LastUpdatedAt: updatedStamp,
 		},
 		Spec: types.RegistrySpec{
 			Transport: types.TransportGit,
-			Source:       gitURI,
-			Revision:       "v1.2.0",
+			Source:    gitURI,
+			Revision:  "v1.2.0",
 			Credentials: &types.Credentials{
 				Username: userRef,
 				Password: tokenRef,
@@ -66,16 +69,16 @@ func fullRegistry() *types.Registry {
 // registry for the client to project; field selection is a presentation concern.
 func TestDescribeRegistrySuccess(t *testing.T) {
 	// Arrange.
-	f := newDescribeFixture()
+	f := newDescribeFixture(t)
 	f.store.On("Get", mock.Anything).Return(fullRegistry(), nil)
 
 	// Act.
-	registry, err := f.uc.Execute(context.Background(), DescribeRegistryInput{})
+	registry, err := f.uc.Execute(context.Background(), DescribeRegistryRequest{})
 
-	// Assert.
+	// Assert: the full record round-trips so a dropped field is caught.
 	require.NoError(t, err)
 	require.NotNil(t, registry)
-	assert.Equal(t, gitURI, registry.Spec.Source)
+	assert.Equal(t, fullRegistry(), registry)
 }
 
 // TestDescribeRegistryFailure covers the not-found and io classifications.
@@ -104,11 +107,11 @@ func TestDescribeRegistryFailure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			f := newDescribeFixture()
+			f := newDescribeFixture(t)
 			f.store.On("Get", mock.Anything).Return(tt.found, tt.getErr)
 
 			// Act.
-			_, err := f.uc.Execute(context.Background(), DescribeRegistryInput{})
+			_, err := f.uc.Execute(context.Background(), DescribeRegistryRequest{})
 
 			// Assert.
 			var ucErr *Error

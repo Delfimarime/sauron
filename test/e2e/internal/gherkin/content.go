@@ -11,13 +11,23 @@ import (
 )
 
 // skillResource builds one provider-content file in memory: a minimal Skill manifest
-// under the ".skills/<name>/" prefix of the content set. The same resource is exposed
+// under the "skills/<name>/" prefix of the content set. The same resource is exposed
 // through whichever source (folder, webserver) a fixture declares — one content set,
 // three exposures.
 func skillResource(name string) runtime.Resource {
 	return runtime.Resource{
-		Path:    ".skills/" + name + "/skill.yaml",
+		Path:    "skills/" + name + "/skill.yaml",
 		Content: manifest(types.KindSkill, name),
+	}
+}
+
+// agentResource builds one provider-content file in memory: a minimal Agent manifest
+// under the "agents/<name>/" prefix of the content set. Mirrors skillResource for the
+// agent kind so install-agent fixtures can expose content with a single step.
+func agentResource(name string) runtime.Resource {
+	return runtime.Resource{
+		Path:    "agents/" + name + "/agent.yaml",
+		Content: manifest(types.KindAgent, name),
 	}
 }
 

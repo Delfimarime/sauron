@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"sort"
 
-	"github.com/delfimarime/sauron/internal/usecase"
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
@@ -36,47 +34,23 @@ var describeProviderFieldOrder = []string{
 // field in order. An unknown field is a usage error (exit 2) raised before the use
 // case runs.
 func selectDescribeProviderFields(requested []string) ([]string, error) {
-	if len(requested) == 0 {
-		return describeProviderFieldOrder, nil
-	}
-
-	known := make(map[string]struct{}, len(describeProviderFieldOrder))
-	for _, f := range describeProviderFieldOrder {
-		known[f] = struct{}{}
-	}
-
-	fields := []string{describeProviderFieldName}
-	seen := map[string]struct{}{describeProviderFieldName: {}}
-	for _, f := range requested {
-		if _, ok := known[f]; !ok {
-			return nil, fmt.Errorf("%w: unknown field %q", errInvalidFlag, f)
-		}
-		if _, dup := seen[f]; dup {
-			continue
-		}
-		seen[f] = struct{}{}
-		fields = append(fields, f)
-	}
-
-	return fields, nil
+	return selectFields(requested, describeProviderFieldOrder, describeProviderFieldName)
 }
 
 // renderDescribeProvider projects the selected fields onto a descriptor and writes
 // it, skipping fields the provider has no value for.
 func renderDescribeProvider(w io.Writer, provider *types.Provider, fields []string) error {
 	view := descriptor{Fields: projectProvider(*provider, fields)}
-	if err := view.render(w); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("render descriptor: %v", err))
-	}
-	return nil
+	ew := newErrWriter(w)
+	ew.record(view.render(w))
+	return ew.toIOError("render descriptor")
 }
 
 // renderNoProvider writes the none-set line; reporting it is a successful outcome.
 func renderNoProvider(w io.Writer) error {
-	if _, err := fmt.Fprintln(w, noProviderMessage); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("render provider: %v", err))
-	}
-	return nil
+	ew := newErrWriter(w)
+	ew.printf("%s\n", noProviderMessage)
+	return ew.toIOError("render provider")
 }
 
 // projectProvider maps the selected fields onto descriptor fields, skipping fields

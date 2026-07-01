@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -36,50 +35,26 @@ func NewUnsetRegistryUseCase(params UnsetRegistryUseCaseParams) *UnsetRegistryUs
 // Execute runs the get → dry-run → remove pipeline, returning a *Error on the
 // first failing step. Unsetting when no registry is configured reports that
 // nothing was unset and succeeds.
-func (uc *UnsetRegistryUseCase) Execute(ctx context.Context, in UnsetRegistryInput) (*UnsetRegistryResult, error) {
+func (uc *UnsetRegistryUseCase) Execute(ctx context.Context, in UnsetRegistryRequest) (*UnsetRegistryResponse, error) {
 	registry, err := uc.registries.Get(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read registry: %v", err))
+		return nil, ioErr("read registry", err)
 	}
 	if registry == nil {
 		uc.logger.Debug("no registry configured")
-		return &UnsetRegistryResult{Outcome: UnsetNothing}, nil
+		return &UnsetRegistryResponse{Outcome: UnsetNothing}, nil
 	}
 
 	if in.DryRun {
 		uc.logger.Debug("registry unset previewed")
-		return &UnsetRegistryResult{Outcome: UnsetPreview}, nil
+		return &UnsetRegistryResponse{Outcome: UnsetPreview}, nil
 	}
 
 	if err := uc.registries.Remove(ctx); err != nil {
-		return nil, NewIOError(fmt.Sprintf("remove registry: %v", err))
+		return nil, ioErr("remove registry", err)
 	}
 
-	uc.logger.Info("registry unset", zap.String(telemetry.FieldRegistryURI, registry.Spec.Source))
+	uc.logger.Info("registry unset", zap.String(telemetry.FieldRegistrySource, registry.Spec.Source))
 
-	return &UnsetRegistryResult{Outcome: UnsetRemoved}, nil
-}
-
-// UnsetOutcome classifies which removal outcome occurred, so the client can
-// render the matching report.
-type UnsetOutcome string
-
-// The outcomes unsetting the registry can produce.
-const (
-	// UnsetNothing reports no registry was configured, so nothing was unset.
-	UnsetNothing UnsetOutcome = "nothing"
-	// UnsetPreview reports a dry-run preview that changed no state.
-	UnsetPreview UnsetOutcome = "preview"
-	// UnsetRemoved reports the configured registry was removed.
-	UnsetRemoved UnsetOutcome = "removed"
-)
-
-// UnsetRegistryResult is the presentation-agnostic outcome of unsetting.
-type UnsetRegistryResult struct {
-	Outcome UnsetOutcome
-}
-
-// UnsetRegistryInput is the per-invocation input for removing the registry.
-type UnsetRegistryInput struct {
-	DryRun bool
+	return &UnsetRegistryResponse{Outcome: UnsetRemoved}, nil
 }

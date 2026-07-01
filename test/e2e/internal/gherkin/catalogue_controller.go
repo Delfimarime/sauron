@@ -1,15 +1,12 @@
 package gherkin
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
 
 	"github.com/cucumber/godog"
-	"gopkg.in/yaml.v3"
 
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
 )
 
@@ -19,12 +16,12 @@ import (
 // designed by the feature, never synthesized in controller code.
 const fileDirective = "# file:"
 
-// catalogueController owns the catalogue fixture Given (seeding the single
-// filesystem registry's .skills/.agents) and the catalogue Then assertions. It reads
-// the recorded output of the last command from the commandController rather than
-// re-running anything, so the rendered rows and paging line are asserted exactly as
-// the user saw them. Seed logic lives in pure helpers so it is unit-tested without a
-// process or real fs.
+// catalogueController owns the catalogue fixture Given (exposing the doc-string's
+// skills/agents on an nginx sidecar, which a later `set registry` When configures
+// black-box) and the catalogue Then assertions. It reads the recorded output of the
+// last command from the commandController rather than re-running anything, so the
+// rendered rows and paging line are asserted exactly as the user saw them. Parse logic
+// lives in pure helpers so it is unit-tested without a process or real fs.
 type catalogueController struct {
 	rt      runtime.Runtime
 	command *commandController
@@ -36,26 +33,17 @@ func (c *catalogueController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the paging line reads (.+)$`, c.pagingLineReads)
 }
 
-// offers seeds the single filesystem registry that exposes the doc-string's
-// manifests under the kind's source root, then records the registry in settings.yaml
-// pointing at the materialized folder. Repeated calls accumulate onto one folder, so
-// a scenario can offer skills and agents to the same source.
-func (c *catalogueController) offers(ctx context.Context, _ string, body *godog.DocString) error {
+// offers exposes the doc-string's manifests on the single http source (an nginx
+// sidecar). A later `set the http registry from #{.webserver.default.url}` When then
+// configures the registry black-box. Repeated calls accumulate onto one source, so a
+// scenario can offer skills and agents to the same registry.
+func (c *catalogueController) offers(_ context.Context, _ string, body *godog.DocString) error {
 	resources, err := parseManifests(body.Content)
 	if err != nil {
 		return err
 	}
-	source := c.rt.Folder(defaultAlias)
-	source.Expose(resources...)
-	path, err := source.Path(ctx)
-	if err != nil {
-		return err
-	}
-	stream, err := filesystemRegistryStream(path)
-	if err != nil {
-		return err
-	}
-	return c.rt.CopyTo(ctx, settingsFile, stream)
+	c.rt.Webserver(defaultAlias).Expose(resources...)
+	return nil
 }
 
 // catalogueLists asserts a "NAME KIND" row is present in the rendered catalogue. The
@@ -86,7 +74,7 @@ func (c *catalogueController) pagingLineReads(_ context.Context, line string) er
 
 // parseManifests splits an "offers" doc-string into one content resource per
 // "# file: <path>" directive, the path being the file's location within the content
-// set (e.g. ".skills/go-style.yaml"). Pure (doc-string in, resources out) so it is
+// set (e.g. "skills/go-style.yaml"). Pure (doc-string in, resources out) so it is
 // unit-tested without the runtime.
 func parseManifests(body string) ([]runtime.Resource, error) {
 	var (
@@ -132,28 +120,6 @@ func cutDirective(line string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSpace(strings.TrimPrefix(trimmed, fileDirective)), true
-}
-
-// filesystemRegistryStream renders a one-document settings.yaml for a schema-valid
-// filesystem Registry whose source uri is path. The single registry carries no name.
-// Pure (path in, bytes out) so it is unit-tested without the runtime.
-func filesystemRegistryStream(path string) ([]byte, error) {
-	reg := types.Registry{
-		TypeMeta: types.TypeMeta{APIVersion: types.APIVersion, Kind: types.KindRegistry},
-	}
-	reg.Spec.Transport = types.TransportFilesystem
-	reg.Spec.Source = path
-
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(reg); err != nil {
-		return nil, fmt.Errorf("encode filesystem registry: %w", err)
-	}
-	if err := enc.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 // catalogueHasRow reports whether some output line, read as whitespace-separated

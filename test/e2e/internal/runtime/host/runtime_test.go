@@ -86,12 +86,12 @@ func TestHostRuntimeFolderMaterializesContent(t *testing.T) {
 	h := New("/bin/echo", t.TempDir())
 
 	folder := h.Folder("default")
-	folder.Expose(runtime.Resource{Path: ".skills/go-style/skill.yaml", Content: []byte("name: go-style")})
+	folder.Expose(runtime.Resource{Path: "skills/go-style/skill.yaml", Content: []byte("name: go-style")})
 
 	path, err := folder.Path(ctx)
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(path, ".skills/go-style/skill.yaml"))
+	data, err := os.ReadFile(filepath.Join(path, "skills/go-style/skill.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "name: go-style", string(data))
 }
@@ -109,13 +109,27 @@ func TestHostRuntimeFolderIsStablePerAlias(t *testing.T) {
 	}
 }
 
-func TestHostRuntimeWebserverAndGitError(t *testing.T) {
+// TestHostRuntimeWebserverServesInProcess verifies the host runtime serves an http
+// registry source in-process at 127.0.0.1; the same Webserver source accumulates
+// across calls and is torn down by Stop.
+func TestHostRuntimeWebserverServesInProcess(t *testing.T) {
+	ctx := context.Background()
+	h := New("/bin/echo", t.TempDir())
+	t.Cleanup(func() { _ = h.Stop(ctx) })
+
+	url, err := h.Webserver("default").URL(ctx)
+	require.NoError(t, err)
+	assert.Regexp(t, `^http://127\.0\.0\.1:\d+$`, url, "the host binary reaches the fixture on loopback")
+
+	again, err := h.Webserver("default").URL(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, url, again, "the per-alias source is created once and reused")
+}
+
+func TestHostRuntimeGitErrors(t *testing.T) {
 	ctx := context.Background()
 	h := New("/bin/echo", t.TempDir())
 
-	_, err := h.Webserver("default").URL(ctx)
-	assert.Error(t, err, "a webserver is not available on the host (@no-sandbox)")
-
-	_, err = h.Git("default").URL(ctx)
+	_, err := h.Git("default").URL(ctx)
 	assert.Error(t, err, "git is not available on the host runtime")
 }

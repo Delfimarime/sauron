@@ -17,8 +17,9 @@ import (
 const (
 	// openExclusive opens a file for writing, failing if it already exists.
 	openExclusive = os.O_CREATE | os.O_EXCL | os.O_WRONLY
-	// filePerm is the mode for persisted document files.
-	filePerm os.FileMode = 0o644
+	// filePerm is the mode for persisted document files: owner read/write only,
+	// since the state files reveal which registry and artifacts a developer uses.
+	filePerm os.FileMode = 0o600
 	// lockPerm is the mode for the write lock file.
 	lockPerm os.FileMode = 0o600
 	// settingsFile holds the singleton Registry and Provider documents.
@@ -402,6 +403,8 @@ func (s *Store) readRaw(file string) ([]byte, error) {
 }
 
 // writeAtomic writes data to a temporary file and renames it into place.
+// On Rename failure the temp file is removed and an error is returned; no
+// half-written target is ever left visible to a concurrent reader.
 func (s *Store) writeAtomic(file string, data []byte) error {
 	tmp := file + ".tmp"
 	if err := afero.WriteFile(s.fs, tmp, data, filePerm); err != nil {

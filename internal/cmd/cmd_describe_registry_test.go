@@ -104,9 +104,45 @@ func TestDescribeRegistryRejectsBadInput(t *testing.T) {
 
 			// Assert.
 			require.Error(t, err)
-			assert.Equal(t, exitUsage, exitCode(err))
+			assert.Equal(t, exitUsage, ExitCode(err))
 		})
 	}
+}
+
+// describeRegistryEndToEndCase is a single row in TestDescribeRegistryEndToEnd.
+type describeRegistryEndToEndCase struct {
+	name         string
+	seed         string
+	args         []string
+	wantOut      []string
+	wantAbsent   []string
+	wantErr      bool
+	wantNotFound bool
+	wantUsage    bool
+}
+
+// assertDescribeRegistryEndToEnd checks one table row so TestDescribeRegistryEndToEnd
+// stays below the gocognit ≤15 ceiling.
+func assertDescribeRegistryEndToEnd(t *testing.T, tt describeRegistryEndToEndCase, out string, err error) {
+	t.Helper()
+	if tt.wantErr {
+		require.Error(t, err)
+		if tt.wantUsage {
+			assert.Equal(t, exitUsage, ExitCode(err))
+		}
+		if tt.wantNotFound {
+			assert.Equal(t, exitError, ExitCode(err))
+		}
+		return
+	}
+	require.NoError(t, err)
+	for _, want := range tt.wantOut {
+		assert.Contains(t, out, want)
+	}
+	for _, absent := range tt.wantAbsent {
+		assert.NotContains(t, out, absent)
+	}
+	assert.NotContains(t, strings.ToLower(out), "s3cr3t")
 }
 
 // TestDescribeRegistryEndToEnd drives the assembled subcommand through the real fx
@@ -114,16 +150,7 @@ func TestDescribeRegistryRejectsBadInput(t *testing.T) {
 // selection, the credentials block, the not-found error, and the usage error. source is the
 // identity and is always present and first; there is no name line.
 func TestDescribeRegistryEndToEnd(t *testing.T) {
-	tests := []struct {
-		name         string
-		seed         string
-		args         []string
-		wantOut      []string
-		wantAbsent   []string
-		wantErr      bool
-		wantNotFound bool
-		wantUsage    bool
-	}{
+	tests := []describeRegistryEndToEndCase{
 		{
 			name:    "full detail shows every populated field and the auth block",
 			seed:    authRegistries,
@@ -160,24 +187,7 @@ func TestDescribeRegistryEndToEnd(t *testing.T) {
 			out, err := runDescribeRegistry(t, tt.args...)
 
 			// Assert.
-			if tt.wantErr {
-				require.Error(t, err)
-				if tt.wantUsage {
-					assert.Equal(t, exitUsage, exitCode(err))
-				}
-				if tt.wantNotFound {
-					assert.Equal(t, exitError, exitCode(err))
-				}
-				return
-			}
-			require.NoError(t, err)
-			for _, want := range tt.wantOut {
-				assert.Contains(t, out, want)
-			}
-			for _, absent := range tt.wantAbsent {
-				assert.NotContains(t, out, absent)
-			}
-			assert.NotContains(t, strings.ToLower(out), "s3cr3t")
+			assertDescribeRegistryEndToEnd(t, tt, out, err)
 		})
 	}
 }

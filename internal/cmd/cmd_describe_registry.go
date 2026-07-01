@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -30,11 +29,8 @@ func DescribeRegistry() *cobra.Command {
 			return describeRegistry(cmd.Context(), &flags, cmd.OutOrStdout())
 		},
 	}
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return fmt.Errorf("%w: %w", errInvalidFlag, err)
-	})
-
-	cmd.Flags().StringSliceVar(&flags.Fields, "fields", nil, "fields to display, in order; uri is always first")
+	silenceFlagErrors(cmd)
+	cmd.Flags().StringSliceVar(&flags.Fields, "fields", nil, "fields to display, in order; source is always first")
 
 	return cmd
 }
@@ -50,7 +46,7 @@ func describeRegistry(ctx context.Context, flags *describeRegistryFlags, stdout 
 	}
 
 	registry, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.DescribeRegistryUseCase) (*types.Registry, error) {
-		return uc.Execute(runCtx, usecase.DescribeRegistryInput{})
+		return uc.Execute(runCtx, usecase.DescribeRegistryRequest{})
 	})
 	if err != nil {
 		return err

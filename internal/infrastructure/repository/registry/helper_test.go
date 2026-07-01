@@ -1,6 +1,9 @@
 package registry
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -47,6 +50,43 @@ func serverCAPEM(t *testing.T, server *httptest.Server) []byte {
 	require.NotNil(t, cert)
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+}
+
+// skillMD is the canonical fixture filename for a skill's manifest, shared
+// across git and REST transport tests.
+const skillMD = "SKILL.md"
+
+// makeGZipTar builds an in-memory gzip-compressed tar archive. prefix is
+// prepended to each file name (e.g. "skills/writer/"); a directory entry for
+// the prefix itself is included to exercise the directory-skip path.
+func makeGZipTar(t *testing.T, prefix string, files map[string]string) []byte {
+	t.Helper()
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+
+	if prefix != "" {
+		hdr := &tar.Header{Name: prefix, Typeflag: tar.TypeDir, Mode: 0o755}
+		require.NoError(t, tw.WriteHeader(hdr))
+	}
+
+	for name, content := range files {
+		body := []byte(content)
+		hdr := &tar.Header{
+			Name:     prefix + name,
+			Typeflag: tar.TypeReg,
+			Mode:     0o644,
+			Size:     int64(len(body)),
+		}
+		require.NoError(t, tw.WriteHeader(hdr))
+		_, writeErr := tw.Write(body)
+		require.NoError(t, writeErr)
+	}
+
+	require.NoError(t, tw.Close())
+	require.NoError(t, gz.Close())
+	return buf.Bytes()
 }
 
 // writeClientCert generates a self-signed certificate/key pair and writes them

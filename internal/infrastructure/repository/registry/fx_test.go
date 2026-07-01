@@ -3,7 +3,6 @@ package registry
 import (
 	"testing"
 
-	"github.com/alitto/pond/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/fx"
 
@@ -11,28 +10,25 @@ import (
 )
 
 // TestNewFxOptions verifies the registry options compose into a valid container
-// and expose the three transports as named extension.Registry values.
+// and expose the transports as named extension.Registry values.
 func TestNewFxOptions(t *testing.T) {
 	// Arrange.
 	type registries struct {
 		fx.In
-		Filesystem extension.Registry `name:"registry.filesystem"`
-		Git        extension.Registry `name:"registry.git"`
-		HTTP       extension.Registry `name:"registry.http"`
+		Git  extension.Registry `name:"registry.git"`
+		HTTP extension.Registry `name:"registry.http"`
 	}
 
 	var resolved registries
 
 	// Act.
 	app := fx.New(
-		fx.Provide(func() pond.Pool { return pond.NewPool(1) }),
 		NewFxOptions(),
 		fx.Populate(&resolved),
 	)
 
 	// Assert.
 	assert.NoError(t, app.Err())
-	assert.NotNil(t, resolved.Filesystem)
 	assert.NotNil(t, resolved.Git)
 	assert.NotNil(t, resolved.HTTP)
 }

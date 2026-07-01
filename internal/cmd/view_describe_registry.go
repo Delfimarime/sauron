@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/delfimarime/sauron/internal/usecase"
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
@@ -29,22 +28,22 @@ var describeFieldOrder = []string{
 	describeFieldCreated, describeFieldUpdated,
 }
 
-// selectDescribeFields validates the requested fields against the describe field
-// set, forcing source present and first and deduping; an empty request yields
-// every field in order. An unknown field is a usage error (exit 2) raised before
-// the use case runs.
-func selectDescribeFields(requested []string) ([]string, error) {
+// selectFields is the shared field-selector: it validates the requested fields
+// against order, forces first present and first, dedupes, and returns every
+// field in order for an empty request. An unknown field is a usage error (exit 2)
+// raised before the use case runs.
+func selectFields(requested, order []string, first string) ([]string, error) {
 	if len(requested) == 0 {
-		return describeFieldOrder, nil
+		return order, nil
 	}
 
-	known := make(map[string]struct{}, len(describeFieldOrder))
-	for _, f := range describeFieldOrder {
+	known := make(map[string]struct{}, len(order))
+	for _, f := range order {
 		known[f] = struct{}{}
 	}
 
-	fields := []string{describeFieldSource}
-	seen := map[string]struct{}{describeFieldSource: {}}
+	fields := []string{first}
+	seen := map[string]struct{}{first: {}}
 	for _, f := range requested {
 		if _, ok := known[f]; !ok {
 			return nil, fmt.Errorf("%w: unknown field %q", errInvalidFlag, f)
@@ -59,14 +58,21 @@ func selectDescribeFields(requested []string) ([]string, error) {
 	return fields, nil
 }
 
+// selectDescribeFields validates the requested fields against the describe field
+// set, forcing source present and first and deduping; an empty request yields
+// every field in order. An unknown field is a usage error (exit 2) raised before
+// the use case runs.
+func selectDescribeFields(requested []string) ([]string, error) {
+	return selectFields(requested, describeFieldOrder, describeFieldSource)
+}
+
 // renderDescribeRegistry projects the selected fields onto a descriptor and
 // writes it, skipping fields the registry has no value for.
 func renderDescribeRegistry(w io.Writer, registry *types.Registry, fields []string) error {
 	view := descriptor{Fields: projectRegistry(*registry, fields)}
-	if err := view.render(w); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("render descriptor: %v", err))
-	}
-	return nil
+	ew := newErrWriter(w)
+	ew.record(view.render(w))
+	return ew.toIOError("render descriptor")
 }
 
 // projectRegistry maps the selected fields onto descriptor fields, skipping
@@ -76,7 +82,7 @@ func renderDescribeRegistry(w io.Writer, registry *types.Registry, fields []stri
 func projectRegistry(registry types.Registry, fields []string) []descriptorField {
 	out := make([]descriptorField, 0, len(fields))
 	for _, name := range fields {
-		if field, ok := fieldFor(registry, name); ok {
+		if field, ok := registryFieldFor(registry, name); ok {
 			out = append(out, field)
 		}
 	}
@@ -84,22 +90,22 @@ func projectRegistry(registry types.Registry, fields []string) []descriptorField
 	return out
 }
 
-// fieldFor builds the descriptor field for one selected field name, reporting
-// false when the registry has no value for it.
-func fieldFor(registry types.Registry, name string) (descriptorField, bool) {
+// registryFieldFor builds the descriptor field for one selected field name,
+// reporting false when the registry has no value for it.
+func registryFieldFor(registry types.Registry, name string) (descriptorField, bool) {
 	switch name {
 	case describeFieldCredentials:
 		return sectionField(name, credentialsChildren(registry.Spec.Credentials))
 	case describeFieldTLS:
 		return sectionField(name, tlsChildren(registry.Spec.TLS))
 	default:
-		return leafField(name, leafValue(registry, name))
+		return leafField(name, registryLeafValue(registry, name))
 	}
 }
 
-// leafValue resolves the stored value of a leaf field; an unknown name yields the
-// empty string, which leafField treats as absent.
-func leafValue(registry types.Registry, name string) string {
+// registryLeafValue resolves the stored value of a leaf field; an unknown name
+// yields the empty string, which leafField treats as absent.
+func registryLeafValue(registry types.Registry, name string) string {
 	values := map[string]string{
 		describeFieldTransport: string(registry.Spec.Transport),
 		describeFieldSource:    registry.Spec.Source,

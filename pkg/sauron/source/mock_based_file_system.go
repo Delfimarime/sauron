@@ -48,6 +48,19 @@ func (m *MockBasedFileSystem) Get(ctx context.Context, uri string) (File, error)
 	return file, args.Error(1)
 }
 
+// Fetch records the call and returns the configured values. Each returned
+// File's Name() is its path relative to the artifact directory.
+func (m *MockBasedFileSystem) Fetch(ctx context.Context, uri string) ([]File, error) {
+	args := m.Called(ctx, uri)
+
+	var files []File
+	if v := args.Get(0); v != nil {
+		files = v.([]File)
+	}
+
+	return files, args.Error(1)
+}
+
 // MockBasedStat is a testify mock implementing Stat.
 type MockBasedStat struct {
 	mock.Mock

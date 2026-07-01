@@ -1,7 +1,7 @@
 # `set registry` — command line
 
 ```
-sauron set registry [--transport git|http|filesystem] [--revision <revision>] [--timeout <duration>]
+sauron set registry [--transport git|http] [--revision <revision>] [--timeout <duration>]
                      [--username <value>] [--password <ref>] [--skip-tls-verify]
                      [--ca-cert <path>] [--client-cert <path>] [--client-key <path>]
                      [--ssh-key <path>]
@@ -21,7 +21,7 @@ already set.
 
 | Flag | Meaning |
 |---|---|
-| `--transport <kind>` | Transport: `git`, `http` (default), or `filesystem`; persisted as `spec.transport` |
+| `--transport <kind>` | Transport: `git` or `http` (default); persisted as `spec.transport` |
 | `--timeout <duration>` | Bound on the validation network operation (default `30s`) |
 | `--username <value>` | Auth username; a literal value or an environment reference (`${env:VAR}`) |
 | `--password <ref>` | Auth password/token, as an environment reference (`${env:VAR}`); a literal secret is a usage error |
@@ -34,12 +34,11 @@ already set.
 
 Auth and TLS flags are accepted only for the transports that use them; the
 applicable set per transport is fixed by the
-[git](../capabilities/git.md), [http](../capabilities/http.md), and
-[filesystem](../capabilities/filesystem.md) capabilities.
+[git](../capabilities/git.md) and [http](../capabilities/http.md) capabilities.
 
 ## Output
 
-On success, one confirmation line on stdout naming the configured URI and its
+On success, one confirmation line on stdout naming the source and its
 transport. No output is written to stdout on failure.
 
 ## Example
@@ -55,4 +54,4 @@ registry set to git@github.com:acme/artifacts.git (git)
 |---|---|
 | `0` | The registry was validated and persisted (creating or replacing) |
 | `2` | Missing/invalid arguments or flags |
-| `1` | The source is unreachable, or it hosts no artifact |
+| `1` | The source is unreachable, it hosts no artifact, the `--revision` cannot be resolved, or persisting it fails (IO) |

@@ -38,7 +38,7 @@
       "additionalProperties": false,
       "required": ["transport", "source"],
       "properties": {
-        "transport": { "enum": ["git", "http", "filesystem"] },
+        "transport": { "enum": ["git", "http"] },
         "source": { "type": "string", "minLength": 1 },
         "revision": {
           "type": "string",
@@ -68,7 +68,7 @@
         "timeout": {
           "type": "string",
           "description": "Go duration string bounding network operations (default 30s).",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$"
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
         }
       }
     }

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/testcontainers/testcontainers-go/log"
@@ -15,6 +14,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/delfimarime/sauron/test/e2e/internal/runtime"
+	"github.com/delfimarime/sauron/test/e2e/internal/runtime/httpregistry"
 )
 
 // mainService is the compose service that hosts the binary under test;
@@ -23,11 +23,12 @@ const (
 	mainService = "main"
 	sauronHome  = "/root/.sauron/"
 	sauronPath  = "/opt/bin/sauron"
-)
 
-// webserverStartupTimeout bounds the wait for an nginx sidecar to announce its
-// workers, so a sidecar that never readies fails fast instead of hanging.
-const webserverStartupTimeout = 30 * time.Second
+	// hostDockerInternal is the DNS name the containerized binary uses to reach the
+	// in-process http registry fixture running on the host; it resolves through the
+	// host-gateway extra_hosts entry wired onto "main".
+	hostDockerInternal = "host.docker.internal"
+)
 
 type dockerRuntime struct {
 	bin        string
@@ -35,9 +36,17 @@ type dockerRuntime struct {
 	logger     log.Logger
 	specs      []ContainerSpec
 	folders    map[string]*folderSource
-	webservers map[string]*webserverSource
+	webservers map[string]*httpregistry.Source
 	gits       map[string]*gitSource
 	stack      compose.ComposeStack
+	seeds      []pendingSeed
+}
+
+// pendingSeed is a state file a scenario seeds before Start; it is written into the
+// container's own filesystem once the stack is up (see CopyTo).
+type pendingSeed struct {
+	path    string
+	content []byte
 }
 
 // New builds a compose-backed runtime. It always prepends the "main" service: an
@@ -81,7 +90,7 @@ func New(bin, directory string, opts ...func(*Options)) (*dockerRuntime, error) 
 		logger:     options.logger,
 		specs:      specs,
 		folders:    map[string]*folderSource{},
-		webservers: map[string]*webserverSource{},
+		webservers: map[string]*httpregistry.Source{},
 		gits:       map[string]*gitSource{},
 	}, nil
 }
@@ -123,19 +132,31 @@ func (c *dockerRuntime) Start(ctx context.Context) error {
 	for _, alias := range sortedKeys(c.gits) {
 		stack = stack.WaitForService(gitService(alias), wait.ForLog("Server listening on"))
 	}
-	// The nginx sidecar binds port 80 only after its entrypoint finishes; wait
-	// until nginx announces its workers are up, otherwise the binary's validation
-	// probe races the bind and is refused. A log wait (not ForListeningPort) is
-	// used because compose services publish no host port to poll; the explicit
-	// startup timeout bounds the wait so a sidecar that never readies fails the
-	// scenario rather than hanging.
-	for _, alias := range sortedKeys(c.webservers) {
-		stack = stack.WaitForService(webserverService(alias),
-			wait.ForLog("start worker processes").WithStartupTimeout(webserverStartupTimeout))
-	}
+	// Webserver sources need no readiness wait: the http registry fixture runs in the
+	// test process and its listener backlog accepts connections the instant it binds
+	// (it binds lazily when #{.webserver.*.url} is first resolved, before the binary's
+	// validation probe runs).
 	c.stack = stack
 
-	return stack.Up(ctx)
+	if err := stack.Up(ctx); err != nil {
+		return err
+	}
+	return c.flushSeeds(ctx)
+}
+
+// flushSeeds writes every state file seeded before Start into the now-running
+// container, then clears the queue. Writing them as regular overlay files (rather than
+// bind-mounting each) lets the binary atomically rename a sibling temp file over a
+// seeded file; a bind-mounted individual file makes rename(2) return EBUSY on
+// Docker's OverlayFS.
+func (c *dockerRuntime) flushSeeds(ctx context.Context) error {
+	for _, seed := range c.seeds {
+		if err := c.copyInto(ctx, seed.path, seed.content); err != nil {
+			return err
+		}
+	}
+	c.seeds = nil
+	return nil
 }
 
 // newStack builds the compose stack, attaching the logger only when one was
@@ -148,6 +169,9 @@ func (c *dockerRuntime) newStack(path string) (compose.ComposeStack, error) {
 }
 
 func (c *dockerRuntime) Stop(ctx context.Context) error {
+	for _, alias := range sortedKeys(c.webservers) {
+		_ = c.webservers[alias].Server().Stop(ctx)
+	}
 	var err error
 	if c.stack != nil {
 		err = c.stack.Down(ctx, compose.RemoveOrphans(true), compose.RemoveVolumes(true))
@@ -161,27 +185,33 @@ func (c *dockerRuntime) Stop(ctx context.Context) error {
 
 func (c *dockerRuntime) CopyTo(ctx context.Context, locationURI string, content []byte) error {
 	if c.stack == nil {
-		for _, each := range c.specs {
-			if each.Service != mainService {
-				continue
-			}
-			each.Mount = append(each.Mount, FileSpec{
-				Content: content,
-				Path:    locationURI,
-			})
-		}
+		// Seed before Start: queue the bytes and write them into the container's own
+		// filesystem once the stack is up (flushSeeds). Seeding as a regular overlay
+		// file — not a bind-mounted individual file — keeps the temp file and the
+		// rename target siblings in a real directory, so the binary's atomic
+		// rename-over-existing succeeds (a bind-mounted file makes rename(2) EBUSY).
+		c.seeds = append(c.seeds, pendingSeed{path: locationURI, content: content})
 		return nil
+	}
+	return c.copyInto(ctx, locationURI, content)
+}
+
+// copyInto writes content into the running "main" container as a regular file at its
+// absolute in-container path, creating the parent directory first because a seed
+// precedes the binary's first write to $SAURON_HOME.
+func (c *dockerRuntime) copyInto(ctx context.Context, locationURI string, content []byte) error {
+	target := containerPath(locationURI)
+	if code, out, err := c.execIn(ctx, mainService, "mkdir", "-p", filepath.Dir(target)); err != nil {
+		return fmt.Errorf("create seed directory for %q: %w", target, err)
+	} else if code != 0 {
+		return fmt.Errorf("create seed directory for %q: mkdir exited %d: %s", target, code, out)
 	}
 	container, err := c.stack.ServiceContainer(ctx, mainService)
 	if err != nil {
 		return fmt.Errorf("access container %q: %w", mainService, err)
 	}
-	if strings.HasPrefix(locationURI, "~/") {
-		locationURI = "/root/" + locationURI[2:]
-	}
-	err = container.CopyToContainer(ctx, content, locationURI, 0700)
-	if err != nil {
-		return fmt.Errorf("an unexpected error occured while attempting to copy file into container.\ncaused by:%w", err)
+	if err := container.CopyToContainer(ctx, content, target, 0o644); err != nil {
+		return fmt.Errorf("copy seed %q into container: %w", target, err)
 	}
 	return nil
 }
@@ -272,12 +302,13 @@ func (c *dockerRuntime) Folder(alias string) runtime.Source {
 	return src
 }
 
-// Webserver declares an nginx sidecar serving the registry REST API over http on the
-// compose network, created once per alias so repeated Expose calls accumulate.
+// Webserver declares an http registry source served by the in-process fixture in the
+// test process; the containerized binary reaches it at host.docker.internal. The
+// source is created once per alias so repeated Expose calls accumulate.
 func (c *dockerRuntime) Webserver(alias string) runtime.Source {
 	src, ok := c.webservers[alias]
 	if !ok {
-		src = &webserverSource{alias: alias}
+		src = httpregistry.NewSource(httpregistry.New(), hostDockerInternal)
 		c.webservers[alias] = src
 	}
 	return src

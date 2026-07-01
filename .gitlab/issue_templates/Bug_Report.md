@@ -10,7 +10,7 @@
   - sauron version: output of `sauron --version`
   - OS / environment
   - provider: claude | zencoder (`sauron describe provider`)
-  - registry transport(s) involved: git | http | filesystem
+  - registry transport(s) involved: git | http
   - The steps or state that led to the problem (how to reproduce).
 -->
 

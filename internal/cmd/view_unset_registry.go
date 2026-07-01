@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/delfimarime/sauron/internal/usecase"
@@ -15,9 +14,8 @@ var unsetMessages = map[usecase.UnsetOutcome]string{
 }
 
 // renderUnsetRegistry writes the report line for the removal outcome.
-func renderUnsetRegistry(w io.Writer, result *usecase.UnsetRegistryResult) error {
-	if _, err := fmt.Fprintln(w, unsetMessages[result.Outcome]); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("write report: %v", err))
-	}
-	return nil
+func renderUnsetRegistry(w io.Writer, result *usecase.UnsetRegistryResponse) error {
+	ew := newErrWriter(w)
+	ew.printf("%s\n", unsetMessages[result.Outcome])
+	return ew.toIOError("write report")
 }

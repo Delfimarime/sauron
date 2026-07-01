@@ -13,8 +13,10 @@ type Artifact struct {
 // schemas are identical. There is a single registry, so the source is implicit
 // and is not recorded per artifact.
 type ArtifactSpec struct {
-	Version     string `json:"version,omitempty" yaml:"version,omitempty"`
-	Digest      string `json:"digest" yaml:"digest"`
+	// Version is the identity read from the source — the artifact directory's git
+	// tree hash, or the http object version — compared by sync and upgrade to
+	// detect change.
+	Version     string `json:"version" yaml:"version"`
 	Path        string `json:"path" yaml:"path"`
 	InstalledAt string `json:"installedAt" yaml:"installedAt"`
 	UpdatedAt   string `json:"updatedAt" yaml:"updatedAt"`

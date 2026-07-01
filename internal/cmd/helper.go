@@ -27,10 +27,10 @@ const (
 	exitUsage = 2
 )
 
-// exitCode maps a command error to the process exit code: caller mistakes
+// ExitCode maps a command error to the process exit code: caller mistakes
 // (usage errors and flag parse failures) yield exitUsage, every other failure
 // yields exitError, and a nil error yields exitOK.
-func exitCode(err error) int {
+func ExitCode(err error) int {
 	if err == nil {
 		return exitOK
 	}
@@ -47,6 +47,31 @@ func exitCode(err error) int {
 	}
 
 	return exitError
+}
+
+// newGroup builds a pure command group — a cobra.Command with no RunE that
+// silences usage and error output and attaches the supplied subcommands. Use it
+// for every intermediate noun that only dispatches to leaves.
+func newGroup(use, short, long string, subs ...*cobra.Command) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           use,
+		Short:         short,
+		Long:          long,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	for _, sub := range subs {
+		cmd.AddCommand(sub)
+	}
+	return cmd
+}
+
+// silenceFlagErrors installs the shared flag-error handler on cmd: a parse
+// failure is wrapped with errInvalidFlag so it maps to exit code 2 (usage).
+func silenceFlagErrors(cmd *cobra.Command) {
+	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return fmt.Errorf("%w: %w", errInvalidFlag, err)
+	})
 }
 
 // NewApp builds (but does not start) the fx app wired with the modules transversal
