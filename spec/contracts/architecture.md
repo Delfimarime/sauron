@@ -39,9 +39,9 @@ internal/
     cmd_root.go            root cobra command
     helper.go              NewApp() builder, newCommand()/commandOption scaffold, and shared command helpers
     helper_flags.go        shared flag-group structs and their bind functions
+    helper_view.go         shared rendering infrastructure: table/buildTable[T], descriptor, errWriter, pagingLine, selectFields — cobra-free, pure value types, no fx
     cmd_<verb>.go          a command group (e.g. cmd_set.go, cmd_list.go)
-    cmd_<verb>_<noun>.go   a command in that group (e.g. cmd_set_registry.go)
-    view_<name>.go         rendering for the paired cmd_<name>.go: turns a use case's domain result + view options (selected fields, sort, search) into the table/descriptor and its bytes (stdlib text/tabwriter); cobra-free, pure value types, no fx — the command layer's view, not a separate package
+    cmd_<verb>_<noun>.go   a command in that group (e.g. cmd_set_registry.go), including its rendering: turns the use case's domain result + view options (selected fields, sort, search) into bytes via helper_view.go's shared pieces, composed on top by the command's own fields/projection
   config/
     fx.go                  NewFxOptions() fx.Option; wiring only (Configuration lives in configuration.go)
   telemetry/
@@ -102,9 +102,11 @@ also houses the **internal capability** [`storage`](#state-storage), which
 manipulates the `~/.sauron/` state and has no `pkg/` port. The transversal
 framework modules (`internal/config`, `internal/telemetry`, `internal/cmd`) are
 not adapters and stay at the `internal/` root. Rendering is **not** a separate
-module — it lives inside `internal/cmd` as cobra-free `view_<name>.go` files,
-since the command layer is its only consumer (see
-[Command structure](#command-structure)).
+module and not a separate per-command file — it is cobra-free code living
+directly in each `cmd_<name>.go`, since the command layer is its only consumer
+(see [Command structure](#command-structure)). Only rendering machinery
+genuinely shared across commands (a table, a descriptor, field selection) lives
+apart, in `internal/cmd/helper_view.go`.
 
 ## Dependency wiring (uberfx)
 
@@ -190,8 +192,9 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   its flags. The private **handler is named `<verb><Noun>()`** (e.g.
   `addRegistry()`, `listRegistries()`); it receives the populated flag struct —
   alongside the `context.Context` and positional arguments — builds the use-case
-  input, calls `Execute`, and renders the returned result to stdout through the
-  command layer's `view_<name>.go` rendering, so the logic is tested without
+  input, calls `Execute`, and renders the returned result to stdout via the
+  command's own rendering code (in `cmd_<name>.go`, composed on the shared
+  pieces in [`helper_view.go`](#project-layout)), so the logic is tested without
   cobra. View flags
   (`--fields`, `--sort`) are validated at this boundary, yielding a usage error
   before the use case runs. `Serve()`/`serve()` names apply only to a server's
@@ -218,11 +221,14 @@ shape is canonical — the [use-case](#use-case-orchestration) and
     closes over `kind` and its `listFlags`.
   - `withSubcommands(subs ...*cobra.Command)` — attaches children; a pure group
     uses this in place of `withRunE`, never both on the same command.
-- **One file per command, named `cmd_<name>.go`.** A command's builder and handler
-  live together in `cmd_<name>.go`, where `<name>` is the command path — `cmd_set.go`
-  for the `set` group, `cmd_set_registry.go` for `set registry`, `cmd_root.go` for the
-  root command. The `cmd_` prefix pairs the file with — and visually separates it from
-  — the `view_<name>.go` that renders that command's result.
+- **One file per command, named `cmd_<name>.go`.** A command's builder, handler,
+  and rendering all live together in `cmd_<name>.go`, where `<name>` is the
+  command path — `cmd_set.go` for the `set` group, `cmd_set_registry.go` for
+  `set registry`, `cmd_root.go` for the root command. How the command's own
+  result is turned into bytes — field sets, projections, the `render<Name>`
+  entrypoint — is not split into a separate file; only rendering machinery two
+  or more commands genuinely share (a table, a descriptor, field selection)
+  lives apart, in `helper_view.go`.
 - **Flags are bound into structs** in `internal/cmd`; command logic never reads
   flags off the `*cobra.Command`. Flags shared across commands are defined once as
   small, concern-grouped structs in `internal/cmd/helper_flags.go` —
@@ -265,8 +271,8 @@ type UseCase[I, P any] interface {
   `pkg/sauron/types`, or a small struct composed of them — alongside a classified
   `*Error`. It never renders: no `Table`/`Descriptor`, no `io.Writer`, no field
   projection. How the result is displayed is the client's decision, performed by
-  the command layer's [`view_<name>.go`](#project-layout) rendering after
-  `Execute` returns (see [Command structure](#command-structure)). A use case is
+  the command layer's own rendering code in `cmd_<name>.go` after `Execute`
+  returns (see [Command structure](#command-structure)). A use case is
   thus ignorant of presentation *entirely* — not merely of the output
   destination — which is the separation an `Out()` writer could not provide.
 - **One shape, two roles.** A `UseCase` is either a command's entrypoint or a
@@ -381,7 +387,7 @@ struct and positional arguments into the use-case input, resolves and runs the u
 case from the container with `fx.Invoke` — which calls `Execute` inside the started
 fx lifecycle on the run context (resolving with `fx.Populate` and then calling
 `Execute` is equally acceptable) — and renders the returned `*P` result to the
-command's stdout through the `view_<name>.go` rendering.
+command's stdout through its own rendering code in `cmd_<name>.go`.
 
 ## State storage
 
