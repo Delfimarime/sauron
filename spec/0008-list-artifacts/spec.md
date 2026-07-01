@@ -8,7 +8,7 @@
 
 A developer needs to see what is installed. `list skills` and `list agents`
 print the installed artifacts of a kind as a table, with filtering, column
-selection, and sorting. This is the local counterpart to
+selection, sorting, and pagination. This is the local counterpart to
 [list catalogue](../0004-list-catalogue/spec.md), which browses a registry.
 
 ## Requirements
@@ -19,24 +19,27 @@ selection, and sorting. This is the local counterpart to
   each, reading from `track.yaml`.
 - FR-002: Sauron shall show the name by default, and accept `--fields` to choose
   the displayed columns (the name column is always present and first).
+- FR-003: Sauron shall page the filtered, sorted rows with `--page` (1-based page
+  number, default `1`) and `--limit` (page size, default `20`), and report the
+  applied paging without a total count.
 
 ### Optional
 
-- FR-003: Where `--search <term>` is provided, Sauron shall include only artifacts
+- FR-004: Where `--search <term>` is provided, Sauron shall include only artifacts
   whose name contains the term (case-insensitive).
-- FR-004: Where `--sort <field>` and `--order` are provided, Sauron shall order
+- FR-005: Where `--sort <field>` and `--order` are provided, Sauron shall order
   the rows; `--sort` accepts `name` (default) and `lastUpdatedAt`.
 
 ### State-driven
 
-- FR-005: While nothing of the chosen kind is installed, Sauron shall print an
+- FR-006: While nothing of the chosen kind is installed, Sauron shall print an
   empty result and exit successfully.
 
 ### Unwanted behavior
 
-- FR-006: If `track.yaml` is unreadable, then Sauron shall fail with a runtime
+- FR-007: If `track.yaml` is unreadable, then Sauron shall fail with a runtime
   error.
-- FR-007: If required arguments or flags are missing or invalid, then Sauron shall
+- FR-008: If required arguments or flags are missing or invalid, then Sauron shall
   exit with code 2 without executing the command.
 
 ## Key Entities

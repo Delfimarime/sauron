@@ -14,5 +14,5 @@ owned by the [state data contract](../../contracts/state.md).
 
 | Field | Requirement |
 |---|---|
-| `metadata.name` | FR-001, FR-002, FR-003 |
-| `spec.updatedAt` | FR-004 |
+| `metadata.name` | FR-001, FR-002, FR-004 |
+| `spec.updatedAt` | FR-005 |

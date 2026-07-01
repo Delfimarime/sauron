@@ -1,10 +1,10 @@
 # `list agents` — command line
 
 ```
-sauron list agents [--search <term>] [--fields <list>] [--sort name|lastUpdatedAt] [--order asc|desc]
+sauron list agents [--search <term>] [--fields <list>] [--sort name|lastUpdatedAt] [--order asc|desc] [--page <n>] [--limit <n>]
 ```
 
-List the installed agents.
+List the installed agents, paginated.
 
 ## Flags
 
@@ -14,6 +14,8 @@ List the installed agents.
 | `--fields <list>` | Columns to display, in order; `name` is always present and first. Valid: `name`, `version`, `lastUpdatedAt` |
 | `--sort <field>` | Sort field: `name` (default) or `lastUpdatedAt` |
 | `--order <asc\|desc>` | Sort direction, default `asc` |
+| `--page <n>` | Page number, 1-based (default `1`) |
+| `--limit <n>` | Page size (default `20`) |
 
 ## Fields
 
@@ -25,15 +27,18 @@ List the installed agents.
 
 ## Output
 
-A table on stdout, one installed agent per row. An empty set prints an empty
-result and exits `0`.
+A table on stdout, one installed agent per row after filter, sort, and paging,
+followed by a line reporting the applied page/limit (no total count). An empty
+page prints no table row, only the paging line (`showing 0 results (page <n>,
+limit <n>)`), and exits `0`.
 
 ## Example
 
 ```
-$ sauron list agents
+$ sauron list agents --limit 20
 name           version  lastUpdatedAt
 code-reviewer  3af1c2e  2026-06-14
+showing 1–1 (page 1, limit 20)
 ```
 
 ## Exit codes
