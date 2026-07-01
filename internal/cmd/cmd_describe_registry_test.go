@@ -237,10 +237,13 @@ func fullViewRegistry() types.Registry {
 	}
 }
 
-// TestRenderDescribeRegistry covers the projection + descriptor rendering across
+// TestProjectRegistry covers the projection + descriptor rendering across
 // the default view, field selection, the nested auth/tls blocks, and omission of
 // unpopulated fields. uri is the identity and is always present and first.
-func TestRenderDescribeRegistry(t *testing.T) {
+// projectRegistry is composed with the shared descriptor renderer directly —
+// this is what describeRegistry's handler does inline, without a separate
+// render function to call.
+func TestProjectRegistry(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
@@ -331,9 +334,10 @@ func TestRenderDescribeRegistry(t *testing.T) {
 			// Arrange.
 			var buf bytes.Buffer
 			registry := tt.registry
+			view := descriptor{Fields: projectRegistry(registry, tt.fields)}
 
 			// Act.
-			err := renderDescribeRegistry(&buf, &registry, tt.fields)
+			err := view.render(&buf)
 
 			// Assert.
 			require.NoError(t, err)
@@ -352,13 +356,18 @@ func TestRenderDescribeRegistry(t *testing.T) {
 	}
 }
 
-// TestRenderDescribeRegistryWriteError surfaces a writer failure as an io error.
-func TestRenderDescribeRegistryWriteError(t *testing.T) {
+// TestDescribeRegistryWriteError drives the real command with a failing
+// stdout, surfacing the descriptor write failure as a classified io error.
+func TestDescribeRegistryWriteError(t *testing.T) {
 	// Arrange.
-	registry := fullViewRegistry()
+	seedRegistries(t, authRegistries)
+	cmd := DescribeRegistry()
+	cmd.SetOut(&failingWriter{})
+	cmd.SetContext(context.Background())
+	cmd.SetArgs(nil)
 
 	// Act.
-	err := renderDescribeRegistry(&failingWriter{}, &registry, allDescribeFields())
+	err := cmd.Execute()
 
 	// Assert.
 	var ucErr *usecase.Error

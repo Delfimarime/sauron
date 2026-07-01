@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/delfimarime/sauron/internal/usecase"
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 const (
@@ -271,24 +270,20 @@ func TestSetGroup(t *testing.T) {
 	require.NotNil(t, registry, "the registry subcommand is attached")
 }
 
-// TestRenderSetRegistry asserts the canonical confirmation line.
-func TestRenderSetRegistry(t *testing.T) {
+// TestSetRegistryWriteError drives the real command with a failing stdout,
+// surfacing the confirmation-line write failure as a classified io error. The
+// exact confirmation text is already pinned by TestSetRegistryEndToEnd.
+func TestSetRegistryWriteError(t *testing.T) {
 	// Arrange.
-	var buf bytes.Buffer
-	result := &usecase.SetRegistryResponse{Source: "https://acme.example", Transport: types.TransportHTTP}
+	source := startHTTPRegistry(t, []artifactSummary{{Name: regName, Version: versionOne, Size: 1024}}, nil)
+	t.Setenv("SAURON_HOME", t.TempDir())
+	cmd := SetRegistry()
+	cmd.SetOut(&failingWriter{})
+	cmd.SetContext(context.Background())
+	cmd.SetArgs([]string{"--transport", transportHTTP, source})
 
 	// Act.
-	err := renderSetRegistry(&buf, result)
-
-	// Assert.
-	require.NoError(t, err)
-	assert.Equal(t, "registry set to https://acme.example (http)\n", buf.String())
-}
-
-// TestRenderSetRegistryWriteError surfaces a writer failure as an io error.
-func TestRenderSetRegistryWriteError(t *testing.T) {
-	// Act.
-	err := renderSetRegistry(&failingWriter{}, &usecase.SetRegistryResponse{Source: "u", Transport: types.TransportGit})
+	err := cmd.Execute()
 
 	// Assert.
 	var ucErr *usecase.Error

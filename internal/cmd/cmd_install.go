@@ -66,7 +66,21 @@ func install(ctx context.Context, kind string, names []string, stdout io.Writer)
 		return err
 	}
 
-	if err := renderInstall(stdout, kind, result); err != nil {
+	ew := newErrWriter(stdout)
+	ew.printf("%s:\n", kindHeadings[kind])
+	for _, a := range result.Added {
+		ew.printf("  + sauron-%s\n", a.Metadata.Name)
+	}
+	for _, a := range result.Updated {
+		ew.printf("  ~ sauron-%s\n", a.Metadata.Name)
+	}
+	for _, f := range result.Failures {
+		ew.printf("  ! %s: %s\n", f.Name, f.Reason)
+	}
+	if summary := installSummary(result); summary != "" {
+		ew.printf("%s\n", summary)
+	}
+	if err := ew.toIOError("write install report"); err != nil {
 		return err
 	}
 
@@ -87,28 +101,6 @@ func install(ctx context.Context, kind string, names []string, stdout io.Writer)
 var kindHeadings = map[string]string{
 	types.KindSkill: "skills",
 	types.KindAgent: "agents",
-}
-
-// renderInstall writes the install plan to w: a kind heading, one line per
-// added ("+") or updated ("~") artifact, one line per failure, and a summary
-// count when at least one artifact was acted on.
-func renderInstall(w io.Writer, kind string, result *usecase.InstallResponse) error {
-	ew := newErrWriter(w)
-	ew.printf("%s:\n", kindHeadings[kind])
-	for _, a := range result.Added {
-		ew.printf("  + sauron-%s\n", a.Metadata.Name)
-	}
-	for _, a := range result.Updated {
-		ew.printf("  ~ sauron-%s\n", a.Metadata.Name)
-	}
-	for _, f := range result.Failures {
-		ew.printf("  ! %s: %s\n", f.Name, f.Reason)
-	}
-	if summary := installSummary(result); summary != "" {
-		ew.printf("%s\n", summary)
-	}
-
-	return ew.toIOError("write install report")
 }
 
 // installSummary produces the tail summary line; an empty string is returned

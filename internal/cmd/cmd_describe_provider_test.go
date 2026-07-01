@@ -202,11 +202,13 @@ func fullViewProvider() types.Provider {
 	}
 }
 
-// TestRenderDescribeProvider covers the projection + descriptor rendering across
+// TestProjectProvider covers the projection + descriptor rendering across
 // the default view, field selection, the derived directory, the sorted labels
 // block, and omission of unpopulated fields. name is the identity and is always
-// present and first.
-func TestRenderDescribeProvider(t *testing.T) {
+// present and first. projectProvider is composed with the shared descriptor
+// renderer directly — this is what describeProvider's handler does inline,
+// without a separate render function to call.
+func TestProjectProvider(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
@@ -277,9 +279,10 @@ func TestRenderDescribeProvider(t *testing.T) {
 			// Arrange.
 			var buf bytes.Buffer
 			provider := tt.provider
+			view := descriptor{Fields: projectProvider(provider, tt.fields)}
 
 			// Act.
-			err := renderDescribeProvider(&buf, &provider, tt.fields)
+			err := view.render(&buf)
 
 			// Assert.
 			require.NoError(t, err)
@@ -298,14 +301,15 @@ func TestRenderDescribeProvider(t *testing.T) {
 	}
 }
 
-// TestRenderDescribeProviderFullLayout pins the exact aligned descriptor of a
+// TestProjectProviderFullLayout pins the exact aligned descriptor of a
 // synced provider — name first, the derived directory, the key-sorted labels
 // section, the audit timestamps, and the sync timestamps — through the shared
 // renderer (column aligned to the widest leaf label, lastSyncAttemptAt).
-func TestRenderDescribeProviderFullLayout(t *testing.T) {
+func TestProjectProviderFullLayout(t *testing.T) {
 	// Arrange.
 	var buf bytes.Buffer
 	provider := fullViewProvider()
+	view := descriptor{Fields: projectProvider(provider, allDescribeProviderFields())}
 	want := "name:               claude\n" +
 		"directory:          ~/.claude\n" +
 		"labels:\n" +
@@ -316,50 +320,46 @@ func TestRenderDescribeProviderFullLayout(t *testing.T) {
 		"lastSyncAttemptAt:  2026-06-26T06:00:00Z\n"
 
 	// Act.
-	err := renderDescribeProvider(&buf, &provider, allDescribeProviderFields())
+	err := view.render(&buf)
 
 	// Assert.
 	require.NoError(t, err)
 	assert.Equal(t, want, buf.String())
 }
 
-// TestRenderDescribeProviderWriteError surfaces a writer failure as an io error.
-func TestRenderDescribeProviderWriteError(t *testing.T) {
-	// Arrange.
-	provider := fullViewProvider()
+// TestDescribeProviderWriteError drives the real command with a failing
+// stdout, covering both the descriptor write (a synced provider) and the
+// none-set line write (no provider configured) — both surface as a
+// classified io error.
+func TestDescribeProviderWriteError(t *testing.T) {
+	tests := []struct {
+		// name states the case intent.
+		name string
+		// seed is the settings.yaml content; empty means no provider set.
+		seed string
+	}{
+		{name: "descriptor write fails", seed: syncedProvider},
+		{name: "no-provider line write fails", seed: ""},
+	}
 
-	// Act.
-	err := renderDescribeProvider(&failingWriter{}, &provider, allDescribeProviderFields())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange.
+			seedRegistries(t, tt.seed)
+			cmd := DescribeProvider()
+			cmd.SetOut(&failingWriter{})
+			cmd.SetContext(context.Background())
+			cmd.SetArgs(nil)
 
-	// Assert.
-	var ucErr *usecase.Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, usecase.TypeIO, ucErr.Type)
-}
+			// Act.
+			err := cmd.Execute()
 
-// TestRenderNoProvider asserts the none-set line is the constant message followed
-// by a newline.
-func TestRenderNoProvider(t *testing.T) {
-	// Arrange.
-	var buf bytes.Buffer
-
-	// Act.
-	err := renderNoProvider(&buf)
-
-	// Assert.
-	require.NoError(t, err)
-	assert.Equal(t, noProviderMessage+"\n", buf.String())
-}
-
-// TestRenderNoProviderWriteError surfaces a writer failure as an io error.
-func TestRenderNoProviderWriteError(t *testing.T) {
-	// Act.
-	err := renderNoProvider(&failingWriter{})
-
-	// Assert.
-	var ucErr *usecase.Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, usecase.TypeIO, ucErr.Type)
+			// Assert.
+			var ucErr *usecase.Error
+			require.ErrorAs(t, err, &ucErr)
+			assert.Equal(t, usecase.TypeIO, ucErr.Type)
+		})
+	}
 }
 
 // TestSelectDescribeProviderFields covers the default, identity-first ordering,

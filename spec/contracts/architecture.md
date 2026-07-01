@@ -225,10 +225,16 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   and rendering all live together in `cmd_<name>.go`, where `<name>` is the
   command path — `cmd_set.go` for the `set` group, `cmd_set_registry.go` for
   `set registry`, `cmd_root.go` for the root command. How the command's own
-  result is turned into bytes — field sets, projections, the `render<Name>`
-  entrypoint — is not split into a separate file; only rendering machinery two
-  or more commands genuinely share (a table, a descriptor, field selection)
-  lives apart, in `helper_view.go`.
+  result is turned into bytes — field sets, projections, the writes themselves —
+  is inlined directly in the handler's `withRunE` closure, not split into a
+  separate named `render<Name>` function: with exactly one caller and no
+  reused logic, a standalone function bought nothing but an extra name to
+  read. Only rendering machinery two or more commands genuinely share (a
+  table, a descriptor, field selection) lives apart, in `helper_view.go` — and
+  a handler that needs a multi-step projection (e.g. `descriptor{Fields:
+  project<Name>(...)}`) still composes it inline; `project<Name>` and similar
+  sub-helpers stay as ordinary functions in the same file when they carry real,
+  independently useful logic (e.g. `installSummary`, `renderGroupInto`).
 - **Flags are bound into structs** in `internal/cmd`; command logic never reads
   flags off the `*cobra.Command`. Flags shared across commands are defined once as
   small, concern-grouped structs in `internal/cmd/helper_flags.go` —

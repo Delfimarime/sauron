@@ -156,52 +156,19 @@ func TestUnsetRegistryEndToEnd(t *testing.T) {
 	}
 }
 
-// TestRenderUnsetRegistry asserts each outcome renders its canonical report line.
-func TestRenderUnsetRegistry(t *testing.T) {
-	tests := []struct {
-		// name states the case intent.
-		name string
-		// outcome is the removal outcome to render.
-		outcome usecase.UnsetOutcome
-		// want is the exact expected output.
-		want string
-	}{
-		{
-			name:    "removed",
-			outcome: usecase.UnsetRemoved,
-			want:    "registry unset; installed artifacts preserved\n",
-		},
-		{
-			name:    "nothing",
-			outcome: usecase.UnsetNothing,
-			want:    "no registry configured; nothing was unset\n",
-		},
-		{
-			name:    "preview",
-			outcome: usecase.UnsetPreview,
-			want:    "registry would be unset; installed artifacts preserved\n",
-		},
-	}
+// TestUnsetRegistryWriteError drives the real command with a failing stdout,
+// surfacing the report-line write failure as a classified io error. The three
+// outcome messages are already pinned by TestUnsetRegistryEndToEnd.
+func TestUnsetRegistryWriteError(t *testing.T) {
+	// Arrange.
+	seedRegistries(t, oneRegistry)
+	cmd := UnsetRegistry()
+	cmd.SetOut(&failingWriter{})
+	cmd.SetContext(context.Background())
+	cmd.SetArgs(nil)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange.
-			var buf bytes.Buffer
-
-			// Act.
-			err := renderUnsetRegistry(&buf, &usecase.UnsetRegistryResponse{Outcome: tt.outcome})
-
-			// Assert.
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, buf.String())
-		})
-	}
-}
-
-// TestRenderUnsetRegistryWriteError surfaces a writer failure as an io error.
-func TestRenderUnsetRegistryWriteError(t *testing.T) {
 	// Act.
-	err := renderUnsetRegistry(&failingWriter{}, &usecase.UnsetRegistryResponse{Outcome: usecase.UnsetRemoved})
+	err := cmd.Execute()
 
 	// Assert.
 	var ucErr *usecase.Error

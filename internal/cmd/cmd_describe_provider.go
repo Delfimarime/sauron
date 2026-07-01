@@ -41,11 +41,16 @@ func describeProvider(ctx context.Context, flags *fieldsFlags, stdout io.Writer)
 	if err != nil {
 		return err
 	}
+
+	ew := newErrWriter(stdout)
 	if provider == nil {
-		return renderNoProvider(stdout)
+		ew.printf("%s\n", noProviderMessage)
+		return ew.toIOError("render provider")
 	}
 
-	return renderDescribeProvider(stdout, provider, fields)
+	view := descriptor{Fields: projectProvider(*provider, fields)}
+	ew.record(view.render(stdout))
+	return ew.toIOError("render descriptor")
 }
 
 // describe-provider field names; this view owns the valid set --fields may select
@@ -76,22 +81,6 @@ var describeProviderFieldOrder = []string{
 // case runs.
 func selectDescribeProviderFields(requested []string) ([]string, error) {
 	return selectFields(requested, describeProviderFieldOrder, describeProviderFieldName)
-}
-
-// renderDescribeProvider projects the selected fields onto a descriptor and writes
-// it, skipping fields the provider has no value for.
-func renderDescribeProvider(w io.Writer, provider *types.Provider, fields []string) error {
-	view := descriptor{Fields: projectProvider(*provider, fields)}
-	ew := newErrWriter(w)
-	ew.record(view.render(w))
-	return ew.toIOError("render descriptor")
-}
-
-// renderNoProvider writes the none-set line; reporting it is a successful outcome.
-func renderNoProvider(w io.Writer) error {
-	ew := newErrWriter(w)
-	ew.printf("%s\n", noProviderMessage)
-	return ew.toIOError("render provider")
 }
 
 // projectProvider maps the selected fields onto descriptor fields, skipping fields

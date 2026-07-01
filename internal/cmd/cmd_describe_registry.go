@@ -40,7 +40,10 @@ func describeRegistry(ctx context.Context, flags *fieldsFlags, stdout io.Writer)
 		return err
 	}
 
-	return renderDescribeRegistry(stdout, registry, fields)
+	view := descriptor{Fields: projectRegistry(*registry, fields)}
+	ew := newErrWriter(stdout)
+	ew.record(view.render(stdout))
+	return ew.toIOError("render descriptor")
 }
 
 // describe field names; this view owns the valid set --fields may select from.
@@ -70,15 +73,6 @@ var describeFieldOrder = []string{
 // the use case runs.
 func selectDescribeFields(requested []string) ([]string, error) {
 	return selectFields(requested, describeFieldOrder, describeFieldSource)
-}
-
-// renderDescribeRegistry projects the selected fields onto a descriptor and
-// writes it, skipping fields the registry has no value for.
-func renderDescribeRegistry(w io.Writer, registry *types.Registry, fields []string) error {
-	view := descriptor{Fields: projectRegistry(*registry, fields)}
-	ew := newErrWriter(w)
-	ew.record(view.render(w))
-	return ew.toIOError("render descriptor")
 }
 
 // projectRegistry maps the selected fields onto descriptor fields, skipping

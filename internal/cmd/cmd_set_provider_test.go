@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/delfimarime/sauron/internal/usecase"
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 // trackedSkillStream is a schema-valid track.yaml holding a single installed
@@ -188,70 +187,32 @@ const (
 	agentAcmeReviewer = "sauron-acme-code-reviewer"
 )
 
-// TestRenderSetProvider asserts the rendered output for each outcome shape.
-func TestRenderSetProvider(t *testing.T) {
+// TestRenderGroupInto asserts one named plan group: nothing written when
+// empty, the heading plus one `~` line per name otherwise. This is what
+// setProvider's handler composes inline for skills: and agents: — there is no
+// longer a single renderSetProvider entrypoint to test the full assembly
+// against; TestSetProviderMigrationFailureExitsOne and
+// TestSetProviderEndToEnd already pin the full assembly (group + failure line
+// + summary, in order) through the real command.
+func TestRenderGroupInto(t *testing.T) {
 	tests := []struct {
-		name   string
-		result *usecase.SetProviderResponse
-		want   string
+		name  string
+		label string
+		names []string
+		want  string
 	}{
+		{name: "empty group writes nothing", label: "skills", names: nil, want: ""},
 		{
-			name: "change with both groups",
-			result: &usecase.SetProviderResponse{
-				Provider: nameZencoder,
-				Migrated: 2,
-				Skills:   []string{skillAcmeGoStyle},
-				Agents:   []string{agentAcmeReviewer},
-			},
-			want: "skills:\n  ~ " + skillAcmeGoStyle + "\nagents:\n  ~ " + agentAcmeReviewer + "\nprovider set to \"zencoder\"; 2 artifacts migrated\n",
+			name:  "populated group writes the heading and each name",
+			label: "skills",
+			names: []string{skillAcmeGoStyle},
+			want:  "skills:\n  ~ " + skillAcmeGoStyle + "\n",
 		},
 		{
-			name: "change with only skills",
-			result: &usecase.SetProviderResponse{
-				Provider: nameClaude,
-				Migrated: 1,
-				Skills:   []string{skillAcmeGoStyle},
-			},
-			want: "skills:\n  ~ " + skillAcmeGoStyle + "\nprovider set to \"claude\"; 1 artifacts migrated\n",
-		},
-		{
-			name:   "first set with nothing installed",
-			result: &usecase.SetProviderResponse{Provider: nameClaude},
-			want:   "provider set to \"claude\"\n",
-		},
-		{
-			name:   "already active reports no change",
-			result: &usecase.SetProviderResponse{Provider: nameClaude, Unchanged: true},
-			want:   "provider already set to \"claude\"\n",
-		},
-		{
-			// A2: migration failures are rendered as "! name: reason" lines after the
-			// migrated groups and before the summary; they do not affect the exit code.
-			name: "change with migration failures",
-			result: &usecase.SetProviderResponse{
-				Provider: nameZencoder,
-				Migrated: 1,
-				Skills:   []string{skillAcmeGoStyle},
-				Failures: []usecase.MigrateFailure{
-					{
-						Reason:   "file not found",
-						Artifact: types.Artifact{Metadata: types.Metadata{Name: "orphan-skill"}},
-					},
-				},
-			},
-			want: "skills:\n  ~ " + skillAcmeGoStyle + "\n  ! orphan-skill: file not found\nprovider set to \"zencoder\"; 1 artifacts migrated\n",
-		},
-		{
-			// A2: multiple failures are each rendered on their own line.
-			name: "change with multiple failures",
-			result: &usecase.SetProviderResponse{
-				Provider: nameClaude,
-				Failures: []usecase.MigrateFailure{
-					{Reason: "permission denied", Artifact: types.Artifact{Metadata: types.Metadata{Name: "locked-agent"}}},
-					{Reason: "disk full", Artifact: types.Artifact{Metadata: types.Metadata{Name: "heavy-skill"}}},
-				},
-			},
-			want: "  ! locked-agent: permission denied\n  ! heavy-skill: disk full\nprovider set to \"claude\"\n",
+			name:  "multiple names each render on their own line",
+			label: "agents",
+			names: []string{agentAcmeReviewer, "sauron-x"},
+			want:  "agents:\n  ~ " + agentAcmeReviewer + "\n  ~ sauron-x\n",
 		},
 	}
 
@@ -259,61 +220,93 @@ func TestRenderSetProvider(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
 			var buf bytes.Buffer
+			ew := newErrWriter(&buf)
 
 			// Act.
-			err := renderSetProvider(&buf, tt.result)
+			renderGroupInto(ew, tt.label, tt.names)
 
 			// Assert.
-			require.NoError(t, err)
+			require.NoError(t, ew.toIOError("test"))
 			assert.Equal(t, tt.want, buf.String())
 		})
 	}
 }
 
-// TestRenderSetProviderWriteError surfaces a writer failure as an io error on
-// each reachable write for the change path (skills + agents, no failures).
-func TestRenderSetProviderWriteError(t *testing.T) {
-	result := &usecase.SetProviderResponse{
-		Provider: nameZencoder,
-		Migrated: 2,
-		Skills:   []string{"s"},
-		Agents:   []string{"a"},
-	}
-
-	for _, after := range []int{0, 1, 2, 3, 4} {
-		err := renderSetProvider(&failingWriter{writeAfter: after}, result)
-		var ucErr *usecase.Error
-		require.ErrorAs(t, err, &ucErr)
-		assert.Equal(t, usecase.TypeIO, ucErr.Type)
-	}
-}
-
-// TestRenderSetProviderFailureWriteError surfaces a writer failure on the
-// failure-line write of the change path.
-func TestRenderSetProviderFailureWriteError(t *testing.T) {
-	// Arrange: one skill group (2 writes) then the failure line (1 write).
-	result := &usecase.SetProviderResponse{
-		Provider: nameZencoder,
-		Migrated: 1,
-		Skills:   []string{"s"},
-		Failures: []usecase.MigrateFailure{
-			{Reason: "oops", Artifact: types.Artifact{Metadata: types.Metadata{Name: "x"}}},
+// TestSummaryLine asserts the closing confirmation, with and without a
+// migrated count.
+func TestSummaryLine(t *testing.T) {
+	tests := []struct {
+		name   string
+		result *usecase.SetProviderResponse
+		want   string
+	}{
+		{
+			name:   "no migration reports the plain confirmation",
+			result: &usecase.SetProviderResponse{Provider: nameClaude},
+			want:   "provider set to \"claude\"\n",
+		},
+		{
+			name:   "a migration appends the artifact count",
+			result: &usecase.SetProviderResponse{Provider: nameZencoder, Migrated: 2},
+			want:   "provider set to \"zencoder\"; 2 artifacts migrated\n",
 		},
 	}
 
-	// Fail on the third write (skills heading=1, skill item=2, failure line=3).
-	err := renderSetProvider(&failingWriter{writeAfter: 2}, result)
-
-	var ucErr *usecase.Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, usecase.TypeIO, ucErr.Type)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, summaryLine(tt.result))
+		})
+	}
 }
 
-// TestRenderSetProviderUnchangedWriteError surfaces the writer failure on the
-// no-change path.
-func TestRenderSetProviderUnchangedWriteError(t *testing.T) {
-	err := renderSetProvider(&failingWriter{}, &usecase.SetProviderResponse{Provider: nameClaude, Unchanged: true})
-	var ucErr *usecase.Error
-	require.ErrorAs(t, err, &ucErr)
-	assert.Equal(t, usecase.TypeIO, ucErr.Type)
+// TestSetProviderWriteError drives the real command with a failing stdout,
+// over the stranded-skill migration-failure fixture (skills heading, skill
+// item, failure line, summary — see TestSetProviderMigrationFailureExitsOne)
+// and the unchanged path, covering every reachable write point without a
+// content-fetch fixture for a clean multi-kind migration.
+func TestSetProviderWriteError(t *testing.T) {
+	t.Run("change path", func(t *testing.T) {
+		for _, writeAfter := range []int{0, 1, 2, 3} {
+			// Arrange: HOME redirected so the provider filesystem stays off the
+			// real FS; claude is active with one stranded skill (its file never
+			// created, so the switch fails to migrate it).
+			t.Setenv("HOME", t.TempDir())
+			home := t.TempDir()
+			t.Setenv("SAURON_HOME", home)
+			_, err := runSetProvider(t, nameClaude)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(home, "track.yaml"), []byte(trackedSkillStream), 0o644))
+			cmd := SetProvider()
+			cmd.SetOut(&failingWriter{writeAfter: writeAfter})
+			cmd.SetContext(context.Background())
+			cmd.SetArgs([]string{"zencoder"})
+
+			// Act.
+			execErr := cmd.Execute()
+
+			// Assert.
+			var ucErr *usecase.Error
+			require.ErrorAsf(t, execErr, &ucErr, "writeAfter=%d", writeAfter)
+			assert.Equalf(t, usecase.TypeIO, ucErr.Type, "writeAfter=%d", writeAfter)
+		}
+	})
+
+	t.Run("unchanged path", func(t *testing.T) {
+		// Arrange.
+		t.Setenv("SAURON_HOME", t.TempDir())
+		_, err := runSetProvider(t, nameClaude)
+		require.NoError(t, err)
+		cmd := SetProvider()
+		cmd.SetOut(&failingWriter{})
+		cmd.SetContext(context.Background())
+		cmd.SetArgs([]string{nameClaude})
+
+		// Act.
+		execErr := cmd.Execute()
+
+		// Assert.
+		var ucErr *usecase.Error
+		require.ErrorAs(t, execErr, &ucErr)
+		assert.Equal(t, usecase.TypeIO, ucErr.Type)
+	})
 }

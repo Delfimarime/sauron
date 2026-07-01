@@ -10,6 +10,16 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
+const (
+	// the catalogue table column headers.
+	tableHeaderName = "name"
+	tableHeaderKind = "kind"
+
+	// catalogueSortName is the only field a catalogue listing sorts by; this view
+	// owns the set --sort may select from.
+	catalogueSortName = "name"
+)
+
 // Catalogue builds the `catalogue` command group and attaches its per-kind
 // subcommands. It is a pure command group with no run behaviour: a bare
 // invocation prints help and exits 0; a kind noun selects the leaf that lists.
@@ -62,7 +72,13 @@ func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *c
 				return err
 			}
 
-			return renderCatalogue(stdout, kind, result)
+			ew := newErrWriter(stdout)
+			rows := buildTable([]string{tableHeaderName, tableHeaderKind}, result.Items, func(name string) []string {
+				return []string{name, string(kind)}
+			})
+			ew.record(rows.render(stdout))
+			ew.printf("%s\n", pagingLine(result.Page, result.Limit, result.Offset, len(result.Items)))
+			return ew.toIOError("render catalogue")
 		}),
 	)
 }
@@ -72,9 +88,12 @@ func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *c
 // boundary; an invalid value yields a usage error before the use case runs.
 // --search is a free substring and is not validated.
 func newListCatalogueInput(kind usecase.CatalogueKind, flags *listFlags) (usecase.ListCatalogueRequest, error) {
-	sort := defaultCatalogueSort(flags.Sort)
-	if err := validateCatalogueSort(sort); err != nil {
-		return usecase.ListCatalogueRequest{}, err
+	sort := catalogueSortName
+	if flags.Sort != "" {
+		sort = flags.Sort
+	}
+	if sort != catalogueSortName {
+		return usecase.ListCatalogueRequest{}, fmt.Errorf("%w: unknown sort field %q", errInvalidFlag, sort)
 	}
 
 	order := defaultOrder(flags.Order)
@@ -92,47 +111,4 @@ func newListCatalogueInput(kind usecase.CatalogueKind, flags *listFlags) (usecas
 			Limit:  flags.paging.Limit,
 		},
 	}, nil
-}
-
-// the catalogue table column headers.
-const (
-	headerName = "name"
-	headerKind = "kind"
-)
-
-// catalogueSortName is the only field a catalogue listing sorts by; this view
-// owns the set --sort may select from.
-const catalogueSortName = "name"
-
-// defaultCatalogueSort applies the catalogue default: an empty selection sorts by
-// name.
-func defaultCatalogueSort(sort string) string {
-	if sort == "" {
-		return catalogueSortName
-	}
-
-	return sort
-}
-
-// validateCatalogueSort reports a usage error when sort is not a sortable
-// catalogue field, raised before the use case runs.
-func validateCatalogueSort(sort string) error {
-	if sort == catalogueSortName {
-		return nil
-	}
-
-	return fmt.Errorf("%w: unknown sort field %q", errInvalidFlag, sort)
-}
-
-// renderCatalogue writes the name/kind table for the listed artifacts, then
-// always writes the paging line. kind is the invoked command's own kind — the
-// response no longer carries it back, since the caller already has it.
-func renderCatalogue(w io.Writer, kind usecase.CatalogueKind, result *usecase.ListCatalogueResponse) error {
-	ew := newErrWriter(w)
-	rows := buildTable([]string{headerName, headerKind}, result.Items, func(name string) []string {
-		return []string{name, string(kind)}
-	})
-	ew.record(rows.render(w))
-	ew.printf("%s\n", pagingLine(result.Page, result.Limit, result.Offset, len(result.Items)))
-	return ew.toIOError("render catalogue")
 }

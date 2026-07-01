@@ -5,7 +5,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -256,101 +255,32 @@ func TestListCatalogueUnreachableSource(t *testing.T) {
 	assert.NotEqual(t, exitUsage, ExitCode(err))
 }
 
-// TestRenderCatalogue covers the name/kind table and the paging line for a
-// populated window and an empty page.
-func TestRenderCatalogue(t *testing.T) {
+// TestListCatalogueWriteError drives the real command with a failing stdout,
+// covering both a write failure on the table (the default page, populated) and
+// on the paging line alone (a page past the seeded data, so the table is
+// empty and never written) — both surface as a classified io error.
+func TestListCatalogueWriteError(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
-		// kind is the invoked command's own kind, passed alongside the result.
-		kind usecase.CatalogueKind
-		// result is the listing to render.
-		result *usecase.ListCatalogueResponse
-		// wantContains are substrings the output must contain.
-		wantContains []string
-		// wantAbsent are substrings the output must never contain.
-		wantAbsent []string
+		// args are the extra flags beyond the bare command.
+		args []string
 	}{
-		{
-			name: "populated window renders the table and the from-to line",
-			kind: usecase.CatalogueAgent,
-			result: &usecase.ListCatalogueResponse{
-				Items:  []string{"review", "doc"},
-				Page:   1,
-				Limit:  20,
-				Offset: 0,
-			},
-			wantContains: []string{headerName, headerKind, "review", "doc", "agent", "showing 1–2 (page 1, limit 20)"},
-		},
-		{
-			name: "empty page renders no table and the zero-results line",
-			kind: usecase.CatalogueSkill,
-			result: &usecase.ListCatalogueResponse{
-				Items:  nil,
-				Page:   9,
-				Limit:  20,
-				Offset: 160,
-			},
-			wantContains: []string{"showing 0 results (page 9, limit 20)"},
-			wantAbsent:   []string{headerName},
-		},
-		{
-			name: "single-row window reports the inclusive window",
-			kind: usecase.CatalogueSkill,
-			result: &usecase.ListCatalogueResponse{
-				Items:  []string{"b"},
-				Page:   2,
-				Limit:  1,
-				Offset: 1,
-			},
-			wantContains: []string{"showing 2–2 (page 2, limit 1)"},
-		},
+		{name: "table write fails"},
+		{name: "paging-line write fails on an empty page", args: []string{"--page", "99"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange.
-			var buf bytes.Buffer
+			seedCatalogueRegistry(t)
+			cmd := ListCatalogueAgent()
+			cmd.SetOut(&failingWriter{})
+			cmd.SetContext(context.Background())
+			cmd.SetArgs(tt.args)
 
 			// Act.
-			err := renderCatalogue(&buf, tt.kind, tt.result)
-
-			// Assert.
-			require.NoError(t, err)
-			out := buf.String()
-			for _, want := range tt.wantContains {
-				assert.Contains(t, out, want)
-			}
-			for _, absent := range tt.wantAbsent {
-				assert.NotContains(t, out, absent)
-			}
-		})
-	}
-}
-
-// TestRenderCatalogueWriteError surfaces a writer failure as an io error on both
-// the table and the paging-line write.
-func TestRenderCatalogueWriteError(t *testing.T) {
-	tests := []struct {
-		// name states the case intent.
-		name string
-		// result is the listing to render.
-		result *usecase.ListCatalogueResponse
-	}{
-		{
-			name:   "table write fails",
-			result: &usecase.ListCatalogueResponse{Items: []string{"a"}, Page: 1, Limit: 20},
-		},
-		{
-			name:   "paging-line write fails on an empty page",
-			result: &usecase.ListCatalogueResponse{Items: nil, Page: 1, Limit: 20},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Act.
-			err := renderCatalogue(&failingWriter{}, usecase.CatalogueSkill, tt.result)
+			err := cmd.Execute()
 
 			// Assert.
 			var ucErr *usecase.Error
@@ -358,19 +288,4 @@ func TestRenderCatalogueWriteError(t *testing.T) {
 			assert.Equal(t, usecase.TypeIO, ucErr.Type)
 		})
 	}
-}
-
-// TestPagingLineKindRendered confirms the kind is rendered in the kind column.
-func TestPagingLineKindRendered(t *testing.T) {
-	// Arrange.
-	var buf bytes.Buffer
-	result := &usecase.ListCatalogueResponse{Items: []string{"x"}, Page: 1, Limit: 20}
-
-	// Act.
-	require.NoError(t, renderCatalogue(&buf, usecase.CatalogueSkill, result))
-
-	// Assert.
-	rows := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
-	assert.Equal(t, headerKind, strings.Fields(rows[0])[1])
-	assert.Contains(t, rows[1], "skill")
 }

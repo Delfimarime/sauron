@@ -15,6 +15,49 @@ const (
 	tblRowAcme = "acme"
 )
 
+// TestPagingLine exercises the applied-paging report: the zero-results line,
+// the inclusive from-to range, and the offset math on a single-row window.
+func TestPagingLine(t *testing.T) {
+	tests := []struct {
+		// name states the case intent.
+		name string
+		// page, limit, offset, count are pagingLine's inputs.
+		page, limit, offset int64
+		count               int
+		// want is the exact expected line.
+		want string
+	}{
+		{
+			name:  "zero count reports zero results",
+			page:  9,
+			limit: 20,
+			count: 0,
+			want:  "showing 0 results (page 9, limit 20)",
+		},
+		{
+			name:  "populated window reports the inclusive from-to range",
+			page:  1,
+			limit: 20,
+			count: 2,
+			want:  "showing 1–2 (page 1, limit 20)",
+		},
+		{
+			name:   "single-row window reports the inclusive window",
+			page:   2,
+			limit:  1,
+			offset: 1,
+			count:  1,
+			want:   "showing 2–2 (page 2, limit 1)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, pagingLine(tt.page, tt.limit, tt.offset, tt.count))
+		})
+	}
+}
+
 // TestTableRender exercises the rendering rules: verbatim headers, aligned
 // columns, the empty-cell placeholder, and the no-output-for-zero-rows rule.
 func TestTableRender(t *testing.T) {
