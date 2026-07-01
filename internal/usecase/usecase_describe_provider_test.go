@@ -22,9 +22,11 @@ type describeProviderFixture struct {
 }
 
 // newDescribeProviderFixture wires a describe-provider use case over a fresh store
-// mock.
-func newDescribeProviderFixture() *describeProviderFixture {
+// mock, verifying its expectations on cleanup so an unused stub fails the test.
+func newDescribeProviderFixture(t *testing.T) *describeProviderFixture {
+	t.Helper()
 	store := &storage.MockBasedProvidersStore{}
+	t.Cleanup(func() { store.AssertExpectations(t) })
 	return &describeProviderFixture{
 		store: store,
 		uc: NewDescribeProviderUseCase(DescribeProviderUseCaseParams{
@@ -53,27 +55,27 @@ func fullProvider() *types.Provider {
 // provider for the client to project; field selection is a presentation concern.
 func TestDescribeProviderSuccess(t *testing.T) {
 	// Arrange.
-	f := newDescribeProviderFixture()
+	f := newDescribeProviderFixture(t)
 	f.store.On("Get", mock.Anything).Return(fullProvider(), nil)
 
 	// Act.
-	provider, err := f.uc.Execute(context.Background(), DescribeProviderInput{})
+	provider, err := f.uc.Execute(context.Background(), DescribeProviderRequest{})
 
-	// Assert.
+	// Assert: the full record round-trips so a dropped field is caught.
 	require.NoError(t, err)
 	require.NotNil(t, provider)
-	assert.Equal(t, types.ProviderClaude, provider.Metadata.Name)
+	assert.Equal(t, fullProvider(), provider)
 }
 
 // TestDescribeProviderNoneSet asserts that no provider configured is not an error:
 // the use case returns (nil, nil) so the command can report none-set and exit 0.
 func TestDescribeProviderNoneSet(t *testing.T) {
 	// Arrange.
-	f := newDescribeProviderFixture()
+	f := newDescribeProviderFixture(t)
 	f.store.On("Get", mock.Anything).Return(nil, nil)
 
 	// Act.
-	provider, err := f.uc.Execute(context.Background(), DescribeProviderInput{})
+	provider, err := f.uc.Execute(context.Background(), DescribeProviderRequest{})
 
 	// Assert.
 	require.NoError(t, err)
@@ -83,11 +85,11 @@ func TestDescribeProviderNoneSet(t *testing.T) {
 // TestDescribeProviderReadError asserts a store failure surfaces as an io error.
 func TestDescribeProviderReadError(t *testing.T) {
 	// Arrange.
-	f := newDescribeProviderFixture()
+	f := newDescribeProviderFixture(t)
 	f.store.On("Get", mock.Anything).Return(nil, errors.New("disk gone"))
 
 	// Act.
-	_, err := f.uc.Execute(context.Background(), DescribeProviderInput{})
+	_, err := f.uc.Execute(context.Background(), DescribeProviderRequest{})
 
 	// Assert.
 	var ucErr *Error

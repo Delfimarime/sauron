@@ -46,7 +46,7 @@ func TestNewFxOptions(t *testing.T) {
 		fx.Invoke(func(*ListCatalogueUseCase) {}),
 		fx.Invoke(func(*UnsetRegistryUseCase) {}),
 		fx.Invoke(func(*InstallUseCase) {}),
-		fx.Invoke(func(UseCase[DiffInput, Diff]) {}),
+		fx.Invoke(func(UseCase[DiffRequest, DiffResponse]) {}),
 	)
 
 	// Assert.

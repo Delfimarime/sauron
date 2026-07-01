@@ -83,7 +83,7 @@ func TestDescribeProviderRejectsBadInput(t *testing.T) {
 
 			// Assert.
 			require.Error(t, err)
-			assert.Equal(t, exitUsage, exitCode(err))
+			assert.Equal(t, exitUsage, ExitCode(err))
 		})
 	}
 }
@@ -140,7 +140,7 @@ func TestDescribeProviderEndToEnd(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.wantUsage {
-					assert.Equal(t, exitUsage, exitCode(err))
+					assert.Equal(t, exitUsage, ExitCode(err))
 				}
 				return
 			}

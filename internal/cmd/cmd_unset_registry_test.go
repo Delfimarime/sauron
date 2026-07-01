@@ -93,7 +93,7 @@ func TestUnsetRegistryRejectsBadInput(t *testing.T) {
 
 			// Assert.
 			require.Error(t, err)
-			assert.Equal(t, exitUsage, exitCode(err))
+			assert.Equal(t, exitUsage, ExitCode(err))
 		})
 	}
 }

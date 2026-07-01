@@ -28,8 +28,8 @@ func newUnsetUseCase(store storage.RegistriesStore) *UnsetRegistryUseCase {
 }
 
 // runUnset executes the use case, returning the result and the error.
-func runUnset(uc *UnsetRegistryUseCase, dryRun bool) (*UnsetRegistryResult, error) {
-	return uc.Execute(context.Background(), UnsetRegistryInput{DryRun: dryRun})
+func runUnset(uc *UnsetRegistryUseCase, dryRun bool) (*UnsetRegistryResponse, error) {
+	return uc.Execute(context.Background(), UnsetRegistryRequest{DryRun: dryRun})
 }
 
 // TestUnsetRegistryRemovesAndReports removes the registry and reports the removed
@@ -102,6 +102,7 @@ func TestUnsetRegistryReadFailsIsIOError(t *testing.T) {
 	var ucErr *Error
 	require.ErrorAs(t, err, &ucErr)
 	assert.Equal(t, TypeIO, ucErr.Type)
+	store.AssertExpectations(t)
 }
 
 // TestUnsetRegistryRemoveFailsIsIOError classifies a removal write failure as io.
@@ -119,4 +120,5 @@ func TestUnsetRegistryRemoveFailsIsIOError(t *testing.T) {
 	var ucErr *Error
 	require.ErrorAs(t, err, &ucErr)
 	assert.Equal(t, TypeIO, ucErr.Type)
+	store.AssertExpectations(t)
 }

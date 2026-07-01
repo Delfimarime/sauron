@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -29,10 +28,7 @@ func UnsetRegistry() *cobra.Command {
 			return unsetRegistry(cmd.Context(), &flags, cmd.OutOrStdout())
 		},
 	}
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return fmt.Errorf("%w: %w", errInvalidFlag, err)
-	})
-
+	silenceFlagErrors(cmd)
 	bindDryRunFlags(cmd, &flags.dryRunFlags)
 
 	return cmd
@@ -42,8 +38,8 @@ func UnsetRegistry() *cobra.Command {
 // graph invoke the use case, and renders the outcome, returning the classified
 // failure to the caller.
 func unsetRegistry(ctx context.Context, flags *unsetRegistryFlags, stdout io.Writer) error {
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.UnsetRegistryUseCase) (*usecase.UnsetRegistryResult, error) {
-		return uc.Execute(runCtx, usecase.UnsetRegistryInput{DryRun: flags.DryRun})
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.UnsetRegistryUseCase) (*usecase.UnsetRegistryResponse, error) {
+		return uc.Execute(runCtx, usecase.UnsetRegistryRequest{DryRun: flags.DryRun})
 	})
 	if err != nil {
 		return err

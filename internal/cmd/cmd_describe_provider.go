@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -30,10 +29,7 @@ func DescribeProvider() *cobra.Command {
 			return describeProvider(cmd.Context(), &flags, cmd.OutOrStdout())
 		},
 	}
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return fmt.Errorf("%w: %w", errInvalidFlag, err)
-	})
-
+	silenceFlagErrors(cmd)
 	cmd.Flags().StringSliceVar(&flags.Fields, "fields", nil, "fields to display, in order; name is always first")
 
 	return cmd
@@ -51,7 +47,7 @@ func describeProvider(ctx context.Context, flags *describeProviderFlags, stdout 
 	}
 
 	provider, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.DescribeProviderUseCase) (*types.Provider, error) {
-		return uc.Execute(runCtx, usecase.DescribeProviderInput{})
+		return uc.Execute(runCtx, usecase.DescribeProviderRequest{})
 	})
 	if err != nil {
 		return err

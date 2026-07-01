@@ -39,8 +39,10 @@ type fixture struct {
 	fs    *source.MockBasedFileSystem
 }
 
-// newFixture wires a use case over fresh mocks.
-func newFixture() *fixture {
+// newFixture wires a use case over fresh mocks, verifying their expectations on
+// cleanup so an unused or over-specified stub fails the test.
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
 	f := &fixture{
 		git:   &extension.MockBasedRegistry{},
 		http:  &extension.MockBasedRegistry{},
@@ -60,6 +62,13 @@ func newFixture() *fixture {
 		Open:       open,
 		Registries: f.store,
 		Logger:     zap.NewNop(),
+	})
+
+	t.Cleanup(func() {
+		f.git.AssertExpectations(t)
+		f.http.AssertExpectations(t)
+		f.store.AssertExpectations(t)
+		f.fs.AssertExpectations(t)
 	})
 
 	return f
@@ -104,9 +113,9 @@ func requireErrType(t *testing.T, err error, want Type) {
 
 func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 	t.Run("literal password yields usage", func(t *testing.T) {
-		f := newFixture()
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		f := newFixture(t)
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 			Password: "literal-secret",
 		})
 		requireErrType(t, err, TypeUsage)
@@ -114,31 +123,31 @@ func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 	})
 
 	t.Run("unknown transport yields usage", func(t *testing.T) {
-		f := newFixture()
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: "x", Transport: "ftp",
+		f := newFixture(t)
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: "x", Transport: "ftp",
 		})
 		requireErrType(t, err, TypeUsage)
 	})
 
 	t.Run("ref on non-git transport yields usage", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).
 			Return(fmt.Errorf("%w: ref unsupported", api.ErrUsage))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP, Ref: testRef,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP, Revision: testRef,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
 
 	t.Run("unset env var yields unreachable", func(t *testing.T) {
 		// ACME_USER is deliberately left unset in the process environment.
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 			Username: "${env:ACME_USER}",
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
@@ -146,74 +155,74 @@ func TestSetRegistryUseCase_Execute_Failures(t *testing.T) {
 	})
 
 	t.Run("open runtime error yields unreachable", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).
 			Return(nil, fmt.Errorf("%w: dial tcp", api.ErrRuntime))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
 
 	t.Run("open usage error yields usage", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).
 			Return(nil, fmt.Errorf("%w: bad uri", api.ErrUsage))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUsage)
 	})
 
 	t.Run("validate non-usage error yields unreachable", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(errors.New("weird"))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
 
 	t.Run("list error yields unreachable", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.fs.On("List", mock.Anything, "skills", mock.Anything).
 			Return(nil, errors.New("io"))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeUnreachable)
 	})
 
 	t.Run("empty presence scan yields unreachable hosts no artifact", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.stampAbsent()
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		ucErr := asUseCaseError(t, err, TypeUnreachable)
 		assert.Equal(t, "hosts no artifact", ucErr.Reason)
 	})
 
 	t.Run("persist error yields io", func(t *testing.T) {
-		f := newFixture()
+		f := newFixture(t)
 		f.http.On("Validate", mock.Anything).Return(nil)
 		f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 		f.stampPresent()
 		f.store.On("Set", mock.Anything, mock.Anything).Return(errors.New("full"))
 
-		_, err := f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: testHTTPURI, Transport: transportHTTP,
+		_, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: testHTTPURI, Transport: transportHTTP,
 		})
 		requireErrType(t, err, TypeIO)
 	})
@@ -223,7 +232,7 @@ func TestSetRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	// Arrange.
 	t.Setenv("GIT_USER", "real-user")
 	t.Setenv("GIT_PASS", "real-pass")
-	f := newFixture()
+	f := newFixture(t)
 	f.git.On("Validate", mock.Anything).Return(nil)
 
 	var openOpts extension.Options
@@ -249,12 +258,12 @@ func TestSetRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	// Act. Run inside a synctest bubble so time.Now() is a fixed, controllable
 	// instant; the use case stamps the audit timestamps from it.
 	var err error
-	var result *SetRegistryResult
+	var result *SetRegistryResponse
 	var want string
 	synctest.Test(t, func(*testing.T) {
 		want = time.Now().UTC().Format(time.RFC3339)
-		result, err = f.uc.Execute(context.Background(), SetRegistryInput{
-			URI: "git@host:repo.git", Transport: transportGit, Ref: testRef,
+		result, err = f.uc.Execute(context.Background(), SetRegistryRequest{
+			Source: "git@host:repo.git", Transport: transportGit, Revision: testRef,
 			Username: "${env:GIT_USER}", Password: "${env:GIT_PASS}",
 			Timeout: 15 * time.Second,
 		})
@@ -277,13 +286,13 @@ func TestSetRegistryUseCase_Execute_HappyPath_Git(t *testing.T) {
 	assert.Equal(t, want, stored.Metadata.LastUpdatedAt)
 	// The result carries the configured URI and transport for the client to render.
 	require.NotNil(t, result)
-	assert.Equal(t, "git@host:repo.git", result.URI)
+	assert.Equal(t, "git@host:repo.git", result.Source)
 	assert.Equal(t, types.TransportGit, result.Transport)
 }
 
 func TestSetRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 	// Arrange.
-	f := newFixture()
+	f := newFixture(t)
 	f.http.On("Validate", mock.Anything).Return(nil)
 	f.http.On("Open", mock.Anything, mock.Anything).Return(f.fs, nil)
 	f.stampPresent()
@@ -296,8 +305,8 @@ func TestSetRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 		Return(nil)
 
 	// Act: Ref is supplied but must be dropped for a non-git transport.
-	result, err := f.uc.Execute(context.Background(), SetRegistryInput{
-		URI: testHTTPURI, Transport: transportHTTP, Ref: "ignored",
+	result, err := f.uc.Execute(context.Background(), SetRegistryRequest{
+		Source: testHTTPURI, Transport: transportHTTP, Revision: "ignored",
 		SkipTLSVerify: true, CACert: "/ca.pem",
 	})
 
@@ -309,6 +318,6 @@ func TestSetRegistryUseCase_Execute_HappyPath_NonGitDropsRef(t *testing.T) {
 	assert.Equal(t, "/ca.pem", stored.Spec.TLS.CACert)
 	assert.Nil(t, stored.Spec.Credentials)
 	require.NotNil(t, result)
-	assert.Equal(t, testHTTPURI, result.URI)
+	assert.Equal(t, testHTTPURI, result.Source)
 	assert.Equal(t, types.TransportHTTP, result.Transport)
 }

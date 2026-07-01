@@ -64,7 +64,7 @@ func NewSetRegistryUseCase(params SetRegistryUseCaseParams) *SetRegistryUseCase 
 // Execute runs the ordered upsert pipeline, returning a *Error on the first
 // failing step. The existing registry is left unchanged until validation
 // succeeds; on success it is replaced and the outcome is returned.
-func (uc *SetRegistryUseCase) Execute(ctx context.Context, in SetRegistryInput) (*SetRegistryResult, error) {
+func (uc *SetRegistryUseCase) Execute(ctx context.Context, in SetRegistryRequest) (*SetRegistryResponse, error) {
 	if err := uc.validateCredentialFormat(in.Password); err != nil {
 		return nil, err
 	}
@@ -74,12 +74,16 @@ func (uc *SetRegistryUseCase) Execute(ctx context.Context, in SetRegistryInput) 
 		return nil, err
 	}
 
-	opts := in.referenceOptions(transport)
+	registry := in.toRegistry(transport)
+	opts, err := connectOptions(registry.Spec, identityRef)
+	if err != nil {
+		return nil, err
+	}
 	if err := classifyAdapterErr(adapter.Validate(opts...)); err != nil {
 		return nil, err
 	}
 
-	if err := uc.probe(ctx, in, transport); err != nil {
+	if err := uc.probe(ctx, registry); err != nil {
 		return nil, err
 	}
 
@@ -110,8 +114,8 @@ func (uc *SetRegistryUseCase) selectAdapter(transport string) (extension.Registr
 // probe opens the source through the shared open action — which resolves
 // credential references, builds the options, and opens the transport — then
 // confirms the source hosts at least one artifact.
-func (uc *SetRegistryUseCase) probe(ctx context.Context, in SetRegistryInput, transport types.Transport) error {
-	fs, err := uc.open.Execute(ctx, in.toRegistry(transport))
+func (uc *SetRegistryUseCase) probe(ctx context.Context, registry types.Registry) error {
+	fs, err := uc.open.Execute(ctx, registry)
 	if err != nil {
 		return err
 	}
@@ -137,99 +141,37 @@ func (uc *SetRegistryUseCase) scanArtifacts(ctx context.Context, fs source.FileS
 // persist builds the registry document, stamps its audit timestamps with the
 // current instant in UTC (equal on create), and stores it, replacing any
 // registry already present. It returns the configured outcome.
-func (uc *SetRegistryUseCase) persist(ctx context.Context, in SetRegistryInput, transport types.Transport) (*SetRegistryResult, error) {
+func (uc *SetRegistryUseCase) persist(ctx context.Context, in SetRegistryRequest, transport types.Transport) (*SetRegistryResponse, error) {
 	registry := in.toRegistry(transport)
 	now := time.Now().UTC().Format(time.RFC3339)
 	registry.Metadata.CreatedAt = now
 	registry.Metadata.LastUpdatedAt = now
 	if err := uc.registries.Set(ctx, registry); err != nil {
-		return nil, NewIOError(fmt.Sprintf("persist registry: %v", err))
+		return nil, ioErr("persist registry", err)
 	}
 
 	uc.logger.Info("registry set",
-		zap.String(telemetry.FieldRegistryURI, in.URI),
+		zap.String(telemetry.FieldRegistrySource, in.Source),
 		zap.String(telemetry.FieldRegistryTransport, string(transport)),
 	)
 
-	return &SetRegistryResult{URI: in.URI, Transport: transport}, nil
-}
-
-// SetRegistryResult is the presentation-agnostic outcome of configuring the
-// registry: the URI now in effect and the transport it is reached over.
-type SetRegistryResult struct {
-	URI       string
-	Transport types.Transport
-}
-
-// SetRegistryInput is the per-invocation input for configuring the registry.
-type SetRegistryInput struct {
-	URI       string
-	Transport string
-	Ref       string
-	Username  string
-	Password  string
-	SSHKey    string
-
-	SkipTLSVerify bool
-	CACert        string
-	ClientCert    string
-	ClientKey     string
-
-	Timeout time.Duration
-}
-
-// referenceOptions builds the options used to validate the input, carrying the
-// raw credential references untouched.
-func (r *SetRegistryInput) referenceOptions(transport types.Transport) []extension.Option {
-	opts := []extension.Option{extension.WithURI(r.URI)}
-
-	if transport == types.TransportGit && r.Ref != "" {
-		opts = append(opts, extension.WithRef(r.Ref))
-	}
-	if r.Timeout > 0 {
-		opts = append(opts, extension.WithTimeout(r.Timeout))
-	}
-	if r.SSHKey != "" {
-		opts = append(opts, extension.WithSSHKey(r.SSHKey))
-	}
-	if r.Username != "" || r.Password != "" {
-		opts = append(opts, extension.WithBasicAuth(r.Username, r.Password))
-	}
-
-	return append(opts, r.tlsOptions()...)
-}
-
-// tlsOptions builds the transport-security options from the input.
-func (r *SetRegistryInput) tlsOptions() []extension.Option {
-	var opts []extension.Option
-
-	if r.SkipTLSVerify {
-		opts = append(opts, extension.WithSkipTLSVerify(true))
-	}
-	if r.CACert != "" {
-		opts = append(opts, extension.WithCACert(r.CACert))
-	}
-	if r.ClientCert != "" || r.ClientKey != "" {
-		opts = append(opts, extension.WithClientCert(r.ClientCert, r.ClientKey))
-	}
-
-	return opts
+	return &SetRegistryResponse{Source: in.Source, Transport: transport}, nil
 }
 
 // toRegistry assembles the persisted document, storing credential references
 // verbatim and never the resolved values. The single registry carries no
 // user-given name; spec.source is its identity.
-func (r *SetRegistryInput) toRegistry(transport types.Transport) types.Registry {
+func (r *SetRegistryRequest) toRegistry(transport types.Transport) types.Registry {
 	spec := types.RegistrySpec{
 		Transport:   transport,
-		Source:      r.URI,
+		Source:      r.Source,
 		SSHKey:      r.SSHKey,
 		Credentials: r.toCredentials(),
 		TLS:         r.toTLS(),
 	}
 
 	if transport == types.TransportGit {
-		spec.Revision = r.Ref
+		spec.Revision = r.Revision
 	}
 	if r.Timeout > 0 {
 		spec.Timeout = r.Timeout.String()
@@ -239,7 +181,7 @@ func (r *SetRegistryInput) toRegistry(transport types.Transport) types.Registry 
 }
 
 // toCredentials returns the credential references, or nil when none were supplied.
-func (r *SetRegistryInput) toCredentials() *types.Credentials {
+func (r *SetRegistryRequest) toCredentials() *types.Credentials {
 	if r.Username == "" && r.Password == "" {
 		return nil
 	}
@@ -248,7 +190,7 @@ func (r *SetRegistryInput) toCredentials() *types.Credentials {
 }
 
 // toTLS returns the transport-security block, or nil when none was supplied.
-func (r *SetRegistryInput) toTLS() *types.TLS {
+func (r *SetRegistryRequest) toTLS() *types.TLS {
 	if !r.SkipTLSVerify && r.CACert == "" && r.ClientCert == "" && r.ClientKey == "" {
 		return nil
 	}

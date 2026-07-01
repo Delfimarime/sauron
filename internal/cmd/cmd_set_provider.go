@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -25,15 +26,27 @@ func SetProvider() *cobra.Command {
 }
 
 // setProvider holds the cobra-free logic: it builds the input, lets the fx graph
-// invoke the use case, and renders the returned result, returning any classified
-// failure to the caller.
+// invoke the use case, renders the returned result, and then checks for
+// migration failures. The provider is persisted regardless (FR-005 reports and
+// continues), but a stranded artifact makes the process exit 1.
 func setProvider(ctx context.Context, args []string, stdout io.Writer) error {
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetProviderUseCase) (*usecase.SetProviderResult, error) {
-		return uc.Execute(runCtx, usecase.SetProviderInput{Provider: args[0]})
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetProviderUseCase) (*usecase.SetProviderResponse, error) {
+		return uc.Execute(runCtx, usecase.SetProviderRequest{Provider: args[0]})
 	})
 	if err != nil {
 		return err
 	}
 
-	return renderSetProvider(stdout, result)
+	if err := renderSetProvider(stdout, result); err != nil {
+		return err
+	}
+
+	// A migration failure means at least one tracked artifact could not be moved
+	// to the new provider's directories; the provider is still set and every
+	// failure is rendered, but exit non-zero so the caller can detect and retry.
+	if len(result.Failures) > 0 {
+		return usecase.NewIOError(fmt.Sprintf("migrate to %q: %d artifacts stranded", result.Provider, len(result.Failures)))
+	}
+
+	return nil
 }

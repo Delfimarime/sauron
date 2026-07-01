@@ -19,12 +19,12 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/source"
 )
 
-// baseYAML and extraYAML are fixture file names used across the git factory
-// tests; skillGo names an artifact directory the tree-source tests assert over.
-// rootSkills and rootAgents are defined in roots.go.
+// baseSkill and extraSkill name the artifact directories the fixture repo holds
+// across the git factory tests; skillGo names an artifact directory the
+// tree-source tests assert over. rootSkills and rootAgents are defined in roots.go.
 const (
-	baseYAML   = "base.yaml"
-	extraYAML  = "extra.yaml"
+	baseSkill  = "base"
+	extraSkill = "extra"
 	skillGo    = "sauron-go"
 	artifactGo = rootSkills + "/" + skillGo
 )
@@ -94,8 +94,8 @@ func TestGitFactory_Open_ChecksOutCommit(t *testing.T) {
 		ref       string
 		wantNames []string
 	}{
-		{name: "base commit", ref: base, wantNames: []string{baseYAML}},
-		{name: "release commit", ref: release, wantNames: []string{baseYAML, extraYAML}},
+		{name: "base commit", ref: base, wantNames: []string{baseSkill}},
+		{name: "release commit", ref: release, wantNames: []string{baseSkill, extraSkill}},
 	}
 
 	for _, tt := range tests {
@@ -171,7 +171,7 @@ func TestGitFactory_Open_WithCACert(t *testing.T) {
 
 		// Assert.
 		require.NoError(t, listErr)
-		assert.Equal(t, []string{baseYAML}, names(files))
+		assert.Equal(t, []string{baseSkill}, names(files))
 	})
 
 	t.Run("missing CA cert is a usage error", func(t *testing.T) {
@@ -203,7 +203,7 @@ func TestGitFactory_Open_TimeoutBoundsClone(t *testing.T) {
 		require.NoError(t, err)
 		files, listErr := fs.List(context.Background(), rootSkills)
 		require.NoError(t, listErr)
-		assert.Equal(t, []string{baseYAML}, names(files))
+		assert.Equal(t, []string{baseSkill}, names(files))
 	})
 
 	t.Run("a cancelled context fails the clone", func(t *testing.T) {
@@ -236,17 +236,17 @@ func TestGitFactory_Open_ChecksOutRef(t *testing.T) {
 		{
 			name:      "default branch",
 			ref:       "",
-			wantNames: []string{baseYAML},
+			wantNames: []string{baseSkill},
 		},
 		{
 			name:      "named branch",
 			ref:       "release",
-			wantNames: []string{baseYAML, extraYAML},
+			wantNames: []string{baseSkill, extraSkill},
 		},
 		{
 			name:      "tag",
 			ref:       "v1",
-			wantNames: []string{baseYAML, extraYAML},
+			wantNames: []string{baseSkill, extraSkill},
 		},
 	}
 
@@ -287,7 +287,7 @@ func TestGitFactory_Open_WithBasicAuth(t *testing.T) {
 
 	// Assert.
 	require.NoError(t, listErr)
-	assert.Equal(t, []string{baseYAML}, names(files))
+	assert.Equal(t, []string{baseSkill}, names(files))
 }
 
 func TestGitFactory_Open_UnknownRef(t *testing.T) {
@@ -387,6 +387,53 @@ func TestGitFactory_Open_ListArtifacts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitFactory_Open_ListExcludesBlobSiblings(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: a skills root holding a directory artifact alongside a stray blob
+	// sibling (a loose file). An artifact is a directory, so the blob must not
+	// surface in the listing — otherwise it would become a catalogue or install
+	// entry carrying a blob hash as its version.
+	repo := seedBlobSiblingRepo(t)
+	want := subtreeHash(t, repo, artifactGo)
+
+	fs, err := newGitFactory().Open(context.Background(), extension.WithURI(repo))
+	require.NoError(t, err)
+
+	// Act.
+	files, listErr := fs.List(context.Background(), rootSkills)
+
+	// Assert: only the directory artifact is listed, with its tree-object hash.
+	require.NoError(t, listErr)
+	assert.Equal(t, []string{skillGo}, names(files))
+	require.Len(t, files, 1)
+	assert.True(t, files[0].IsDirectory())
+	assert.Equal(t, want, files[0].Version())
+}
+
+// seedBlobSiblingRepo builds an on-disk repository whose skills root holds one
+// artifact directory and a stray blob sibling, returning its path for cloning.
+func seedBlobSiblingRepo(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	repo, err := gogit.PlainInit(dir, false)
+	require.NoError(t, err)
+
+	tree, err := repo.Worktree()
+	require.NoError(t, err)
+
+	for rel, body := range map[string]string{
+		"skills/sauron-go/SKILL.md": "go skill",
+		"skills/README.md":          "loose file at the artifact root",
+	} {
+		writeAndStage(t, tree, dir, rel, body)
+	}
+	commit(t, tree)
+
+	return dir
 }
 
 func TestGitFactory_Open_ListMissingDirectory(t *testing.T) {
@@ -588,7 +635,7 @@ func seedFixtureRepo(t *testing.T) string {
 	require.NoError(t, err)
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, rootSkills), 0o755))
-	writeAndStage(t, tree, dir, "skills/base.yaml", "base")
+	writeAndStage(t, tree, dir, "skills/base/SKILL.md", "base")
 	base := commit(t, tree)
 
 	head, err := repo.Head()
@@ -598,7 +645,7 @@ func seedFixtureRepo(t *testing.T) string {
 	require.NoError(t, repo.Storer.SetReference(plumbing.NewHashReference(release, base)))
 	require.NoError(t, tree.Checkout(&gogit.CheckoutOptions{Branch: release}))
 
-	writeAndStage(t, tree, dir, "skills/extra.yaml", "extra")
+	writeAndStage(t, tree, dir, "skills/extra/SKILL.md", "extra")
 	releaseCommit := commit(t, tree)
 
 	_, err = repo.CreateTag("v1", releaseCommit, nil)

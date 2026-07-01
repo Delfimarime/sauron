@@ -24,7 +24,7 @@ shows the single registry's fields, with column selection.
 ### Optional
 
 - FR-003: Where `--fields <list>` is provided, Sauron shall show those fields in
-  order, with the URI first.
+  order, with the source first.
 
 ### Unwanted behavior
 

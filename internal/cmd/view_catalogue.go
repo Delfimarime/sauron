@@ -39,19 +39,15 @@ func validateCatalogueSort(sort string) error {
 
 // renderCatalogue writes the name/kind table for the listed artifacts, then
 // always writes the paging line.
-func renderCatalogue(w io.Writer, result *usecase.ListCatalogueResult) error {
-	if err := catalogueTable(result).render(w); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("render table: %v", err))
-	}
-	if _, err := fmt.Fprintln(w, pagingLine(result)); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("write paging line: %v", err))
-	}
-
-	return nil
+func renderCatalogue(w io.Writer, result *usecase.ListCatalogueResponse) error {
+	ew := newErrWriter(w)
+	ew.record(catalogueTable(result).render(w))
+	ew.printf("%s\n", pagingLine(result))
+	return ew.toIOError("render catalogue")
 }
 
 // catalogueTable builds the name/kind table; every row carries the listing kind.
-func catalogueTable(result *usecase.ListCatalogueResult) table {
+func catalogueTable(result *usecase.ListCatalogueResponse) table {
 	rows := make([][]string, len(result.Items))
 	for i, name := range result.Items {
 		rows[i] = []string{name, string(result.Kind)}
@@ -62,7 +58,7 @@ func catalogueTable(result *usecase.ListCatalogueResult) table {
 
 // pagingLine renders the applied-paging report; an empty page reports zero
 // results, a populated page the inclusive from–to window.
-func pagingLine(result *usecase.ListCatalogueResult) string {
+func pagingLine(result *usecase.ListCatalogueResponse) string {
 	count := len(result.Items)
 	if count == 0 {
 		return fmt.Sprintf("showing 0 results (page %d, limit %d)", result.Page, result.Limit)

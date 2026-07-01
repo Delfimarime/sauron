@@ -15,8 +15,9 @@ Set the single global provider destination; migrate installed artifacts on chang
 ## Output
 
 On a change, the migration plan grouped under `skills:` and `agents:` with a
-summary count. Setting the already-active provider reports no change and exits
-`0`.
+summary count. A per-artifact migration failure is printed as a `!` line for the
+stranded artifact, and any migration failure yields a non-zero (exit 1) status.
+Setting the already-active provider reports no change and exits `0`.
 
 ## Example
 

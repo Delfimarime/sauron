@@ -13,7 +13,6 @@ import (
 
 	"github.com/alitto/pond/v2"
 	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -32,6 +31,8 @@ const (
 	acmeName          = "acme"
 	settingsFile      = "settings.yaml"
 	caseUnexpectedArg = "rejects an unexpected argument"
+	// versionOne is the fixture version shared across artifact test setups.
+	versionOne = "1.0.0"
 )
 
 // seedRegistries pins SAURON_HOME to a fresh temp dir and writes stream as the
@@ -288,35 +289,4 @@ func TestRunUseCase(t *testing.T) {
 		assert.Contains(t, err.Error(), "build application")
 		assert.False(t, ran, "exec must not run when the graph fails to build")
 	})
-}
-
-// TestBindFlags verifies each shared flag group registers its flags with the
-// documented defaults and binds them to its struct.
-func TestBindFlags(t *testing.T) {
-	// Arrange.
-	cmd := &cobra.Command{Use: "x"}
-	var listing listingFlags
-	var dry dryRunFlags
-	var timeout timeoutFlags
-	var kind transportFlags
-
-	// Act.
-	bindListingFlags(cmd, &listing)
-	bindDryRunFlags(cmd, &dry)
-	bindTimeoutFlags(cmd, &timeout)
-	bindTransportFlags(cmd, &kind)
-
-	// Assert: defaults bound onto the structs.
-	assert.Equal(t, "", listing.Search)
-	assert.Equal(t, "", listing.Sort)
-	assert.Equal(t, "asc", listing.Order)
-	assert.Empty(t, listing.Fields)
-	assert.False(t, dry.DryRun)
-	assert.Equal(t, 30*time.Second, timeout.Timeout)
-	assert.Equal(t, transportHTTP, kind.Transport)
-
-	// Assert: flags are registered on the command.
-	for _, name := range []string{flagSearch, flagSort, flagOrder, fieldsName, "dry-run", "timeout", flagTransport} {
-		assert.NotNilf(t, cmd.Flags().Lookup(name), "flag %q registered", name)
-	}
 }

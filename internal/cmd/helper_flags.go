@@ -37,23 +37,6 @@ func (f *transportFlags) validate() error {
 	return fmt.Errorf("%w: transport must be one of %s", errInvalidFlag, strings.Join(transportValues, "|"))
 }
 
-// listingFlags groups the filter, sort, and column flags shared by list and
-// describe commands.
-type listingFlags struct {
-	Search string
-	Sort   string
-	Order  string
-	Fields []string
-}
-
-func bindListingFlags(cmd *cobra.Command, f *listingFlags) {
-	flags := cmd.Flags()
-	flags.StringVar(&f.Search, "search", "", "case-insensitive substring filter")
-	flags.StringVar(&f.Sort, "sort", "", "sort field")
-	flags.StringVar(&f.Order, "order", "asc", "sort direction (asc|desc)")
-	flags.StringSliceVar(&f.Fields, "fields", nil, "columns to display, in order")
-}
-
 // the sort directions a listing accepts.
 const (
 	orderAsc  = "asc"

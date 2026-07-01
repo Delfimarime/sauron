@@ -44,3 +44,10 @@ directories; a skill or agent is the directory under one of those.
   shall fail with a runtime error.
 - FR-007: If the provided ref cannot be resolved in the repository, then Sauron
   shall fail with a runtime error.
+
+## Notes
+
+- A branch or tag ref uses a shallow in-memory clone, while a commit-SHA ref forces
+  a full-history clone (costlier).
+- The revision is resolved in the order **branch → tag → commit**; an ambiguous name
+  resolves as a branch first.

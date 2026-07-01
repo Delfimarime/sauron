@@ -65,10 +65,10 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act.
-			input := usecase.SetRegistryInput{
-				URI:           tt.args[0],
+			input := usecase.SetRegistryRequest{
+				Source:        tt.args[0],
 				Transport:     tt.flags.Transport,
-				Ref:           tt.flags.Revision,
+				Revision:      tt.flags.Revision,
 				Username:      tt.flags.Username,
 				Password:      tt.flags.Password,
 				SSHKey:        tt.flags.SSHKey,
@@ -80,9 +80,9 @@ func TestNewSetRegistryInputMapsFlags(t *testing.T) {
 			}
 
 			// Assert.
-			assert.Equal(t, regURI, input.URI)
+			assert.Equal(t, regURI, input.Source)
 			assert.Equal(t, tt.wantKind, input.Transport)
-			assert.Equal(t, tt.wantRef, input.Ref)
+			assert.Equal(t, tt.wantRef, input.Revision)
 			assert.Equal(t, tt.wantUser, input.Username)
 			assert.Equal(t, tt.wantTLS, input.SkipTLSVerify)
 			assert.Equal(t, tt.wantSSH, input.SSHKey)
@@ -103,7 +103,7 @@ func TestSetRegistryRejectsInvalidKind(t *testing.T) {
 	// Assert.
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errInvalidFlag)
-	assert.Equal(t, exitUsage, exitCode(err))
+	assert.Equal(t, exitUsage, ExitCode(err))
 }
 
 // TestSetRegistryCommand exercises the assembled subcommand: flag binding, the
@@ -154,7 +154,7 @@ func TestSetRegistryCommand(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.wantUsage {
-					assert.Equal(t, exitUsage, exitCode(err))
+					assert.Equal(t, exitUsage, ExitCode(err))
 				}
 				return
 			}
@@ -200,7 +200,7 @@ func TestExitCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, exitCode(tt.err))
+			assert.Equal(t, tt.want, ExitCode(tt.err))
 		})
 	}
 }
@@ -230,7 +230,7 @@ func TestExitCodeMapper(t *testing.T) {
 func TestSetRegistryEndToEnd(t *testing.T) {
 	// Arrange: an http source that lists one skill artifact.
 	source := startHTTPRegistry(t,
-		[]artifactSummary{{Name: regName, Version: "1.0.0", Size: 1024}},
+		[]artifactSummary{{Name: regName, Version: versionOne, Size: 1024}},
 		nil,
 	)
 	t.Setenv("SAURON_HOME", t.TempDir())

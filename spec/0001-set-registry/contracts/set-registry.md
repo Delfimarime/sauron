@@ -38,7 +38,7 @@ applicable set per transport is fixed by the
 
 ## Output
 
-On success, one confirmation line on stdout naming the configured URI and its
+On success, one confirmation line on stdout naming the source and its
 transport. No output is written to stdout on failure.
 
 ## Example
@@ -54,4 +54,4 @@ registry set to git@github.com:acme/artifacts.git (git)
 |---|---|
 | `0` | The registry was validated and persisted (creating or replacing) |
 | `2` | Missing/invalid arguments or flags |
-| `1` | The source is unreachable, or it hosts no artifact |
+| `1` | The source is unreachable, it hosts no artifact, the `--revision` cannot be resolved, or persisting it fails (IO) |

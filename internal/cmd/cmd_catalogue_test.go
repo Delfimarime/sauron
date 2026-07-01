@@ -42,7 +42,7 @@ func seedCatalogueRegistry(t *testing.T) {
 	t.Setenv("SAURON_HOME", home)
 
 	source := startHTTPRegistry(t, nil,
-		[]artifactSummary{{Name: "code-reviewer", Version: "1.0.0", Size: 2048}},
+		[]artifactSummary{{Name: "code-reviewer", Version: versionOne, Size: 2048}},
 	)
 
 	stream := "apiVersion: sauron.raitonbl.com/v1\nkind: Registry\nmetadata:\n  name: " + acmeName +
@@ -83,7 +83,7 @@ func TestCatalogueGroup(t *testing.T) {
 	assert.Equal(t, subcmdCatalogue, cmd.Name())
 	assert.Nil(t, cmd.RunE, "the group has no run behaviour")
 	require.NoError(t, err)
-	assert.Equal(t, exitOK, exitCode(err))
+	assert.Equal(t, exitOK, ExitCode(err))
 
 	names := map[string]bool{}
 	for _, sub := range cmd.Commands() {
@@ -200,7 +200,7 @@ func TestListCatalogueRejectsBadInput(t *testing.T) {
 
 			// Assert.
 			require.Error(t, err)
-			assert.Equal(t, exitUsage, exitCode(err))
+			assert.Equal(t, exitUsage, ExitCode(err))
 		})
 	}
 }
@@ -232,7 +232,7 @@ func TestListCatalogueEndToEnd(t *testing.T) {
 
 		// Assert.
 		require.Error(t, err)
-		assert.Equal(t, exitError, exitCode(err))
+		assert.Equal(t, exitError, ExitCode(err))
 	})
 }
 
@@ -251,6 +251,6 @@ func TestListCatalogueUnreachableSource(t *testing.T) {
 
 	// Assert.
 	require.Error(t, err)
-	assert.Equal(t, exitError, exitCode(err))
-	assert.NotEqual(t, exitUsage, exitCode(err))
+	assert.Equal(t, exitError, ExitCode(err))
+	assert.NotEqual(t, exitUsage, ExitCode(err))
 }

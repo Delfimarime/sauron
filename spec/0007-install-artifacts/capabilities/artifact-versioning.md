@@ -37,7 +37,7 @@ source's current `version`, and sync/upgrade move to the source's latest.
 
 ### Unwanted behavior
 
-- FR-005: If an `http` registry offers an artifact that declares no version, then
+- FR-005: If a registry offers an artifact that declares no version, then
   Sauron shall report it and skip it, continuing with the remaining artifacts.
 
 ## Notes
@@ -46,3 +46,11 @@ source's current `version`, and sync/upgrade move to the source's latest.
 none is reserved (YAGNI). Because the `version` is read from the source and nothing is
 computed locally, Sauron detects upstream change but not local edits to an installed
 artifact.
+
+`install`, `sync`, and `upgrade` share one internal reconcile step that computes the
+add/update/remove/unchanged plan by comparing each artifact's `version` against the
+tracked set, so [sync](../../0011-sync/spec.md) and
+[upgrade](../../0012-upgrade/spec.md) reference one mechanism.
+
+A `git` artifact's `version` (the directory's tree hash) is never empty, so only an
+`http` artifact can trigger FR-005.

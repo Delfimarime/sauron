@@ -84,8 +84,8 @@ spec:
   are not world- or group-readable.
 - **Audit timestamps are writer-stamped.** Whenever Sauron writes a document it
   stamps `metadata.createdAt` (on first create) and
-  `metadata.lastUpdatedAt` (on every write) from an injected clock as
-  RFC3339 UTC; these fields are never hand-edited and are tolerated absent on read.
+  `metadata.lastUpdatedAt` (on every write), stamped by the writing use case
+  (RFC3339 UTC); these fields are never hand-edited and are tolerated absent on read.
 - **Validation is on read, not on app-authored write.** Documents are validated
   against their schema when loaded (the home files are hand-editable); documents
   Sauron itself authors are constructed from typed values and written without
@@ -122,9 +122,9 @@ meaning layered on top.
   computed: the directory's git tree hash for `git`, the declared object version
   for `http`. `sync`/`upgrade` compare it to detect upstream change; it is always
   present.
-- `spec.path` is the exact installed location (`sauron-<name>` under the provider's
-  directory for the kind), so removal and provider migration are precise and
-  independent of recomputing the naming scheme.
+- `spec.path` is the exact installed location — `<kind>/sauron-<name>` relative to
+  the provider root (e.g. `skills/sauron-<name>`) — so removal and provider
+  migration are precise and independent of recomputing the naming scheme.
 
 ### `Provider` — `settings.yaml`
 

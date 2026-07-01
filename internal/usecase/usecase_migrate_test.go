@@ -15,7 +15,7 @@ import (
 
 const (
 	claudeDir   = ".claude"
-	zencoderDir  = ".zencoder"
+	zencoderDir = ".zencoder"
 	skillPath   = "sauron-acme-go-style/skill.yaml"
 	missingPath = "sauron-missing/skill.yaml"
 )
@@ -69,7 +69,7 @@ func TestMigrateUseCase_Execute_MovesArtifact(t *testing.T) {
 	require.NoError(t, afero.WriteFile(f.providerFs, claudeDir+"/"+skillPath, []byte("body"), 0o644))
 
 	// Act.
-	result, err := f.uc.Execute(context.Background(), MigrateInput{From: types.ProviderClaude, To: types.ProviderZencoder})
+	result, err := f.uc.Execute(context.Background(), MigrateRequest{From: types.ProviderClaude, To: types.ProviderZencoder})
 
 	// Assert: moved, source gone, destination present.
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestMigrateUseCase_Execute_PartialFailure(t *testing.T) {
 	require.NoError(t, afero.WriteFile(f.providerFs, claudeDir+"/"+skillPath, []byte("body"), 0o644))
 
 	// Act.
-	result, err := f.uc.Execute(context.Background(), MigrateInput{From: types.ProviderClaude, To: types.ProviderZencoder})
+	result, err := f.uc.Execute(context.Background(), MigrateRequest{From: types.ProviderClaude, To: types.ProviderZencoder})
 
 	// Assert: one moved, one failure recorded.
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestMigrateUseCase_Execute_EmptyTrack(t *testing.T) {
 	f := newMigrateFixture(t, "")
 
 	// Act.
-	result, err := f.uc.Execute(context.Background(), MigrateInput{From: types.ProviderClaude, To: types.ProviderZencoder})
+	result, err := f.uc.Execute(context.Background(), MigrateRequest{From: types.ProviderClaude, To: types.ProviderZencoder})
 
 	// Assert.
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestMigrateUseCase_Execute_ReadError(t *testing.T) {
 	f := newMigrateFixture(t, "\tnot: [valid")
 
 	// Act.
-	_, err := f.uc.Execute(context.Background(), MigrateInput{From: types.ProviderClaude, To: types.ProviderZencoder})
+	_, err := f.uc.Execute(context.Background(), MigrateRequest{From: types.ProviderClaude, To: types.ProviderZencoder})
 
 	// Assert.
 	requireErrType(t, err, TypeIO)

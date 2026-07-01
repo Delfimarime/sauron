@@ -12,18 +12,6 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/source"
 )
 
-// CatalogueKind is the kind of artifact a catalogue listing browses; it fixes
-// the source root listed and the projection applied.
-type CatalogueKind string
-
-// The kinds a catalogue listing can browse.
-const (
-	// CatalogueSkill browses the skills the registry offers under skills.
-	CatalogueSkill CatalogueKind = "skill"
-	// CatalogueAgent browses the agents the registry offers under agents.
-	CatalogueAgent CatalogueKind = "agent"
-)
-
 // the source roots holding each artifact kind's manifests.
 const (
 	rootSkills = "skills"
@@ -64,17 +52,14 @@ func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListCatalogueUs
 // Execute runs the validate → get → open → list → collect pipeline, returning a
 // classified *Error on the first failing step and otherwise the artifact names
 // with their paging window.
-func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInput) (*ListCatalogueResult, error) {
+func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueRequest) (*ListCatalogueResponse, error) {
 	if err := uc.validate(in); err != nil {
 		return nil, err
 	}
 
-	registry, err := uc.registries.Get(ctx)
+	registry, err := requireRegistry(ctx, uc.registries)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read registry: %v", err))
-	}
-	if registry == nil {
-		return nil, NewNotFoundError("no registry is configured")
+		return nil, err
 	}
 
 	fs, err := uc.open.Execute(ctx, *registry)
@@ -89,11 +74,11 @@ func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInp
 
 	items := uc.items(files)
 	uc.logger.Info("catalogue listed",
-		zap.String(telemetry.FieldRegistryURI, registry.Spec.Source),
+		zap.String(telemetry.FieldRegistrySource, registry.Spec.Source),
 		zap.Int(telemetry.FieldArtifactCount, len(items)),
 	)
 
-	return &ListCatalogueResult{
+	return &ListCatalogueResponse{
 		Kind:   in.Kind,
 		Items:  items,
 		Page:   in.Page,
@@ -105,7 +90,7 @@ func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueInp
 // validate checks the inputs, returning a usage *Error for any out-of-range
 // value. Sort and Order are validated by the handler boundary before Execute,
 // so the use case trusts them here.
-func (uc *ListCatalogueUseCase) validate(in ListCatalogueInput) error {
+func (uc *ListCatalogueUseCase) validate(in ListCatalogueRequest) error {
 	if _, ok := catalogueRoots[in.Kind]; !ok {
 		return NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
 	}
@@ -121,7 +106,7 @@ func (uc *ListCatalogueUseCase) validate(in ListCatalogueInput) error {
 
 // list opens the source root for the kind and returns its entries, paging at the
 // source with the computed offset.
-func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueInput, fs source.FileSystem) ([]source.File, error) {
+func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueRequest, fs source.FileSystem) ([]source.File, error) {
 	opts := []source.Option{
 		source.WithSort(in.Sort),
 		source.WithOrder(in.Order),
@@ -150,30 +135,4 @@ func (uc *ListCatalogueUseCase) items(files []source.File) []string {
 	}
 
 	return names
-}
-
-// ListCatalogueResult is the presentation-agnostic outcome of browsing the
-// catalogue: the artifact names of the kind and the paging window applied.
-type ListCatalogueResult struct {
-	Kind   CatalogueKind
-	Items  []string
-	Page   int64
-	Limit  int64
-	Offset int64
-}
-
-// ListCatalogueInput is the per-invocation input for browsing the registry's
-// catalogue of one kind.
-type ListCatalogueInput struct {
-	Kind   CatalogueKind
-	Search string
-	Sort   string
-	Order  string
-	Page   int64
-	Limit  int64
-}
-
-// offset translates the 1-based page and page size to a source offset.
-func (in ListCatalogueInput) offset() int64 {
-	return (in.Page - 1) * in.Limit
 }

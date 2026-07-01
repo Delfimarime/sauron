@@ -68,7 +68,7 @@
         "timeout": {
           "type": "string",
           "description": "Go duration string bounding network operations (default 30s).",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$"
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
         }
       }
     }

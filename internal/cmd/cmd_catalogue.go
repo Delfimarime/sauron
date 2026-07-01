@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -23,17 +22,12 @@ type catalogueFlags struct {
 // subcommands. It is a pure command group with no run behaviour: a bare
 // invocation prints help and exits 0; a kind noun selects the leaf that lists.
 func Catalogue() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:           "catalogue",
-		Short:         "Browse what the registry offers",
-		Long:          "Catalogue lists the skills or agents the registry offers, fetched live from its source.",
-		SilenceUsage:  true,
-		SilenceErrors: true,
-	}
-	cmd.AddCommand(
+	return newGroup(
+		"catalogue",
+		"Browse what the registry offers",
+		"Catalogue lists the skills or agents the registry offers, fetched live from its source.",
 		ListCatalogueSkill(), ListCatalogueAgent(),
 	)
-	return cmd
 }
 
 // ListCatalogueSkill builds the `skill` subcommand of `catalogue`.
@@ -69,10 +63,7 @@ func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *c
 			return listCatalogue(cmd.Context(), kind, &flags, cmd.OutOrStdout())
 		},
 	}
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return fmt.Errorf("%w: %w", errInvalidFlag, err)
-	})
-
+	silenceFlagErrors(cmd)
 	bindCatalogueFlags(cmd, &flags)
 
 	return cmd
@@ -96,7 +87,7 @@ func listCatalogue(ctx context.Context, kind usecase.CatalogueKind, flags *catal
 		return err
 	}
 
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListCatalogueUseCase) (*usecase.ListCatalogueResult, error) {
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.ListCatalogueUseCase) (*usecase.ListCatalogueResponse, error) {
 		return uc.Execute(runCtx, in)
 	})
 	if err != nil {
@@ -110,18 +101,18 @@ func listCatalogue(ctx context.Context, kind usecase.CatalogueKind, flags *catal
 // input, defaulting and validating the view options (--sort, --order) at this
 // boundary; an invalid value yields a usage error before the use case runs.
 // --search is a free substring and is not validated.
-func newListCatalogueInput(kind usecase.CatalogueKind, flags *catalogueFlags) (usecase.ListCatalogueInput, error) {
+func newListCatalogueInput(kind usecase.CatalogueKind, flags *catalogueFlags) (usecase.ListCatalogueRequest, error) {
 	sort := defaultCatalogueSort(flags.Sort)
 	if err := validateCatalogueSort(sort); err != nil {
-		return usecase.ListCatalogueInput{}, err
+		return usecase.ListCatalogueRequest{}, err
 	}
 
 	order := defaultOrder(flags.Order)
 	if err := validateOrder(order); err != nil {
-		return usecase.ListCatalogueInput{}, err
+		return usecase.ListCatalogueRequest{}, err
 	}
 
-	return usecase.ListCatalogueInput{
+	return usecase.ListCatalogueRequest{
 		Kind:   kind,
 		Search: flags.Search,
 		Sort:   sort,

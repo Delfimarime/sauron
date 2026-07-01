@@ -8,53 +8,44 @@ import (
 )
 
 // renderSetProvider writes the outcome of setting the provider: the migration
-// plan grouped under skills:/agents: with a summary line on a change, or a
-// no-change notice when the provider was already active.
-func renderSetProvider(w io.Writer, result *usecase.SetProviderResult) error {
+// plan grouped under skills:/agents: with any migration failures and a summary
+// line on a change, or a no-change notice when the provider was already active.
+func renderSetProvider(w io.Writer, result *usecase.SetProviderResponse) error {
+	ew := newErrWriter(w)
+
 	if result.Unchanged {
-		return writeLine(w, fmt.Sprintf("provider already set to %q\n", result.Provider))
+		ew.printf("provider already set to %q\n", result.Provider)
+		return ew.toIOError("write report")
 	}
 
-	if err := renderGroup(w, "skills", result.Skills); err != nil {
-		return err
-	}
-	if err := renderGroup(w, "agents", result.Agents); err != nil {
-		return err
+	renderGroupInto(ew, "skills", result.Skills)
+	renderGroupInto(ew, "agents", result.Agents)
+
+	for _, f := range result.Failures {
+		ew.printf("  ! %s: %s\n", f.Artifact.Metadata.Name, f.Reason)
 	}
 
-	return writeLine(w, summaryLine(result))
+	ew.printf("%s", summaryLine(result))
+	return ew.toIOError("write report")
 }
 
-// renderGroup writes one named plan group with a `~` marker per entry, or
-// nothing when the group is empty.
-func renderGroup(w io.Writer, label string, names []string) error {
+// renderGroupInto writes one named plan group with a `~` marker per entry into
+// ew, or does nothing when the group is empty.
+func renderGroupInto(ew *errWriter, label string, names []string) {
 	if len(names) == 0 {
-		return nil
+		return
 	}
-	if err := writeLine(w, label+":\n"); err != nil {
-		return err
-	}
+	ew.printf("%s:\n", label)
 	for _, name := range names {
-		if err := writeLine(w, fmt.Sprintf("  ~ %s\n", name)); err != nil {
-			return err
-		}
+		ew.printf("  ~ %s\n", name)
 	}
-	return nil
 }
 
 // summaryLine builds the closing confirmation, appending the migrated count only
 // when at least one artifact moved.
-func summaryLine(result *usecase.SetProviderResult) string {
+func summaryLine(result *usecase.SetProviderResponse) string {
 	if result.Migrated == 0 {
 		return fmt.Sprintf("provider set to %q\n", result.Provider)
 	}
 	return fmt.Sprintf("provider set to %q; %d artifacts migrated\n", result.Provider, result.Migrated)
-}
-
-// writeLine writes s, classifying a writer failure as an io error.
-func writeLine(w io.Writer, s string) error {
-	if _, err := fmt.Fprint(w, s); err != nil {
-		return usecase.NewIOError(fmt.Sprintf("write report: %v", err))
-	}
-	return nil
 }
