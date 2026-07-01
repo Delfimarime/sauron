@@ -6,6 +6,8 @@ import "github.com/spf13/cobra"
 func Unset() *cobra.Command {
 	return newCommand("unset", "Remove a configured resource",
 		withLong("Unset removes a configured resource, such as the registry, from Sauron. Installed artifacts are preserved."),
-		withSubcommands(UnsetRegistry()),
+		withSubcommands(
+			UnsetRegistry(),
+		),
 	)
 }

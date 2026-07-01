@@ -37,7 +37,7 @@ cmd/
 internal/
   cmd/
     cmd_root.go            root cobra command
-    helper.go              NewApp() builder and shared command helpers
+    helper.go              NewApp() builder, newCommand()/commandOption scaffold, and shared command helpers
     helper_flags.go        shared flag-group structs and their bind functions
     cmd_<verb>.go          a command group (e.g. cmd_set.go, cmd_list.go)
     cmd_<verb>_<noun>.go   a command in that group (e.g. cmd_set_registry.go)
@@ -196,6 +196,28 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   (`--fields`, `--sort`) are validated at this boundary, yielding a usage error
   before the use case runs. `Serve()`/`serve()` names apply only to a server's
   `serve` command, never to an action command.
+- **The shared scaffold is `newCommand`.** Every command builder — leaf or
+  group — calls `internal/cmd/helper.go`'s
+  `newCommand(use, short string, opts ...commandOption) *cobra.Command`, which
+  wires the boilerplate every command needs (silenced usage/errors, flag-error
+  wrapping) and applies the supplied options. `use` and `short` are positional —
+  every command needs both, no exceptions; everything else is an option,
+  individually omittable, so this one constructor serves both a leaf command and
+  a pure group:
+  - `withLong(long string)` — the long description.
+  - `withArgs(args cobra.PositionalArgs)` — the positional-args policy, wrapped so
+    a violation is a usage error; a command that omits it carries no restriction
+    — the shape a pure group needs, since cobra routes an unmatched subcommand
+    argument to it.
+  - `withFlags(bind func(*cobra.Command))` — binds the command's own flags.
+  - `withRunE(run func(ctx context.Context, args []string, stdout io.Writer) error)` —
+    wires the cobra-free handler as `RunE`. A caller that needs a bound value (a
+    kind, a flag struct) closes over it in its own `bind`/`run` closures rather
+    than threading it through `newCommand`'s signature — e.g.
+    `newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string)`
+    closes over `kind` and its `listFlags`.
+  - `withSubcommands(subs ...*cobra.Command)` — attaches children; a pure group
+    uses this in place of `withRunE`, never both on the same command.
 - **One file per command, named `cmd_<name>.go`.** A command's builder and handler
   live together in `cmd_<name>.go`, where `<name>` is the command path — `cmd_set.go`
   for the `set` group, `cmd_set_registry.go` for `set registry`, `cmd_root.go` for the
@@ -203,11 +225,18 @@ shape is canonical — the [use-case](#use-case-orchestration) and
   — the `view_<name>.go` that renders that command's result.
 - **Flags are bound into structs** in `internal/cmd`; command logic never reads
   flags off the `*cobra.Command`. Flags shared across commands are defined once as
-  small, concern-grouped structs (listing, paging, dry-run, timeout) in
-  `internal/cmd/helper_flags.go`, each paired with a `bind<Group>Flags` function;
-  a command's own `<command>Flags` struct embeds the groups it shares and adds its
-  command-specific fields. Flag values are not bound to viper — they pass directly
-  to the handler, independent of the persisted `internal/config`.
+  small, concern-grouped structs in `internal/cmd/helper_flags.go` —
+  `transportFlags`, `pagingFlags`, `listFlags` (search/sort/order + paging, shared
+  by every listing command), `fieldsFlags` (`--fields`, shared by every
+  describe/list command with field selection), `dryRunFlags`, `timeoutFlags` —
+  each paired with a `bind<Group>Flags` function. A command's own
+  `<command>Flags` struct embeds the groups it shares and adds its
+  command-specific fields — but when a command needs nothing beyond one shared
+  group, it binds that group directly (e.g. `DescribeRegistry` binds a bare
+  `fieldsFlags`) instead of declaring a `<command>Flags` wrapper that adds
+  nothing (see [no pointless wrappers](#coding-standards)). Flag values are not
+  bound to viper — they pass directly to the handler, independent of the
+  persisted `internal/config`.
 - **One error-reporting site.** A handler returns a **classified error** and never
   prints it; `cmd/main.go` is the single place that maps the error to an exit code
   and writes exactly one `error: <message>` line to stderr — no per-handler print
@@ -296,33 +325,31 @@ func NewListUseCase[I, T any](resolve func(context.Context, I) (Lister[T], ListW
 `source.Option` (`pkg/sauron/source`) is the shared query vocabulary — the same
 `WithSearch`/`WithSort`/`WithOrder`/`WithOffset`/`WithLimit` functional options a
 `source.FileSystem` already accepts — reused as `Lister[T]`'s query language
-regardless of what resolves it. A concrete listing use case (`ListCatalogueUseCase`,
-`ListArtifactsUseCase`, …) **wraps** a `*ListUseCase[I, T]` rather than being one:
-its constructor builds `resolve` as a closure over its injected collaborators —
-the per-invocation pipeline that used to be `Execute`'s body (validate the kind,
-open the registry live, or nothing for local state) — ending in a small `Lister[T]`
-adapter (e.g. `catalogueLister`, `trackLister`) bound to the resolved source, plus
-the `ListWindow` to fetch. `ListUseCase[I, T].Execute` then fetches and pages
-through it via the package-level `listWith[T]` helper. The wrapping type's own
-`Execute` calls the inner `ListUseCase.Execute` and projects the bare
-`ListResult[T]` onto its feature's presentation-agnostic response (adding back
-whatever `I` doesn't already carry, e.g. `Kind`) — the generic type returns
-`ListResult[T]`, never a feature-specific `*P` directly, so `UseCase[I, P]`'s
-"one shape" still holds at the command-facing boundary. The adapter alone
-decides the *mechanism* — push the options to a remote call, or apply them over
-an in-memory slice from a `storage` read — and that decision never leaks past
-the adapter into `listWith`, `ListUseCase`, or the caller.
+regardless of what resolves it. `New<Name>UseCase`'s body *is* the `resolve`
+closure: the per-invocation pipeline that used to be a bespoke `Execute` body
+(validate the kind, open the registry live, or nothing for local state), ending
+in a small `Lister[T]` adapter (e.g. `catalogueLister`, `trackLister`) bound to
+the resolved source, plus the `ListWindow` to fetch — and it returns
+`NewListUseCase(resolve)` **directly**, per
+[no pointless wrappers](#coding-standards): `NewListCatalogueUseCase` returns
+`*ListUseCase[ListCatalogueRequest, string]`, not a wrapping
+`*ListCatalogueUseCase` around one. `ListCatalogueResponse` is correspondingly a
+**type alias** (`= ListResult[string]`), not a struct — the caller already has
+`Kind` before `Execute` runs, so the response has nothing to add back. A future
+listing use case earns a dedicated wrapping type — with its own `Execute`
+projecting `ListResult[T]` onto a richer `*P` — only when its response genuinely
+needs a field the caller doesn't already have; until then, `ListUseCase[I, T]`
+returning `ListResult[T]` directly satisfies `UseCase[I, P]`'s "one shape" on
+its own. The adapter alone decides the *mechanism* — push the options to a
+remote call, or apply them over an in-memory slice from a `storage` read — and
+that decision never leaks past the adapter into `listWith`, `ListUseCase`, or
+the caller.
 
-The command layer mirrors this with `internal/cmd/helper.go`'s
-`newListCommand(use, short, long string, bind func(*cobra.Command),
-run func(ctx context.Context, stdout io.Writer) error) *cobra.Command` — the
-cobra scaffold (no positional args, silenced usage/errors, flag-error wrapping)
-every listing leaf command builds on. It carries no notion of "kind" or any
-other per-feature identity, so it is not generic: a caller that needs a kind (or
-any other bound value, e.g. `catalogueFlags`) closes over it in its own `bind`/
-`run` closures — exactly how `newCatalogueCommand(kind usecase.CatalogueKind,
-use, short, long string)` closes over `kind` and its own `flags` — rather than
-threading it through the shared constructor's signature (see
+The command layer mirrors this: a listing leaf command's builder (e.g.
+`newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string)`)
+closes over its kind and its `listFlags`-based flag struct in the `withFlags`/
+`withRunE` options it passes to the shared `newCommand` — which itself carries
+no notion of "kind" or any other per-feature identity (see
 [Command structure](#command-structure)).
 
 ### Layout & naming
@@ -330,6 +357,23 @@ threading it through the shared constructor's signature (see
 `internal/usecase` exposes `NewFxOptions() fx.Option`, through which use cases are
 provided with their `pkg/` ports, the [`storage`](#state-storage) stores, and the
 logger. Types are named `<Name>UseCase`; each lives in `usecase_<name>.go`.
+
+**Provided by interface, never by concrete type.** `NewFxOptions()` provides
+every use case via `fx.Annotate(New<Name>UseCase, fx.As(new(UseCase[I, P])))` —
+the concrete `*<Name>UseCase` (or generic `*ListUseCase[I, T]`) never enters the
+container, only its `UseCase[I, P]` interface. A consumer therefore depends on
+the shape it actually calls (`Execute`), never the implementing type — a
+composing use case (e.g. `SetProviderUseCase` depends on
+`UseCase[MigrateRequest, MigrateResponse]`, never `*MigrateUseCase`) and the
+command layer's `runUseCase` alike. This is why dropping
+`NewListCatalogueUseCase`'s wrapping struct in favor of returning the generic
+`*ListUseCase[I, T]` directly (see [Listing use cases](#listing-use-cases)
+above) landed without touching a single `cmd_*.go` file: the interface the
+command layer already depended on never changed.
+`OpenRegistryUseCase` is the one exception, kept a bare `fx.Provide`: its
+bespoke interface (`Execute` returns a `source.FileSystem`, not a `*P`) is
+outside the generic `UseCase[I, P]` shape (see the "Resource-acquiring use
+cases" bullet under [Use Case orchestration](#use-case-orchestration) above).
 
 The cobra **handler** that drives a use case — its naming and the builder/handler
 split — is fixed under [Command structure](#command-structure). It maps the flag
@@ -425,6 +469,16 @@ addition:
   Use the standard library directly and exercise it through the real graph or
   `t.Setenv`; reserve interfaces and injection for genuine production
   collaborators.
+- **No pointless wrapper types.** A struct or response type that does nothing but
+  embed one shared piece — adding no field, no method, no behavior — is not
+  created; the shared piece is used directly. A response needing nothing beyond
+  a generic result is a **type alias** (`type XResponse = ListResult[T]`), not a
+  wrapper struct with a projection step; a flags struct needing nothing beyond
+  one shared group binds that group directly, not a `<command>Flags{ sharedGroup
+  }` that only forwards it. The `<Name>UseCase`/`<command>Flags` naming
+  conventions elsewhere in this contract name a *shape* a feature may need, not
+  a type every feature must declare — a feature that needs nothing beyond the
+  shared shape uses it as-is.
 
 ## Telemetry & logging
 

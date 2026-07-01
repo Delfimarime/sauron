@@ -17,7 +17,9 @@ import (
 func Install() *cobra.Command {
 	return newCommand("install", "Install artifacts from the registry",
 		withLong("Install fetches and records named skills or agents from the configured registry into the active provider."),
-		withSubcommands(InstallSkill(), InstallAgent()),
+		withSubcommands(
+			InstallSkill(), InstallAgent(),
+		),
 	)
 }
 

@@ -6,6 +6,8 @@ import "github.com/spf13/cobra"
 func Set() *cobra.Command {
 	return newCommand("set", "Configure a resource",
 		withLong("Set configures a resource, such as the registry, with Sauron."),
-		withSubcommands(SetRegistry(), SetProvider()),
+		withSubcommands(
+			SetRegistry(), SetProvider(),
+		),
 	)
 }

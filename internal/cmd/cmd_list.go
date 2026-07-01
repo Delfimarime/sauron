@@ -6,6 +6,8 @@ import "github.com/spf13/cobra"
 func List() *cobra.Command {
 	return newCommand("list", "List what is available to Sauron",
 		withLong("List shows what is available to Sauron, such as the registry's catalogue."),
-		withSubcommands(Catalogue()),
+		withSubcommands(
+			Catalogue(),
+		),
 	)
 }

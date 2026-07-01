@@ -15,7 +15,9 @@ import (
 func Catalogue() *cobra.Command {
 	return newCommand("catalogue", "Browse what the registry offers",
 		withLong("Catalogue lists the skills or agents the registry offers, fetched live from its source."),
-		withSubcommands(ListCatalogueSkill(), ListCatalogueAgent()),
+		withSubcommands(
+			ListCatalogueSkill(), ListCatalogueAgent(),
+		),
 	)
 }
 
