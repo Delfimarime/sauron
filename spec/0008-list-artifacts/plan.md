@@ -18,7 +18,7 @@ paging line and exits 0 (FR-006). An unreadable `track.yaml` is a runtime error
 (FR-007); missing/invalid flags exit 2 (FR-008).
 
 **This is the second use of the shared listing seam, not a one-off.** The
-[architecture contract's "Listing use cases"](../contracts/architecture.md#listing-use-cases)
+[use case contract's "Listing use cases"](../contracts/use-case.md#listing-use-cases)
 section — landed ahead of this feature, together with `list catalogue`'s
 refactor onto it — fixes the generic `ListUseCase[I, T]`
 (`internal/usecase/list.go`, composing `Lister[T]`/`ListWindow`/`ListResult[T]`/

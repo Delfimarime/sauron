@@ -61,8 +61,10 @@ Every spec declares one of two types:
   [terminal UI contract](contracts/terminal-ui.md) (the interactive surface), the
   [state data contract](contracts/state.md) (the schema of every document Sauron
   persists), the [architecture contract](contracts/architecture.md) (code
-  structure and wiring), the [delivery contract](contracts/delivery.md)
-  (build, gates, CI/CD, versioning), and the
+  structure and wiring — specialized by the [use case
+  contract](contracts/use-case.md), the [testing contract](contracts/testing.md),
+  and the [dependencies contract](contracts/dependencies.md)), the [delivery
+  contract](contracts/delivery.md) (build, gates, CI/CD, versioning), and the
   [HTTP Registry API contract](contracts/registry-http-api.oas3.yaml) (the REST
   API an `http` registry server implements).
 - Project-level ADRs — cross-cutting decisions owned by no single feature (e.g.

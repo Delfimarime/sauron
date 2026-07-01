@@ -82,5 +82,5 @@ All three decorations are valid SemVer pre-release identifiers (hyphen-prefixed)
 so the artifact label remains SemVer-parseable.
 
 `task`, `golangci-lint`, `trivy`, and `jq` are development/CI tooling, not module
-dependencies, so they are absent from the architecture contract's
-[approved-dependency table](architecture.md#approved-dependencies).
+dependencies, so they are absent from the
+[approved-dependency table](dependencies.md#approved-dependencies).

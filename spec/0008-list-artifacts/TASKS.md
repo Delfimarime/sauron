@@ -10,7 +10,7 @@ The shared listing foundation this feature builds on — `internal/usecase/list.
 `ListUseCase[I, T]`), `internal/cmd/helper.go`'s `newListCommand` (not generic —
 carries no "kind" of its own; a caller closes over its own bound values in the
 `bind`/`run` closures it passes in), the
-[architecture contract's "Listing use cases"](../contracts/architecture.md#listing-use-cases)
+[use case contract's "Listing use cases"](../contracts/use-case.md#listing-use-cases)
 section, `list catalogue`'s refactor onto both, and the shared `pagingLine` in
 `internal/cmd/view_helper.go` — is **already landed**, ahead of this task
 breakdown. No task here builds it; T2 wraps `ListUseCase[I, T]`, T3 calls

@@ -79,5 +79,5 @@ infrastructure layout below — when they conflict, this skill wins.
    only `pkg/`, `depguard`-banned from `internal/`); it does **not** follow Use
    Case or ports-and-adapters. See the
    [`sauron-implementing-integration-tests`](../sauron-implementing-integration-tests/SKILL.md)
-   skill and the architecture contract's
-   [Integration tests](../../../spec/contracts/architecture.md) section.
+   skill and the testing contract's
+   [Integration tests](../../../spec/contracts/testing.md#integration-tests) section.

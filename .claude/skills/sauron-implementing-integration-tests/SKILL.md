@@ -7,8 +7,8 @@ description: Use when writing or modifying sauron's black-box integration tests 
 
 Sauron's integration tests are a **black-box BDD suite** in its own module,
 `test/e2e`. They drive the built binary and verify behaviour through Gherkin.
-Normative rules: the architecture contract's
-[Integration tests](../../../spec/contracts/architecture.md) section and the
+Normative rules: the testing contract's
+[Integration tests](../../../spec/contracts/testing.md#integration-tests) section and the
 [Constitution](../../../CONSTITUTION.md) verification gate.
 
 This builds on `writing-unit-tests` → `golang-personal-tests` (testify,
