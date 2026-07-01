@@ -80,6 +80,39 @@ func bindPagingFlags(cmd *cobra.Command, f *pagingFlags) {
 	flags.Int64Var(&f.Limit, "limit", defaultLimit, "page size")
 }
 
+// listFlags groups the search/sort/order/paging flags shared by every listing
+// command (catalogue, and any future list command).
+type listFlags struct {
+	Search string
+	Sort   string
+	Order  string
+	paging pagingFlags
+}
+
+// bindListFlags registers --search, --sort, --order, and the shared paging
+// flags; noun names what --search filters, used only in its help text (e.g.
+// "entry" for catalogue).
+func bindListFlags(cmd *cobra.Command, f *listFlags, noun string) {
+	flags := cmd.Flags()
+	flags.StringVar(&f.Search, "search", "", fmt.Sprintf("case-insensitive substring filter on the %s name", noun))
+	flags.StringVar(&f.Sort, "sort", "", "sort field")
+	flags.StringVar(&f.Order, "order", "asc", "sort direction (asc|desc)")
+	bindPagingFlags(cmd, &f.paging)
+}
+
+// fieldsFlags groups the column/field-selection flag shared by every
+// describe/list command that supports field selection.
+type fieldsFlags struct {
+	Fields []string
+}
+
+// bindFieldsFlags registers --fields; identity names the field that is always
+// present and first, used only in the flag's help text.
+func bindFieldsFlags(cmd *cobra.Command, f *fieldsFlags, identity string) {
+	cmd.Flags().StringSliceVar(&f.Fields, "fields", nil,
+		fmt.Sprintf("fields to display, in order; %s is always first", identity))
+}
+
 // dryRunFlags groups the dry-run toggle shared by mutating commands.
 type dryRunFlags struct {
 	DryRun bool

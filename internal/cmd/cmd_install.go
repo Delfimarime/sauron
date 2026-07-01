@@ -15,11 +15,9 @@ import (
 // subcommands. A bare invocation prints help and exits 0; a kind noun selects
 // the leaf that installs.
 func Install() *cobra.Command {
-	return newGroup(
-		"install",
-		"Install artifacts from the registry",
-		"Install fetches and records named skills or agents from the configured registry into the active provider.",
-		InstallSkill(), InstallAgent(),
+	return newCommand("install", "Install artifacts from the registry",
+		withLong("Install fetches and records named skills or agents from the configured registry into the active provider."),
+		withSubcommands(InstallSkill(), InstallAgent()),
 	)
 }
 
@@ -44,17 +42,13 @@ func InstallAgent() *cobra.Command {
 // newInstallCommand builds one install leaf command bound to a kind; the leaves
 // differ only by the kind they delegate to install.
 func newInstallCommand(kind, use, short, long string) *cobra.Command {
-	return &cobra.Command{
-		Use:           use,
-		Short:         short,
-		Long:          long,
-		Args:          usageArgs(cobra.MinimumNArgs(1)),
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return install(cmd.Context(), kind, args, cmd.OutOrStdout())
-		},
-	}
+	return newCommand(use, short,
+		withLong(long),
+		withArgs(cobra.MinimumNArgs(1)),
+		withRunE(func(ctx context.Context, args []string, stdout io.Writer) error {
+			return install(ctx, kind, args, stdout)
+		}),
+	)
 }
 
 // install is the cobra-free handler shared by both install leaf commands: it
@@ -63,7 +57,7 @@ func newInstallCommand(kind, use, short, long string) *cobra.Command {
 // persist failures. Benign skips (not-offered, no-version) do not change the
 // exit code; only persist failures (Fatal == true) make the process exit 1.
 func install(ctx context.Context, kind string, names []string, stdout io.Writer) error {
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.InstallUseCase) (*usecase.InstallResponse, error) {
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc usecase.UseCase[usecase.InstallRequest, usecase.InstallResponse]) (*usecase.InstallResponse, error) {
 		return uc.Execute(runCtx, usecase.InstallRequest{Kind: kind, Names: names})
 	})
 	if err != nil {

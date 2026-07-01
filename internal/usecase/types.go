@@ -126,28 +126,15 @@ const (
 // ListCatalogueRequest is the per-invocation input for browsing the registry's
 // catalogue of one kind.
 type ListCatalogueRequest struct {
-	Kind   CatalogueKind
-	Search string
-	Sort   string
-	Order  string
-	Page   int64
-	Limit  int64
-}
-
-// offset translates the 1-based page and page size to a source offset.
-func (in ListCatalogueRequest) offset() int64 {
-	return (in.Page - 1) * in.Limit
+	Kind CatalogueKind
+	ListWindow
 }
 
 // ListCatalogueResponse is the presentation-agnostic outcome of browsing the
-// catalogue: the artifact names of the kind and the paging window applied.
-type ListCatalogueResponse struct {
-	Kind   CatalogueKind
-	Items  []string
-	Page   int64
-	Limit  int64
-	Offset int64
-}
+// catalogue: the artifact names and the paging window applied. It is an alias,
+// not a wrapper — the use case needs nothing beyond ListResult[string], and the
+// caller already knows the Kind it asked for, so there is nothing to add back.
+type ListCatalogueResponse = ListResult[string]
 
 // -- Set Registry types --
 

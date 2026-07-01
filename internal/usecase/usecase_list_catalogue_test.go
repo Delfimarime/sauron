@@ -20,7 +20,7 @@ const catalogueURI = "https://acme.example"
 
 // catalogueFixture bundles the use case and its mocked collaborators.
 type catalogueFixture struct {
-	uc    *ListCatalogueUseCase
+	uc    *ListUseCase[ListCatalogueRequest, string]
 	store *storage.MockBasedRegistriesStore
 	open  *MockBasedOpenRegistryUseCase
 	fs    *source.MockBasedFileSystem
@@ -100,7 +100,7 @@ func dir(name string) *source.MockBasedFile {
 // input builds a catalogue input with the sort/order/paging defaults the handler
 // boundary resolves before Execute.
 func input(kind CatalogueKind) ListCatalogueRequest {
-	return ListCatalogueRequest{Kind: kind, Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}
+	return ListCatalogueRequest{Kind: kind, ListWindow: ListWindow{Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}}
 }
 
 func TestListCatalogueSkillAndAgent(t *testing.T) {
@@ -116,7 +116,7 @@ func TestListCatalogueSkillAndAgent(t *testing.T) {
 			f := newCatalogueFixture(t)
 			f.expectFound()
 			f.expectOpen()
-			f.expectList(catalogueRoots[tc.kind], []source.File{
+			f.expectList(artifactToDirectoryName[tc.kind], []source.File{
 				stat("review.yaml"),
 				dir("nested"),
 				stat("doc.yml"),
@@ -125,10 +125,9 @@ func TestListCatalogueSkillAndAgent(t *testing.T) {
 			// Act.
 			result, err := f.run(input(tc.kind))
 
-			// Assert: directories are skipped and names trimmed; the kind is carried.
+			// Assert: directories are skipped and names trimmed, for each kind's own root.
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, tc.kind, result.Kind)
 			assert.Equal(t, []string{"review", "doc"}, result.Items)
 		})
 	}

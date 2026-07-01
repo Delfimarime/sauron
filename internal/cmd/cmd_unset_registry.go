@@ -9,36 +9,24 @@ import (
 	"github.com/delfimarime/sauron/internal/usecase"
 )
 
-// unsetRegistryFlags holds every flag the `unset registry` subcommand binds.
-type unsetRegistryFlags struct {
-	dryRunFlags
-}
-
 // UnsetRegistry builds the `registry` subcommand of `unset`.
 func UnsetRegistry() *cobra.Command {
-	var flags unsetRegistryFlags
-	cmd := &cobra.Command{
-		Use:           "registry",
-		Short:         "Remove the configured source",
-		Long:          "Registry removes the configured registry. Installed artifacts are preserved. With no registry configured it exits successfully.",
-		Args:          usageArgs(cobra.NoArgs),
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return unsetRegistry(cmd.Context(), &flags, cmd.OutOrStdout())
-		},
-	}
-	silenceFlagErrors(cmd)
-	bindDryRunFlags(cmd, &flags.dryRunFlags)
-
-	return cmd
+	var flags dryRunFlags
+	return newCommand("registry", "Remove the configured source",
+		withLong("Registry removes the configured registry. Installed artifacts are preserved. With no registry configured it exits successfully."),
+		withArgs(cobra.NoArgs),
+		withFlags(func(cmd *cobra.Command) { bindDryRunFlags(cmd, &flags) }),
+		withRunE(func(ctx context.Context, _ []string, stdout io.Writer) error {
+			return unsetRegistry(ctx, &flags, stdout)
+		}),
+	)
 }
 
 // unsetRegistry holds the cobra-free logic: it builds the input, lets the fx
 // graph invoke the use case, and renders the outcome, returning the classified
 // failure to the caller.
-func unsetRegistry(ctx context.Context, flags *unsetRegistryFlags, stdout io.Writer) error {
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.UnsetRegistryUseCase) (*usecase.UnsetRegistryResponse, error) {
+func unsetRegistry(ctx context.Context, flags *dryRunFlags, stdout io.Writer) error {
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc usecase.UseCase[usecase.UnsetRegistryRequest, usecase.UnsetRegistryResponse]) (*usecase.UnsetRegistryResponse, error) {
 		return uc.Execute(runCtx, usecase.UnsetRegistryRequest{DryRun: flags.DryRun})
 	})
 	if err != nil {

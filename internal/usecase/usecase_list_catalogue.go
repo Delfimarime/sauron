@@ -18,11 +18,9 @@ const (
 	rootAgents = "agents"
 )
 
-// catalogueRoots maps each kind to the source root holding its manifests.
-var catalogueRoots = map[CatalogueKind]string{
-	CatalogueSkill: rootSkills,
-	CatalogueAgent: rootAgents,
-}
+var (
+	artifactToDirectoryName = map[CatalogueKind]string{CatalogueSkill: rootSkills, CatalogueAgent: rootAgents}
+)
 
 // ListCatalogueUseCaseParams injects the collaborators the use case composes.
 type ListCatalogueUseCaseParams struct {
@@ -32,107 +30,60 @@ type ListCatalogueUseCaseParams struct {
 	Logger     *zap.Logger
 }
 
-// ListCatalogueUseCase resolves the single registry, opens its source live, and
-// returns the artifact names of the selected kind with the paging window.
-type ListCatalogueUseCase struct {
-	registries storage.RegistriesStore
-	open       OpenRegistryUseCase
-	logger     *zap.Logger
+// NewListCatalogueUseCase builds the catalogue listing use case: the generic
+// ListUseCase, whose resolve step is the validate → get → open pipeline (what
+// used to be a bespoke Execute body) ending in a catalogueLister bound to the
+// invoked kind's root. ListCatalogueResponse needs nothing beyond
+// ListResult[string], so no wrapping type is needed here — the generic Execute
+// is the catalogue listing use case.
+func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListUseCase[ListCatalogueRequest, string] {
+	return NewListUseCase(func(ctx context.Context, in ListCatalogueRequest) (Lister[string], ListWindow, error) {
+		root, ok := artifactToDirectoryName[in.Kind]
+		if !ok {
+			return nil, ListWindow{}, NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
+		}
+		if err := in.ListWindow.validate(); err != nil {
+			return nil, ListWindow{}, err
+		}
+
+		registry, err := requireRegistry(ctx, params.Registries)
+		if err != nil {
+			return nil, ListWindow{}, err
+		}
+
+		fs, err := params.Open.Execute(ctx, *registry)
+		if err != nil {
+			return nil, ListWindow{}, err
+		}
+
+		params.Logger.Info("registry opened", zap.String(telemetry.FieldRegistrySource, registry.Spec.Source))
+
+		return catalogueLister{fs: fs, root: root}, in.ListWindow, nil
+	})
 }
 
-// NewListCatalogueUseCase builds the use case from the injected collaborators.
-func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListCatalogueUseCase {
-	return &ListCatalogueUseCase{
-		registries: params.Registries,
-		open:       params.Open,
-		logger:     params.Logger,
-	}
+// catalogueLister adapts an opened registry source.FileSystem, scoped to one
+// kind's root, to the shared Lister[string] seam: it pushes the window's
+// options to the remote List call and projects each manifest entry to its
+// catalogue name, skipping directories.
+type catalogueLister struct {
+	fs   source.FileSystem
+	root string
 }
 
-// Execute runs the validate → get → open → list → collect pipeline, returning a
-// classified *Error on the first failing step and otherwise the artifact names
-// with their paging window.
-func (uc *ListCatalogueUseCase) Execute(ctx context.Context, in ListCatalogueRequest) (*ListCatalogueResponse, error) {
-	if err := uc.validate(in); err != nil {
-		return nil, err
-	}
-
-	registry, err := requireRegistry(ctx, uc.registries)
-	if err != nil {
-		return nil, err
-	}
-
-	fs, err := uc.open.Execute(ctx, *registry)
-	if err != nil {
-		return nil, err
-	}
-
-	files, err := uc.list(ctx, in, fs)
-	if err != nil {
-		return nil, err
-	}
-
-	items := uc.items(files)
-	uc.logger.Info("catalogue listed",
-		zap.String(telemetry.FieldRegistrySource, registry.Spec.Source),
-		zap.Int(telemetry.FieldArtifactCount, len(items)),
-	)
-
-	return &ListCatalogueResponse{
-		Kind:   in.Kind,
-		Items:  items,
-		Page:   in.Page,
-		Limit:  in.Limit,
-		Offset: in.offset(),
-	}, nil
-}
-
-// validate checks the inputs, returning a usage *Error for any out-of-range
-// value. Sort and Order are validated by the handler boundary before Execute,
-// so the use case trusts them here.
-func (uc *ListCatalogueUseCase) validate(in ListCatalogueRequest) error {
-	if _, ok := catalogueRoots[in.Kind]; !ok {
-		return NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
-	}
-	if in.Page < 1 {
-		return NewUsageError(fmt.Sprintf("page must be at least 1, got %d", in.Page))
-	}
-	if in.Limit < 1 {
-		return NewUsageError(fmt.Sprintf("limit must be at least 1, got %d", in.Limit))
-	}
-
-	return nil
-}
-
-// list opens the source root for the kind and returns its entries, paging at the
-// source with the computed offset.
-func (uc *ListCatalogueUseCase) list(ctx context.Context, in ListCatalogueRequest, fs source.FileSystem) ([]source.File, error) {
-	opts := []source.Option{
-		source.WithSort(in.Sort),
-		source.WithOrder(in.Order),
-		source.WithOffset(in.offset()),
-		source.WithLimit(in.Limit),
-	}
-	if in.Search != "" {
-		opts = append([]source.Option{source.WithSearch(in.Search)}, opts...)
-	}
-
-	files, err := fs.List(ctx, catalogueRoots[in.Kind], opts...)
+// List fetches root's entries through fs, applying opts remotely, and returns
+// the non-directory entries' trimmed catalogue names.
+func (l catalogueLister) List(ctx context.Context, opts ...source.Option) ([]string, error) {
+	files, err := l.fs.List(ctx, l.root, opts...)
 	if err != nil {
 		return nil, classifyAdapterErr(err)
 	}
 
-	return files, nil
-}
-
-// items collects the catalogue names of the manifest entries, skipping directory
-// entries; no manifest content is read.
-func (uc *ListCatalogueUseCase) items(files []source.File) []string {
 	manifests := filterBy(files, func(f source.File) bool { return !f.IsDirectory() })
 	names := make([]string, len(manifests))
 	for i, f := range manifests {
 		names[i] = catalogueName(f.Name())
 	}
 
-	return names
+	return names, nil
 }

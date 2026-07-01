@@ -65,6 +65,7 @@ internal/
   usecase/
     fx.go                  NewFxOptions() fx.Option; provides use cases and actions
     usecase_<name>.go      a UseCase — a command entrypoint or a composed step
+    list.go                Lister[T], ListWindow, ListResult[T], listWith[T], and the generic ListUseCase[I, T] every listing use case wraps
 pkg/
   http/                  public HTTP client: functional-options New() + composable round trippers (basic-auth, zap logger)
   telemetry/             shared ECS field-key vocabulary, referenced by public packages and internal/telemetry
@@ -245,8 +246,12 @@ type UseCase[I, P any] interface {
   (a value type, or an empty struct for a parameterless query), and returns
   `(*P, error)`. There is no `Request` context object and no `Out()`: the
   per-invocation context is the explicit first parameter, and call-scoped
-  *business* input is `in`. *View* options (field selection, sort, search) are
-  **not** use-case input — they belong to the client.
+  *business* input is `in`. *View* options are **not** use-case input — they
+  belong to the client — with one exception: for a **listing** use case,
+  `--search`/`--sort`/`--order`/`--page`/`--limit` *are* business input, because
+  they shape what the composed `Lister[T]` (see
+  [Listing use cases](#listing-use-cases) below) fetches. Field **selection**
+  (`--fields`) stays client-side for every use case, listing or not.
 - **Composition is acyclic by discipline.** A use case may call another use case.
   Nothing structurally enforces a direction, so keeping the call graph acyclic is
   the developer's responsibility. **Boundary concerns** — the top-level telemetry
@@ -268,6 +273,57 @@ type UseCase[I, P any] interface {
   the filesystem is not part of the invocation environment.
 - **Lifecycle.** Inputs are plain values constructed per call and passed to
   `Execute`; there is no context object to retain, so nothing can go stale.
+
+### Listing use cases
+
+A command that lists a collection — whether from a live external source (the
+registry) or from persisted local state (`track.yaml`) — is built on the shared
+generic `ListUseCase[I, T]` in `internal/usecase/list.go` rather than
+reimplementing filter/sort/page per feature:
+
+```go
+type Lister[T any] interface {
+	List(ctx context.Context, opts ...source.Option) ([]T, error)
+}
+
+type ListUseCase[I, T any] struct {
+	resolve func(ctx context.Context, in I) (Lister[T], ListWindow, error)
+}
+
+func NewListUseCase[I, T any](resolve func(context.Context, I) (Lister[T], ListWindow, error)) *ListUseCase[I, T]
+```
+
+`source.Option` (`pkg/sauron/source`) is the shared query vocabulary — the same
+`WithSearch`/`WithSort`/`WithOrder`/`WithOffset`/`WithLimit` functional options a
+`source.FileSystem` already accepts — reused as `Lister[T]`'s query language
+regardless of what resolves it. A concrete listing use case (`ListCatalogueUseCase`,
+`ListArtifactsUseCase`, …) **wraps** a `*ListUseCase[I, T]` rather than being one:
+its constructor builds `resolve` as a closure over its injected collaborators —
+the per-invocation pipeline that used to be `Execute`'s body (validate the kind,
+open the registry live, or nothing for local state) — ending in a small `Lister[T]`
+adapter (e.g. `catalogueLister`, `trackLister`) bound to the resolved source, plus
+the `ListWindow` to fetch. `ListUseCase[I, T].Execute` then fetches and pages
+through it via the package-level `listWith[T]` helper. The wrapping type's own
+`Execute` calls the inner `ListUseCase.Execute` and projects the bare
+`ListResult[T]` onto its feature's presentation-agnostic response (adding back
+whatever `I` doesn't already carry, e.g. `Kind`) — the generic type returns
+`ListResult[T]`, never a feature-specific `*P` directly, so `UseCase[I, P]`'s
+"one shape" still holds at the command-facing boundary. The adapter alone
+decides the *mechanism* — push the options to a remote call, or apply them over
+an in-memory slice from a `storage` read — and that decision never leaks past
+the adapter into `listWith`, `ListUseCase`, or the caller.
+
+The command layer mirrors this with `internal/cmd/helper.go`'s
+`newListCommand(use, short, long string, bind func(*cobra.Command),
+run func(ctx context.Context, stdout io.Writer) error) *cobra.Command` — the
+cobra scaffold (no positional args, silenced usage/errors, flag-error wrapping)
+every listing leaf command builds on. It carries no notion of "kind" or any
+other per-feature identity, so it is not generic: a caller that needs a kind (or
+any other bound value, e.g. `catalogueFlags`) closes over it in its own `bind`/
+`run` closures — exactly how `newCatalogueCommand(kind usecase.CatalogueKind,
+use, short, long string)` closes over `kind` and its own `flags` — rather than
+threading it through the shared constructor's signature (see
+[Command structure](#command-structure)).
 
 ### Layout & naming
 

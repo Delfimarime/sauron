@@ -145,7 +145,7 @@ func TestCatalogueFlagSurface(t *testing.T) {
 // on the use case input.
 func TestNewListCatalogueInputMapsFlags(t *testing.T) {
 	// Arrange.
-	flags := catalogueFlags{Search: "rev", Sort: sortName, Order: orderDesc, paging: pagingFlags{Page: 2, Limit: 5}}
+	flags := listFlags{Search: "rev", Sort: sortName, Order: orderDesc, paging: pagingFlags{Page: 2, Limit: 5}}
 
 	// Act.
 	input, err := newListCatalogueInput(usecase.CatalogueSkill, &flags)
@@ -164,7 +164,7 @@ func TestNewListCatalogueInputMapsFlags(t *testing.T) {
 // name/asc defaults at the handler boundary before the use case runs.
 func TestNewListCatalogueInputDefaults(t *testing.T) {
 	// Arrange.
-	flags := catalogueFlags{paging: pagingFlags{Page: defaultPage, Limit: defaultLimit}}
+	flags := listFlags{paging: pagingFlags{Page: defaultPage, Limit: defaultLimit}}
 
 	// Act.
 	input, err := newListCatalogueInput(usecase.CatalogueAgent, &flags)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -49,29 +50,70 @@ func ExitCode(err error) int {
 	return exitError
 }
 
-// newGroup builds a pure command group — a cobra.Command with no RunE that
-// silences usage and error output and attaches the supplied subcommands. Use it
-// for every intermediate noun that only dispatches to leaves.
-func newGroup(use, short, long string, subs ...*cobra.Command) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:           use,
-		Short:         short,
-		Long:          long,
-		SilenceUsage:  true,
-		SilenceErrors: true,
-	}
-	for _, sub := range subs {
-		cmd.AddCommand(sub)
-	}
-	return cmd
-}
-
 // silenceFlagErrors installs the shared flag-error handler on cmd: a parse
 // failure is wrapped with errInvalidFlag so it maps to exit code 2 (usage).
 func silenceFlagErrors(cmd *cobra.Command) {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return fmt.Errorf("%w: %w", errInvalidFlag, err)
 	})
+}
+
+// commandOption configures one piece of a cobra.Command built by newCommand.
+type commandOption func(*cobra.Command)
+
+// withLong sets the command's long description.
+func withLong(long string) commandOption {
+	return func(c *cobra.Command) { c.Long = long }
+}
+
+// withArgs sets the positional-args policy, wrapped so a violation is a usage
+// error. A command that omits it carries no restriction — the shape a pure
+// group needs, since cobra routes an unmatched subcommand argument to it.
+func withArgs(args cobra.PositionalArgs) commandOption {
+	return func(c *cobra.Command) { c.Args = usageArgs(args) }
+}
+
+// withFlags binds the command's own flags.
+func withFlags(bind func(*cobra.Command)) commandOption {
+	return func(c *cobra.Command) { bind(c) }
+}
+
+// withRunE wires the cobra-free handler as the command's RunE: run is invoked
+// with the positional args, a live context, and the command's stdout.
+func withRunE(run func(ctx context.Context, args []string, stdout io.Writer) error) commandOption {
+	return func(c *cobra.Command) {
+		c.RunE = func(cmd *cobra.Command, args []string) error {
+			return run(cmd.Context(), args, cmd.OutOrStdout())
+		}
+	}
+}
+
+// withSubcommands attaches subs as children — the shape a pure group command
+// uses in place of withRunE; the two are never combined on one command.
+func withSubcommands(subs ...*cobra.Command) commandOption {
+	return func(c *cobra.Command) { c.AddCommand(subs...) }
+}
+
+// newCommand builds one cobra command — leaf or group — with the shared
+// scaffold every command needs: silenced usage/errors and flag-error wrapping.
+// use and short are positional since every command needs both; everything
+// else — the long description, the args policy, flags, the handler, or
+// subcommands — is an option, individually omittable, so this one constructor
+// serves both a leaf command (withArgs/withFlags/withRunE) and a pure group
+// (withSubcommands only).
+func newCommand(use, short string, opts ...commandOption) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           use,
+		Short:         short,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	silenceFlagErrors(cmd)
+	for _, opt := range opts {
+		opt(cmd)
+	}
+
+	return cmd
 }
 
 // NewApp builds (but does not start) the fx app wired with the modules transversal

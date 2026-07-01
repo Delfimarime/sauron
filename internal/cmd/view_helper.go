@@ -45,3 +45,17 @@ func (ew *errWriter) toIOError(context string) error {
 	}
 	return usecase.NewIOError(fmt.Sprintf("%s: %v", context, ew.err))
 }
+
+// pagingLine renders the applied-paging report shared by every paginated
+// listing view: an empty page reports zero results, a populated page the
+// inclusive from–to window.
+func pagingLine(page, limit, offset int64, count int) string {
+	if count == 0 {
+		return fmt.Sprintf("showing 0 results (page %d, limit %d)", page, limit)
+	}
+
+	from := offset + 1
+	to := offset + int64(count)
+
+	return fmt.Sprintf("showing %d–%d (page %d, limit %d)", from, to, page, limit)
+}

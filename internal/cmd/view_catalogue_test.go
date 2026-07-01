@@ -17,6 +17,8 @@ func TestRenderCatalogue(t *testing.T) {
 	tests := []struct {
 		// name states the case intent.
 		name string
+		// kind is the invoked command's own kind, passed alongside the result.
+		kind usecase.CatalogueKind
 		// result is the listing to render.
 		result *usecase.ListCatalogueResponse
 		// wantContains are substrings the output must contain.
@@ -26,8 +28,8 @@ func TestRenderCatalogue(t *testing.T) {
 	}{
 		{
 			name: "populated window renders the table and the from-to line",
+			kind: usecase.CatalogueAgent,
 			result: &usecase.ListCatalogueResponse{
-				Kind:   usecase.CatalogueAgent,
 				Items:  []string{"review", "doc"},
 				Page:   1,
 				Limit:  20,
@@ -37,8 +39,8 @@ func TestRenderCatalogue(t *testing.T) {
 		},
 		{
 			name: "empty page renders no table and the zero-results line",
+			kind: usecase.CatalogueSkill,
 			result: &usecase.ListCatalogueResponse{
-				Kind:   usecase.CatalogueSkill,
 				Items:  nil,
 				Page:   9,
 				Limit:  20,
@@ -49,8 +51,8 @@ func TestRenderCatalogue(t *testing.T) {
 		},
 		{
 			name: "single-row window reports the inclusive window",
+			kind: usecase.CatalogueSkill,
 			result: &usecase.ListCatalogueResponse{
-				Kind:   usecase.CatalogueSkill,
 				Items:  []string{"b"},
 				Page:   2,
 				Limit:  1,
@@ -66,7 +68,7 @@ func TestRenderCatalogue(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Act.
-			err := renderCatalogue(&buf, tt.result)
+			err := renderCatalogue(&buf, tt.kind, tt.result)
 
 			// Assert.
 			require.NoError(t, err)
@@ -92,18 +94,18 @@ func TestRenderCatalogueWriteError(t *testing.T) {
 	}{
 		{
 			name:   "table write fails",
-			result: &usecase.ListCatalogueResponse{Kind: usecase.CatalogueSkill, Items: []string{"a"}, Page: 1, Limit: 20},
+			result: &usecase.ListCatalogueResponse{Items: []string{"a"}, Page: 1, Limit: 20},
 		},
 		{
 			name:   "paging-line write fails on an empty page",
-			result: &usecase.ListCatalogueResponse{Kind: usecase.CatalogueSkill, Items: nil, Page: 1, Limit: 20},
+			result: &usecase.ListCatalogueResponse{Items: nil, Page: 1, Limit: 20},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act.
-			err := renderCatalogue(&failingWriter{}, tt.result)
+			err := renderCatalogue(&failingWriter{}, usecase.CatalogueSkill, tt.result)
 
 			// Assert.
 			var ucErr *usecase.Error
@@ -117,10 +119,10 @@ func TestRenderCatalogueWriteError(t *testing.T) {
 func TestPagingLineKindRendered(t *testing.T) {
 	// Arrange.
 	var buf bytes.Buffer
-	result := &usecase.ListCatalogueResponse{Kind: usecase.CatalogueSkill, Items: []string{"x"}, Page: 1, Limit: 20}
+	result := &usecase.ListCatalogueResponse{Items: []string{"x"}, Page: 1, Limit: 20}
 
 	// Act.
-	require.NoError(t, renderCatalogue(&buf, result))
+	require.NoError(t, renderCatalogue(&buf, usecase.CatalogueSkill, result))
 
 	// Assert.
 	rows := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")

@@ -10,6 +10,7 @@ import (
 
 	"github.com/delfimarime/sauron/internal/infrastructure/repository/storage"
 	"github.com/delfimarime/sauron/pkg/sauron/extension"
+	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 // TestNewFxOptions verifies the usecase options compose into a valid container
@@ -41,11 +42,11 @@ func TestNewFxOptions(t *testing.T) {
 	app := fx.New(
 		deps,
 		NewFxOptions(),
-		fx.Invoke(func(*SetRegistryUseCase) {}),
-		fx.Invoke(func(*DescribeRegistryUseCase) {}),
-		fx.Invoke(func(*ListCatalogueUseCase) {}),
-		fx.Invoke(func(*UnsetRegistryUseCase) {}),
-		fx.Invoke(func(*InstallUseCase) {}),
+		fx.Invoke(func(UseCase[SetRegistryRequest, SetRegistryResponse]) {}),
+		fx.Invoke(func(UseCase[DescribeRegistryRequest, types.Registry]) {}),
+		fx.Invoke(func(UseCase[ListCatalogueRequest, ListCatalogueResponse]) {}),
+		fx.Invoke(func(UseCase[UnsetRegistryRequest, UnsetRegistryResponse]) {}),
+		fx.Invoke(func(UseCase[InstallRequest, InstallResponse]) {}),
 		fx.Invoke(func(UseCase[DiffRequest, DiffResponse]) {}),
 	)
 

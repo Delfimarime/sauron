@@ -12,17 +12,13 @@ import (
 
 // SetProvider builds the `provider` subcommand of `set`.
 func SetProvider() *cobra.Command {
-	return &cobra.Command{
-		Use:           "provider <claude|zencoder>",
-		Short:         "Set the provider artifacts are installed for",
-		Long:          "Provider records the single global destination; changing it migrates every installed artifact to the new provider's directories.",
-		Args:          usageArgs(cobra.ExactArgs(1)),
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return setProvider(cmd.Context(), args, cmd.OutOrStdout())
-		},
-	}
+	return newCommand("provider <claude|zencoder>", "Set the provider artifacts are installed for",
+		withLong("Provider records the single global destination; changing it migrates every installed artifact to the new provider's directories."),
+		withArgs(cobra.ExactArgs(1)),
+		withRunE(func(ctx context.Context, args []string, stdout io.Writer) error {
+			return setProvider(ctx, args, stdout)
+		}),
+	)
 }
 
 // setProvider holds the cobra-free logic: it builds the input, lets the fx graph
@@ -30,7 +26,7 @@ func SetProvider() *cobra.Command {
 // migration failures. The provider is persisted regardless (FR-005 reports and
 // continues), but a stranded artifact makes the process exit 1.
 func setProvider(ctx context.Context, args []string, stdout io.Writer) error {
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetProviderUseCase) (*usecase.SetProviderResponse, error) {
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc usecase.UseCase[usecase.SetProviderRequest, usecase.SetProviderResponse]) (*usecase.SetProviderResponse, error) {
 		return uc.Execute(runCtx, usecase.SetProviderRequest{Provider: args[0]})
 	})
 	if err != nil {

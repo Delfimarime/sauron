@@ -26,31 +26,26 @@ type setRegistryFlags struct {
 // SetRegistry builds the `registry` subcommand of `set`.
 func SetRegistry() *cobra.Command {
 	var flags setRegistryFlags
-	cmd := &cobra.Command{
-		Use:           "registry <uri>",
-		Short:         "Configure the source to draw artifacts from",
-		Long:          "Registry validates a source is reachable and hosts artifacts, then records it as the single registry, replacing any already set.",
-		Args:          usageArgs(cobra.ExactArgs(1)),
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return setRegistry(cmd.Context(), &flags, args, cmd.OutOrStdout())
-		},
-	}
-	silenceFlagErrors(cmd)
-	bindTransportFlags(cmd, &flags.transportFlags)
-	bindTimeoutFlags(cmd, &flags.timeoutFlags)
-	set := cmd.Flags()
-	set.StringVar(&flags.Revision, "revision", "", "git revision to pin (git sources only)")
-	set.StringVar(&flags.Username, "username", "", "credential reference for the user, as ${env:VAR}")
-	set.StringVar(&flags.Password, "password", "", "credential reference for the secret, as ${env:VAR}")
-	set.StringVar(&flags.SSHKey, "ssh-key", "", "path to the SSH private key")
-	set.BoolVar(&flags.SkipTLSVerify, "skip-tls-verify", false, "skip TLS certificate verification")
-	set.StringVar(&flags.CACert, "ca-cert", "", "path to a CA certificate bundle")
-	set.StringVar(&flags.ClientCert, "client-cert", "", "path to the client certificate")
-	set.StringVar(&flags.ClientKey, "client-key", "", "path to the client private key")
-
-	return cmd
+	return newCommand("registry <uri>", "Configure the source to draw artifacts from",
+		withLong("Registry validates a source is reachable and hosts artifacts, then records it as the single registry, replacing any already set."),
+		withArgs(cobra.ExactArgs(1)),
+		withFlags(func(cmd *cobra.Command) {
+			bindTransportFlags(cmd, &flags.transportFlags)
+			bindTimeoutFlags(cmd, &flags.timeoutFlags)
+			set := cmd.Flags()
+			set.StringVar(&flags.Revision, "revision", "", "git revision to pin (git sources only)")
+			set.StringVar(&flags.Username, "username", "", "credential reference for the user, as ${env:VAR}")
+			set.StringVar(&flags.Password, "password", "", "credential reference for the secret, as ${env:VAR}")
+			set.StringVar(&flags.SSHKey, "ssh-key", "", "path to the SSH private key")
+			set.BoolVar(&flags.SkipTLSVerify, "skip-tls-verify", false, "skip TLS certificate verification")
+			set.StringVar(&flags.CACert, "ca-cert", "", "path to a CA certificate bundle")
+			set.StringVar(&flags.ClientCert, "client-cert", "", "path to the client certificate")
+			set.StringVar(&flags.ClientKey, "client-key", "", "path to the client private key")
+		}),
+		withRunE(func(ctx context.Context, args []string, stdout io.Writer) error {
+			return setRegistry(ctx, &flags, args, stdout)
+		}),
+	)
 }
 
 // setRegistry holds the cobra-free logic: it validates flags, builds the input,
@@ -61,7 +56,7 @@ func setRegistry(ctx context.Context, flags *setRegistryFlags, args []string, st
 		return err
 	}
 
-	result, err := runUseCase(ctx, func(runCtx context.Context, uc *usecase.SetRegistryUseCase) (*usecase.SetRegistryResponse, error) {
+	result, err := runUseCase(ctx, func(runCtx context.Context, uc usecase.UseCase[usecase.SetRegistryRequest, usecase.SetRegistryResponse]) (*usecase.SetRegistryResponse, error) {
 		return uc.Execute(runCtx, usecase.SetRegistryRequest{
 			Source:        args[0],
 			Transport:     flags.Transport,

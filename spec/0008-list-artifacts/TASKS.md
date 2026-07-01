@@ -5,6 +5,18 @@ Constitution (Ch. III, Art. 1). Order: **T1 ∥ T2 → T3 → T4**. T1 (acceptan
 and T2 (use case) open in parallel, each in its own worktree, merged back
 uncommitted. The T1 scenarios are **expected to fail** until T3 lands the command.
 
+The shared listing foundation this feature builds on — `internal/usecase/list.go`
+(`Lister[T]`, `ListWindow`, `ListResult[T]`, `listWith[T]`, and the generic
+`ListUseCase[I, T]`), `internal/cmd/helper.go`'s `newListCommand` (not generic —
+carries no "kind" of its own; a caller closes over its own bound values in the
+`bind`/`run` closures it passes in), the
+[architecture contract's "Listing use cases"](../contracts/architecture.md#listing-use-cases)
+section, `list catalogue`'s refactor onto both, and the shared `pagingLine` in
+`internal/cmd/view_helper.go` — is **already landed**, ahead of this task
+breakdown. No task here builds it; T2 wraps `ListUseCase[I, T]`, T3 calls
+`newListCommand`, mirroring `ListCatalogueUseCase`/`newCatalogueCommand`'s call
+sites exactly.
+
 | Convention | Owner |
 |---|---|
 | production Go | `sauron-developer` / `sauron-implementing-architecture` |
@@ -38,29 +50,40 @@ the list scenarios **fail** (commands absent); the rest stay green.
 
 ---
 
-## T2 — Use case: `ListArtifactsUseCase`
+## T2 — Use case: `trackLister` + `ListArtifactsUseCase`
 
 **Files:** `internal/usecase/types.go`, `internal/usecase/usecase_list_artifacts.go`
 (new), `usecase_list_artifacts_test.go` (new), `internal/usecase/fx.go`.
 
 **RED:** write `usecase_list_artifacts_test.go` first (mocking `storage.TrackStore`
-via `MockBasedTrackStore`): a mixed Skill/Agent track filters to the requested
-kind; `--search` keeps only matching names (case-insensitive); `--sort name` and
-`--sort lastUpdatedAt`, each with `asc`/`desc`, order correctly; `--page`/
-`--limit` window the filtered+sorted result and report the applied
-`Page`/`Limit`/`Offset`; a page past the end returns an empty window with no
-error; `Page` or `Limit` below `1` is a usage error; no installed artifact of the
-kind → empty `Items`, no error; a `TrackStore.List` failure → classified io
-error. It fails (use case absent).
-**GREEN:** implement `ListArtifactsRequest`/`ListArtifactsResponse` and
-`ListArtifactsUseCase.Execute` per the [design](plan.md#design-implementation-map):
-validate `Page`/`Limit` → `TrackStore.List` → classified io error on failure
-(FR-007) → filter by `Kind` → `--search` substring (FR-004) → sort by
-`name`/`lastUpdatedAt` + order (FR-005) → page at the computed offset (FR-003).
+via `MockBasedTrackStore`, driving `trackLister` and `ListArtifactsUseCase`
+exactly as `usecase_list_catalogue_test.go` drives `catalogueLister`): a mixed
+Skill/Agent track filters to the requested kind; `--search` keeps only matching
+names (case-insensitive); `--sort name` and `--sort lastUpdatedAt`, each with
+`asc`/`desc`, order correctly; `--page`/`--limit` window the filtered+sorted
+result and report the applied `Page`/`Limit`/`Offset` (via the shared
+`ListResult[types.Artifact]`); a page past the end returns an empty window with
+no error; `Page` or `Limit` below `1` is a usage error (already covered by
+`listWith`'s own test — assert only that `Execute` surfaces it, not re-derive
+the boundary); no installed artifact of the kind → empty `Items`, no error; a
+`TrackStore.List` failure → classified io error. It fails (use case absent).
+**GREEN:** implement `ListArtifactsRequest{Kind string; ListWindow}` /
+`ListArtifactsResponse{Kind string; ListResult[types.Artifact]}` in `types.go`;
+implement `trackLister{track storage.TrackStore, kind string}` satisfying
+`Lister[types.Artifact]` (`List`: `TrackStore.List` → `ioErr` on failure (FR-007)
+→ filter to `kind` (FR-001) → resolve the received `source.Option`s into a local
+`source.Options` → `--search` substring (FR-004) → sort by `name`/`lastUpdatedAt`
++ order (FR-005) → window at offset/limit (FR-003)); `NewListArtifactsUseCase`
+builds a `resolve` closure (validate kind → `in.ListWindow.validate()` → build
+the `trackLister`) and wraps it as `*ListUseCase[ListArtifactsRequest,
+types.Artifact]` via `NewListUseCase`, exactly as `NewListCatalogueUseCase` does;
+`ListArtifactsUseCase.Execute` calls the wrapped `ListUseCase.Execute` and
+projects the returned `ListResult[types.Artifact]` onto `ListArtifactsResponse`.
 Provide via `fx.go`. gocognit ≤15.
 
-**Depends on:** none (parallel with T1). Worktree `feat/0008-list-artifacts-usecase`,
-merged back uncommitted.
+**Depends on:** none (parallel with T1; depends only on the already-landed
+`internal/usecase/list.go`). Worktree `feat/0008-list-artifacts-usecase`, merged
+back uncommitted.
 **Verify:** `go test ./internal/usecase/...` — green.
 
 ---
@@ -69,22 +92,22 @@ merged back uncommitted.
 
 **Files:** `internal/cmd/cmd_list_artifacts.go` (new), `view_list_artifacts.go`
 (new), `cmd_list_artifacts_test.go`, `view_list_artifacts_test.go`,
-`internal/cmd/cmd_list.go`, `internal/cmd/view_helper.go` (extract the shared
-`pagingLine`), `internal/cmd/view_catalogue.go` (switch to it),
-`internal/cmd/view_catalogue_test.go` (unchanged behavior, still green).
+`internal/cmd/cmd_list.go`.
 
 **RED:** write the command/view tests first — `list skills`/`list agents` render
 the `name`/`version`/`lastUpdatedAt` table (default = `name` only, per FR-002),
-followed by the paging line; `--fields` reorders/selects columns, `name` always
-first; `--search`/`--sort`/`--order`/`--page`/`--limit` reach the use case; an
-unknown `--fields`/`--sort`/`--order` value or an out-of-range `--page`/`--limit`
-is a usage error (exit 2, FR-008); an empty result renders no table row, only the
-paging line (FR-006). They fail (command absent).
+followed by the shared `pagingLine`; `--fields` reorders/selects columns, `name`
+always first; `--search`/`--sort`/`--order`/`--page`/`--limit` reach the use
+case; an unknown `--fields`/`--sort`/`--order` value or an out-of-range
+`--page`/`--limit` is a usage error (exit 2, FR-008); an empty result renders no
+table row, only the paging line (FR-006). They fail (command absent).
 **GREEN:** `ListSkills()`/`ListAgents()` → `newListArtifactsCommand(kind, use,
-short, long)` (`Args: usageArgs(cobra.NoArgs)`), binding search/sort/order/fields
-plus the existing shared `pagingFlags`/`bindPagingFlags`; cobra-free
-`listArtifacts(ctx, kind, flags, stdout)` via `fx.Populate`/`runUseCase`;
-`view_list_artifacts.go` renders the table + shared `pagingLine` per
+short, long)`, itself a thin wrapper over `newListCommand` (`bind` wires
+search/sort/order/fields plus the existing shared `pagingFlags`; `run` closes
+over `kind` and delegates to `listArtifacts`) — exactly how `newCatalogueCommand`
+calls `newListCommand`; cobra-free `listArtifacts(ctx, kind, flags, stdout)` via
+`fx.Populate`/`runUseCase`; `view_list_artifacts.go` renders the table + the
+already-shared `pagingLine` per
 [list-skills](contracts/list-skills.md)/[list-agents](contracts/list-agents.md);
 register both under `List()` in `cmd_list.go`.
 

@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/alitto/pond/v2"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -177,7 +180,7 @@ func TestNewAppLifecycle(t *testing.T) {
 func TestNewAppCommandGraph(t *testing.T) {
 	// Arrange.
 	t.Setenv("SAURON_HOME", t.TempDir())
-	var uc *usecase.SetRegistryUseCase
+	var uc usecase.UseCase[usecase.SetRegistryRequest, usecase.SetRegistryResponse]
 	app := NewApp(context.Background(),
 		repository.NewFxOptions(),
 		usecase.NewFxOptions(),
@@ -235,6 +238,93 @@ func TestProvidePool(t *testing.T) {
 	defer cancel()
 	assert.NoError(t, app.Stop(stopCtx))
 	assert.True(t, pool.Stopped())
+}
+
+// TestNewCommand exercises the shared command scaffold every builder (leaf or
+// group) is built from: use/short are positional (every command needs both,
+// no exceptions), everything else — long, args policy, flags, the handler, or
+// subcommands — is an option, individually omittable, so one constructor
+// serves both a leaf command and a pure group.
+func TestNewCommand(t *testing.T) {
+	t.Run("wires the scaffold with no options", func(t *testing.T) {
+		// Act.
+		cmd := newCommand("widget", "short")
+
+		// Assert: no positional-args restriction unless withArgs is given (a group's
+		// shape), silencing is always on, and there is no RunE.
+		assert.Equal(t, "widget", cmd.Use)
+		assert.Equal(t, "short", cmd.Short)
+		assert.Nil(t, cmd.Args)
+		assert.True(t, cmd.SilenceUsage)
+		assert.True(t, cmd.SilenceErrors)
+		assert.Nil(t, cmd.RunE)
+	})
+
+	t.Run("withLong sets the long description", func(t *testing.T) {
+		// Act.
+		cmd := newCommand("widget", "short", withLong("long"))
+
+		// Assert.
+		assert.Equal(t, "long", cmd.Long)
+	})
+
+	t.Run("withSubcommands attaches children — a pure group, no RunE", func(t *testing.T) {
+		// Arrange.
+		child := newCommand("child", "short")
+
+		// Act.
+		cmd := newCommand("widget", "short", withSubcommands(child))
+
+		// Assert.
+		assert.Nil(t, cmd.RunE)
+		assert.Len(t, cmd.Commands(), 1)
+		assert.Equal(t, "child", cmd.Commands()[0].Use)
+	})
+
+	t.Run("withArgs, withFlags, and withRunE wire a leaf command", func(t *testing.T) {
+		// Arrange.
+		var boundFlag string
+		var gotCtx context.Context
+		var gotArgs []string
+		var gotOut io.Writer
+		cmd := newCommand("widget", "short",
+			withArgs(cobra.MaximumNArgs(1)),
+			withFlags(func(c *cobra.Command) {
+				c.Flags().StringVar(&boundFlag, "extra", "", "an extra flag bind wires")
+			}),
+			withRunE(func(ctx context.Context, args []string, stdout io.Writer) error {
+				gotCtx, gotArgs, gotOut = ctx, args, stdout
+				return nil
+			}),
+		)
+		assert.NotNil(t, cmd.Flags().Lookup("extra"), "withFlags wired the flag")
+
+		// Act.
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetArgs([]string{"one"})
+		require.NoError(t, cmd.Execute())
+
+		// Assert: run received the positional args, a live context, and stdout.
+		assert.Equal(t, []string{"one"}, gotArgs)
+		require.NotNil(t, gotCtx)
+		assert.Equal(t, &out, gotOut)
+	})
+
+	t.Run("withArgs rejects an argument the policy disallows", func(t *testing.T) {
+		// Arrange.
+		cmd := newCommand("widget", "short",
+			withArgs(cobra.NoArgs),
+			withRunE(func(context.Context, []string, io.Writer) error { return nil }),
+		)
+		cmd.SetArgs([]string{argExtra})
+
+		// Act.
+		err := cmd.Execute()
+
+		// Assert.
+		require.Error(t, err)
+	})
 }
 
 // fakeUseCase is a trivial type runUseCase can resolve from a supplied fx.Option,
