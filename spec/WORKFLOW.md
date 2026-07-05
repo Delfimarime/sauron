@@ -79,7 +79,10 @@ Implement under `internal/` following the
 injected by uberfx and per-invocation context arriving through a `Request`
 ([Ch. III, Art. 3–4](../CONSTITUTION.md)). Set registry, for example, ships
 `SetRegistryUseCase` behind the `extension.Registry` port. Work is **test-first
-to the 90% coverage target** ([Ch. III, Art. 1](../CONSTITUTION.md)).
+to the 90% coverage target** ([Ch. III, Art. 1](../CONSTITUTION.md)). While
+iterating on a new or changed `test/e2e` scenario, `task dev-integration --
+<feature>.feature` runs just that file (seconds, not minutes) instead of the
+full suite — see 3c.
 
 **c. Pass the gate.** The [Taskfile](../Taskfile.yml) targets match the CI jobs
 1:1; run them as you go, then `task all` before opening the PR:
@@ -90,11 +93,15 @@ to the 90% coverage target** ([Ch. III, Art. 1](../CONSTITUTION.md)).
 | `task gate-lint` | Uber style + `gocognit ≤15` (golangci-lint) |
 | `task gate-coverage` | 90% ideal, fails below the 80% floor |
 | `task gate-security` | Trivy scan — 0 CRITICAL, ≤2 HIGH |
-| `task gate-integration` | the black-box `test/e2e` BDD suite against the built binary |
+| `task gate-integration` | the black-box `test/e2e` BDD suite against the built binary (optionally scoped to specific feature files, and parallelized — see `Taskfile.yml`) |
 | `task all` | every gate, in dependency order |
 
 The `sauron-gatekeeper` agent runs the gate and reports; an exception to a
 security threshold requires a project-level ADR ([Ch. IV, Art. 2](../CONSTITUTION.md)).
+
+`task dev-integration -- <feature>.feature` is the fast inner loop referenced in
+3b — not a gate, not part of `task all`. A full `task gate-integration` (or
+`task all`) is still the required check before 3d.
 
 **d. Land it.** Open a PR whose title follows
 [Conventional Commits](../CONTRIBUTING.md#commits--versioning), traces to its
