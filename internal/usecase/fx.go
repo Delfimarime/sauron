@@ -38,6 +38,9 @@ func NewFxOptions() fx.Option {
 			NewListCatalogueUseCase, fx.As(new(UseCase[ListCatalogueRequest, ListCatalogueResponse])),
 		),
 		fx.Annotate(
+			NewListArtifactsUseCase, fx.As(new(UseCase[ListArtifactsRequest, ListArtifactsResponse])),
+		),
+		fx.Annotate(
 			NewInstallUseCase, fx.As(new(UseCase[InstallRequest, InstallResponse])),
 		),
 		fx.Annotate(

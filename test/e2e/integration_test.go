@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +26,11 @@ const (
 	envSauronDockerBin        = "SAURON_DOCKER_BIN"
 )
 
+var (
+	featuresFlag    = flag.String("features", "", "comma-separated feature file basenames to run (e.g. list_skills.feature,list_agents.feature); empty runs the entire suite")
+	concurrencyFlag = flag.Int("concurrency", 0, "number of scenarios to run in parallel; 0 uses a CPU-aware default")
+)
+
 // TestFeatures is the godog entrypoint. The suite runs under `go test` (no main)
 // and is the module's default test; the gate-integration task builds the binary,
 // points SAURON_BIN at it, and runs `go test ./...`. Strict mode makes undefined
@@ -38,17 +44,33 @@ func TestFeatures(t *testing.T) {
 		requireBinary(t, envSauronDockerBin, dockerBin)
 	}
 
+	featuresDir := determineTestdataDirectory(t)
+	paths, err := resolveFeaturePaths(featuresDir, *featuresFlag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	concurrency := resolveConcurrency(*concurrencyFlag)
+
+	// "pretty" streams human-readable output as steps complete; verified locally
+	// that it interleaves badly once scenarios run concurrently, so fall back to
+	// "progress" (dots per step) whenever concurrency is greater than 1.
+	format := "pretty"
+	if concurrency > 1 {
+		format = "progress"
+	}
+
 	suite := godog.TestSuite{
 		Name: "sauron",
 		ScenarioInitializer: CreateInitFunc(
 			t.TempDir(), hostBin, dockerBin, gherkin.Init,
 		),
 		Options: &godog.Options{
-			Format:   "pretty",
-			Paths:    []string{determineTestdataDirectory(t)},
-			Output:   colors.Colored(os.Stdout),
-			TestingT: t,
-			Strict:   true,
+			Format:      format,
+			Paths:       paths,
+			Concurrency: concurrency,
+			Output:      colors.Colored(os.Stdout),
+			TestingT:    t,
+			Strict:      true,
 		},
 	}
 

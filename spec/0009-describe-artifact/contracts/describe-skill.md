@@ -23,7 +23,7 @@ Show one installed skill's full detail.
 | Field | Description |
 |---|---|
 | `name` | The skill's name |
-| `version` | Optional human-meaningful version; `—` when none |
+| `version` | Human-meaningful version identifier, always present |
 | `path` | Exact installed location under the provider |
 | `installedAt` | When it was first installed |
 | `lastUpdatedAt` | When it was last updated |

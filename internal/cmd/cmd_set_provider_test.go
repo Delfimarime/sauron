@@ -201,18 +201,18 @@ func TestRenderGroupInto(t *testing.T) {
 		names []string
 		want  string
 	}{
-		{name: "empty group writes nothing", label: "skills", names: nil, want: ""},
+		{name: "empty group writes nothing", label: subcmdSkills, names: nil, want: ""},
 		{
 			name:  "populated group writes the heading and each name",
-			label: "skills",
+			label: subcmdSkills,
 			names: []string{skillAcmeGoStyle},
-			want:  "skills:\n  ~ " + skillAcmeGoStyle + "\n",
+			want:  subcmdSkills + ":\n  ~ " + skillAcmeGoStyle + "\n",
 		},
 		{
 			name:  "multiple names each render on their own line",
-			label: "agents",
+			label: subcmdAgents,
 			names: []string{agentAcmeReviewer, "sauron-x"},
-			want:  "agents:\n  ~ " + agentAcmeReviewer + "\n  ~ sauron-x\n",
+			want:  subcmdAgents + ":\n  ~ " + agentAcmeReviewer + "\n  ~ sauron-x\n",
 		},
 	}
 

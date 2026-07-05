@@ -171,7 +171,7 @@ func TestTableRenderWriteError(t *testing.T) {
 func TestBuildTable(t *testing.T) {
 	// Act.
 	got := buildTable([]string{tblColName, "kind"}, []string{"a", "b"}, func(s string) []string {
-		return []string{s, "skill"}
+		return []string{s, subcmdSkill}
 	})
 
 	// Assert.
@@ -275,7 +275,7 @@ func TestDescriptorRenderWriteError(t *testing.T) {
 	}{
 		{
 			name:       "leaf line write fails",
-			view:       descriptor{Fields: []descriptorField{{Label: "name", Value: "acme"}}},
+			view:       descriptor{Fields: []descriptorField{{Label: tableHeaderName, Value: "acme"}}},
 			writeAfter: 0,
 		},
 		{
@@ -309,33 +309,33 @@ func TestDescriptorRenderWriteError(t *testing.T) {
 // request yields the full order, an unknown field is a usage error, the first
 // field is forced present and first, and duplicates are deduped.
 func TestSelectFields(t *testing.T) {
-	order := []string{"name", "version", "updatedAt"}
+	order := []string{tableHeaderName, artifactFieldVersion, "updatedAt"}
 
 	t.Run("empty request yields the full order", func(t *testing.T) {
-		got, err := selectFields(nil, order, "name")
+		got, err := selectFields(nil, order, tableHeaderName)
 
 		require.NoError(t, err)
 		assert.Equal(t, order, got)
 	})
 
 	t.Run("unknown field is a usage error", func(t *testing.T) {
-		_, err := selectFields([]string{"bogus"}, order, "name")
+		_, err := selectFields([]string{nameBogus}, order, tableHeaderName)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, errInvalidFlag)
 	})
 
 	t.Run("first is forced present and first even when omitted", func(t *testing.T) {
-		got, err := selectFields([]string{"version"}, order, "name")
+		got, err := selectFields([]string{artifactFieldVersion}, order, tableHeaderName)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"name", "version"}, got)
+		assert.Equal(t, []string{tableHeaderName, artifactFieldVersion}, got)
 	})
 
 	t.Run("duplicates are deduped, order of first occurrence kept", func(t *testing.T) {
-		got, err := selectFields([]string{"version", "version", "name"}, order, "name")
+		got, err := selectFields([]string{artifactFieldVersion, artifactFieldVersion, tableHeaderName}, order, tableHeaderName)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"name", "version"}, got)
+		assert.Equal(t, []string{tableHeaderName, artifactFieldVersion}, got)
 	})
 }

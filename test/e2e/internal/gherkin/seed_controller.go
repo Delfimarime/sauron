@@ -34,6 +34,7 @@ type seedController struct {
 func (c *seedController) Init(sc *godog.ScenarioContext) {
 	sc.Step(`^the registry is configured:$`, c.registryConfigured)
 	sc.Step(`^the settings file contains:$`, c.settingsFileContains)
+	sc.Step(`^the track file contains:$`, c.trackFileContains)
 	sc.Step(`^a tracked skill named (\S+)$`, c.trackedSkill)
 }
 
@@ -52,6 +53,13 @@ func (c *seedController) registryConfigured(ctx context.Context, table *godog.Ta
 // designed explicitly by the feature, never synthesized in code.
 func (c *seedController) settingsFileContains(ctx context.Context, content *godog.DocString) error {
 	return c.rt.CopyTo(ctx, settingsFile, []byte(content.Content))
+}
+
+// trackFileContains writes the exact bytes the scenario provides into track.yaml,
+// so the file under test — including a deliberately malformed one — is designed
+// explicitly by the feature, never synthesized in code.
+func (c *seedController) trackFileContains(ctx context.Context, content *godog.DocString) error {
+	return c.rt.CopyTo(ctx, trackFile, []byte(content.Content))
 }
 
 // trackedSkill seeds one schema-valid installed Skill into track.yaml so a scenario

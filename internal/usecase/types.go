@@ -111,22 +111,12 @@ type MigrateFailure struct {
 
 // -- List Catalogue types --
 
-// CatalogueKind is the kind of artifact a catalogue listing browses; it fixes
-// the source root listed and the projection applied.
-type CatalogueKind string
-
-// The kinds a catalogue listing can browse.
-const (
-	// CatalogueSkill browses the skills the registry offers under skills.
-	CatalogueSkill CatalogueKind = "skill"
-	// CatalogueAgent browses the agents the registry offers under agents.
-	CatalogueAgent CatalogueKind = "agent"
-)
-
 // ListCatalogueRequest is the per-invocation input for browsing the registry's
-// catalogue of one kind.
+// catalogue of one kind (types.KindSkill or types.KindAgent — the document Kind
+// reused directly, mirroring ListArtifactsRequest.Kind, rather than a parallel
+// enum).
 type ListCatalogueRequest struct {
-	Kind CatalogueKind
+	Kind string
 	ListWindow
 }
 
@@ -135,6 +125,24 @@ type ListCatalogueRequest struct {
 // not a wrapper — the use case needs nothing beyond ListResult[string], and the
 // caller already knows the Kind it asked for, so there is nothing to add back.
 type ListCatalogueResponse = ListResult[string]
+
+// -- List Artifacts types --
+
+// ListArtifactsRequest is the per-invocation input for listing the installed
+// artifacts of one kind (types.KindSkill or types.KindAgent — the document Kind
+// already stamped on every tracked Artifact, reused directly rather than a
+// parallel enum).
+type ListArtifactsRequest struct {
+	Kind string
+	ListWindow
+}
+
+// ListArtifactsResponse is the presentation-agnostic outcome of listing the
+// installed artifacts: the matching artifacts and the paging window applied.
+// It is an alias, not a wrapper — the use case needs nothing beyond
+// ListResult[types.Artifact], and the caller already knows the Kind it asked
+// for, so there is nothing to add back.
+type ListArtifactsResponse = ListResult[types.Artifact]
 
 // -- Set Registry types --
 

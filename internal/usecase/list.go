@@ -29,6 +29,11 @@ func (w ListWindow) offset() int64 {
 	return (w.Page - 1) * w.Limit
 }
 
+// Window returns w itself, so any request type embedding ListWindow
+// automatically satisfies hasWindow via method promotion — no per-feature
+// accessor method needed.
+func (w ListWindow) Window() ListWindow { return w }
+
 // options builds the source.Option set a Lister receives for this window.
 func (w ListWindow) options() []source.Option {
 	opts := []source.Option{
@@ -64,14 +69,11 @@ type ListResult[T any] struct {
 	Offset int64
 }
 
-// listWith validates window, fetches the page through lister, and wraps it as a
-// ListResult. ListUseCase composes this after resolve produces the Lister and
-// window for one invocation.
+// listWith fetches the page through lister and wraps it as a ListResult.
+// window must already be valid — every listing use case built with
+// NewPipelineListUseCase establishes this via its validator chain before
+// resolve ever returns, so listWith itself no longer re-checks it.
 func listWith[T any](ctx context.Context, lister Lister[T], window ListWindow) (*ListResult[T], error) {
-	if err := window.validate(); err != nil {
-		return nil, err
-	}
-
 	items, err := lister.List(ctx, window.options()...)
 	if err != nil {
 		return nil, err
@@ -105,4 +107,38 @@ func (uc *ListUseCase[I, T]) Execute(ctx context.Context, in I) (*ListResult[T],
 	}
 
 	return listWith(ctx, lister, window)
+}
+
+// hasWindow lets the pipeline extract the shared ListWindow from any listing
+// request without knowing its concrete type.
+type hasWindow interface {
+	Window() ListWindow
+}
+
+// validateWindow is the one validator every listing use case shares verbatim.
+func validateWindow[I hasWindow](_ context.Context, in I) error {
+	return in.Window().validate()
+}
+
+// NewPipelineListUseCase builds a *ListUseCase[I, T] whose resolve step runs
+// validators in order — a Chain of Responsibility: each may halt the chain by
+// returning an error — then, once every validator passes, calls produce to
+// build the Lister[T] bound to in's window. This is the standing shape every
+// listing feature's New<Feature>UseCase constructor follows from now on.
+func NewPipelineListUseCase[I hasWindow, T any](
+	produce func(ctx context.Context, in I) (Lister[T], error),
+	validators ...func(ctx context.Context, in I) error,
+) *ListUseCase[I, T] {
+	return NewListUseCase(func(ctx context.Context, in I) (Lister[T], ListWindow, error) {
+		for _, validate := range validators {
+			if err := validate(ctx, in); err != nil {
+				return nil, ListWindow{}, err
+			}
+		}
+		lister, err := produce(ctx, in)
+		if err != nil {
+			return nil, ListWindow{}, err
+		}
+		return lister, in.Window(), nil
+	})
 }

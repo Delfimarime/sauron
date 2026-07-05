@@ -15,9 +15,7 @@ func SetProvider() *cobra.Command {
 	return newCommand("provider <claude|zencoder>", "Set the provider artifacts are installed for",
 		withLong("Provider records the single global destination; changing it migrates every installed artifact to the new provider's directories."),
 		withArgs(cobra.ExactArgs(1)),
-		withRunE(func(ctx context.Context, args []string, stdout io.Writer) error {
-			return setProvider(ctx, args, stdout)
-		}),
+		withRunE(setProvider),
 	)
 }
 
@@ -37,8 +35,8 @@ func setProvider(ctx context.Context, args []string, stdout io.Writer) error {
 	if result.Unchanged {
 		ew.printf("provider already set to %q\n", result.Provider)
 	} else {
-		renderGroupInto(ew, "skills", result.Skills)
-		renderGroupInto(ew, "agents", result.Agents)
+		renderGroupInto(ew, subcmdSkills, result.Skills)
+		renderGroupInto(ew, subcmdAgents, result.Agents)
 		for _, f := range result.Failures {
 			ew.printf("  ! %s: %s\n", f.Artifact.Metadata.Name, f.Reason)
 		}

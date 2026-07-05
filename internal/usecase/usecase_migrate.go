@@ -49,7 +49,7 @@ func NewMigrateUseCase(params MigrateUseCaseParams) *MigrateUseCase {
 func (uc *MigrateUseCase) Execute(ctx context.Context, in MigrateRequest) (*MigrateResponse, error) {
 	artifacts, err := uc.track.List(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read installed set: %v", err))
+		return nil, ioErr("read installed set", err)
 	}
 
 	result := &MigrateResponse{}

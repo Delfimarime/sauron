@@ -53,7 +53,7 @@ func (c *catalogueController) catalogueLists(_ context.Context, row string) erro
 	if err != nil {
 		return err
 	}
-	if !catalogueHasRow(output, row) {
+	if !hasRow(output, row) {
 		return fmt.Errorf("catalogue does not list %q; got: %s", row, output)
 	}
 	return nil
@@ -120,43 +120,4 @@ func cutDirective(line string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSpace(strings.TrimPrefix(trimmed, fileDirective)), true
-}
-
-// catalogueHasRow reports whether some output line, read as whitespace-separated
-// fields, equals the expected "NAME KIND" pair. Matching on fields (not a raw
-// substring) keeps column alignment from defeating the assertion. Pure so it is
-// unit-tested without a process.
-func catalogueHasRow(output, row string) bool {
-	want := strings.Fields(row)
-	for raw := range strings.SplitSeq(output, "\n") {
-		if equalFields(strings.Fields(raw), want) {
-			return true
-		}
-	}
-	return false
-}
-
-// hasLine reports whether some output line, trimmed, equals the expected line. Pure
-// so it is unit-tested without a process.
-func hasLine(output, line string) bool {
-	want := strings.TrimSpace(line)
-	for raw := range strings.SplitSeq(output, "\n") {
-		if strings.TrimSpace(raw) == want {
-			return true
-		}
-	}
-	return false
-}
-
-// equalFields reports whether two field slices are element-wise equal.
-func equalFields(got, want []string) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			return false
-		}
-	}
-	return true
 }

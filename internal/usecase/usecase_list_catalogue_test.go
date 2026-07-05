@@ -99,24 +99,24 @@ func dir(name string) *source.MockBasedFile {
 
 // input builds a catalogue input with the sort/order/paging defaults the handler
 // boundary resolves before Execute.
-func input(kind CatalogueKind) ListCatalogueRequest {
+func input(kind string) ListCatalogueRequest {
 	return ListCatalogueRequest{Kind: kind, ListWindow: ListWindow{Sort: catSortName, Order: catOrderAsc, Page: 1, Limit: 20}}
 }
 
 func TestListCatalogueSkillAndAgent(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		kind CatalogueKind
+		kind string
 	}{
-		{name: "skill", kind: CatalogueSkill},
-		{name: "agent", kind: CatalogueAgent},
+		{name: "skill", kind: types.KindSkill},
+		{name: "agent", kind: types.KindAgent},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
 			f := newCatalogueFixture(t)
 			f.expectFound()
 			f.expectOpen()
-			f.expectList(artifactToDirectoryName[tc.kind], []source.File{
+			f.expectList(artifactKindDirs[tc.kind], []source.File{
 				stat("review.yaml"),
 				dir("nested"),
 				stat("doc.yml"),
@@ -145,7 +145,7 @@ func TestListCatalogueNameTrimming(t *testing.T) {
 	}, nil)
 
 	// Act.
-	result, err := f.run(input(CatalogueSkill))
+	result, err := f.run(input(types.KindSkill))
 
 	// Assert.
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestListCatalogueListOptions(t *testing.T) {
 	var captured source.Options
 	f.expectList(rootSkills, []source.File{stat("a.yaml")}, &captured)
 
-	in := input(CatalogueSkill)
+	in := input(types.KindSkill)
 	in.Search = "rev"
 	in.Order = catOrderDesc
 	in.Page = 3
@@ -192,7 +192,7 @@ func TestListCatalogueNoSearchOption(t *testing.T) {
 	f.expectList(rootAgents, []source.File{stat("a.yaml")}, &captured)
 
 	// Act.
-	_, err := f.run(input(CatalogueAgent))
+	_, err := f.run(input(types.KindAgent))
 
 	// Assert.
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestListCataloguePagingWindow(t *testing.T) {
 	f.expectOpen()
 	f.expectList(rootSkills, []source.File{stat("b.yaml")}, nil)
 
-	in := input(CatalogueSkill)
+	in := input(types.KindSkill)
 	in.Page = 2
 	in.Limit = 1
 
@@ -227,7 +227,7 @@ func TestListCatalogueNotConfigured(t *testing.T) {
 	f.store.On("Get", mock.Anything).Return(nil, nil)
 
 	// Act.
-	_, err := f.run(input(CatalogueSkill))
+	_, err := f.run(input(types.KindSkill))
 
 	// Assert.
 	var useErr *Error
@@ -242,7 +242,7 @@ func TestListCatalogueReadError(t *testing.T) {
 	f.store.On("Get", mock.Anything).Return(nil, errors.New("boom"))
 
 	// Act.
-	_, err := f.run(input(CatalogueSkill))
+	_, err := f.run(input(types.KindSkill))
 
 	// Assert.
 	var useErr *Error
@@ -258,7 +258,7 @@ func TestListCatalogueUnreachable(t *testing.T) {
 		Return(nil, NewUnreachableError("source down"))
 
 	// Act.
-	_, err := f.run(input(CatalogueSkill))
+	_, err := f.run(input(types.KindSkill))
 
 	// Assert.
 	var useErr *Error
@@ -276,7 +276,7 @@ func TestListCatalogueListFailureUnreachable(t *testing.T) {
 		Return(nil, errors.New("connection reset"))
 
 	// Act.
-	_, err := f.run(input(CatalogueSkill))
+	_, err := f.run(input(types.KindSkill))
 
 	// Assert.
 	var useErr *Error
@@ -297,7 +297,7 @@ func TestListCatalogueUsageErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange.
 			f := newCatalogueFixture(t)
-			in := input(CatalogueSkill)
+			in := input(types.KindSkill)
 			tc.mutate(&in)
 
 			// Act.

@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	regName = "demo"
-	regURI  = "/srv/artifacts"
-	envRef  = "${env:TOKEN}"
+	regName      = "demo"
+	regURI       = "/srv/artifacts"
+	envRef       = "${env:TOKEN}"
+	argTransport = "--transport"
 )
 
 // TestNewSetRegistryInputMapsFlags asserts the parsed flags and positional
@@ -130,7 +131,7 @@ func TestSetRegistryCommand(t *testing.T) {
 		},
 		{
 			name:      "rejects an unknown kind",
-			args:      []string{"--transport", "ftp", regURI},
+			args:      []string{argTransport, "ftp", regURI},
 			wantErr:   true,
 			wantUsage: true,
 		},
@@ -240,7 +241,7 @@ func TestSetRegistryEndToEnd(t *testing.T) {
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
 	cmd.SetContext(context.Background())
-	cmd.SetArgs([]string{"--transport", transportHTTP, source})
+	cmd.SetArgs([]string{argTransport, transportHTTP, source})
 
 	// Act.
 	err := cmd.Execute()
@@ -280,7 +281,7 @@ func TestSetRegistryWriteError(t *testing.T) {
 	cmd := SetRegistry()
 	cmd.SetOut(&failingWriter{})
 	cmd.SetContext(context.Background())
-	cmd.SetArgs([]string{"--transport", transportHTTP, source})
+	cmd.SetArgs([]string{argTransport, transportHTTP, source})
 
 	// Act.
 	err := cmd.Execute()

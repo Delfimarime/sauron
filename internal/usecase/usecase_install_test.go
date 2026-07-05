@@ -164,10 +164,40 @@ func skillArtifact(name, version, installedAt string) types.Artifact {
 		Metadata: types.Metadata{Name: name},
 		Spec: types.ArtifactSpec{
 			Version:     version,
-			Path:        installPath(types.KindSkill, name),
+			Path:        (&InstallUseCase{}).installPath(types.KindSkill, name),
 			InstalledAt: installedAt,
 			UpdatedAt:   installedAt,
 		},
+	}
+}
+
+// TestInstallPath asserts the provider-relative install path for a kind/name.
+func TestInstallPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		kind     string
+		artifact string
+		want     string
+	}{
+		{
+			name:     "skill kind returns skills prefix",
+			kind:     types.KindSkill,
+			artifact: "go",
+			want:     "skills/sauron-go",
+		},
+		{
+			name:     "agent kind returns agents prefix",
+			kind:     types.KindAgent,
+			artifact: "bar",
+			want:     "agents/sauron-bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := (&InstallUseCase{}).installPath(tt.kind, tt.artifact)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/delfimarime/sauron/pkg/sauron/source"
-	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 // Shared test-data constants reused across the package's use-case tests (kept
@@ -88,35 +87,6 @@ func TestListAll_Pagination(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, got, tt.wantLen)
 			fs.AssertNumberOfCalls(t, "List", tt.wantCalls)
-		})
-	}
-}
-
-func TestInstallPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		kind     string
-		artifact string
-		want     string
-	}{
-		{
-			name:     "skill kind returns skills prefix",
-			kind:     types.KindSkill,
-			artifact: "go",
-			want:     "skills/sauron-go",
-		},
-		{
-			name:     "agent kind returns agents prefix",
-			kind:     types.KindAgent,
-			artifact: "bar",
-			want:     "agents/sauron-bar",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := installPath(tt.kind, tt.artifact)
-			assert.Equal(t, tt.want, got)
 		})
 	}
 }

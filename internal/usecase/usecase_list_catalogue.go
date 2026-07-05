@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -12,54 +11,42 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/source"
 )
 
-// the source roots holding each artifact kind's manifests.
-const (
-	rootSkills = "skills"
-	rootAgents = "agents"
-)
-
-var (
-	artifactToDirectoryName = map[CatalogueKind]string{CatalogueSkill: rootSkills, CatalogueAgent: rootAgents}
-)
-
 // ListCatalogueUseCaseParams injects the collaborators the use case composes.
 type ListCatalogueUseCaseParams struct {
 	fx.In
+	Logger     *zap.Logger
 	Registries storage.RegistriesStore
 	Open       OpenRegistryUseCase
-	Logger     *zap.Logger
 }
 
-// NewListCatalogueUseCase builds the catalogue listing use case: the generic
-// ListUseCase, whose resolve step is the validate → get → open pipeline (what
-// used to be a bespoke Execute body) ending in a catalogueLister bound to the
-// invoked kind's root. ListCatalogueResponse needs nothing beyond
-// ListResult[string], so no wrapping type is needed here — the generic Execute
-// is the catalogue listing use case.
+// NewListCatalogueUseCase builds the catalogue listing use case on the shared
+// listing pipeline: validateKind and validateWindow run before produce opens
+// the registry and builds a catalogueLister bound to the invoked kind's root.
+// ListCatalogueResponse needs nothing beyond ListResult[string], so no
+// wrapping type is needed here — the generic Execute is the catalogue listing
+// use case.
 func NewListCatalogueUseCase(params ListCatalogueUseCaseParams) *ListUseCase[ListCatalogueRequest, string] {
-	return NewListUseCase(func(ctx context.Context, in ListCatalogueRequest) (Lister[string], ListWindow, error) {
-		root, ok := artifactToDirectoryName[in.Kind]
-		if !ok {
-			return nil, ListWindow{}, NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
-		}
-		if err := in.ListWindow.validate(); err != nil {
-			return nil, ListWindow{}, err
-		}
+	return NewPipelineListUseCase(
+		func(ctx context.Context, in ListCatalogueRequest) (Lister[string], error) {
+			root := artifactKindDirs[in.Kind] // in.Kind already checked by validateKind
 
-		registry, err := requireRegistry(ctx, params.Registries)
-		if err != nil {
-			return nil, ListWindow{}, err
-		}
+			registry, err := requireRegistry(ctx, params.Registries)
+			if err != nil {
+				return nil, err
+			}
 
-		fs, err := params.Open.Execute(ctx, *registry)
-		if err != nil {
-			return nil, ListWindow{}, err
-		}
+			fs, err := params.Open.Execute(ctx, *registry)
+			if err != nil {
+				return nil, err
+			}
 
-		params.Logger.Info("registry opened", zap.String(telemetry.FieldRegistrySource, registry.Spec.Source))
+			params.Logger.Info("registry opened", zap.String(telemetry.FieldRegistrySource, registry.Spec.Source))
 
-		return catalogueLister{fs: fs, root: root}, in.ListWindow, nil
-	})
+			return catalogueLister{fs: fs, root: root}, nil
+		},
+		func(_ context.Context, in ListCatalogueRequest) error { return validateKind(in.Kind) },
+		validateWindow[ListCatalogueRequest],
+	)
 }
 
 // catalogueLister adapts an opened registry source.FileSystem, scoped to one

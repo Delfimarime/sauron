@@ -69,12 +69,12 @@ func (uc *InstallUseCase) Execute(ctx context.Context, in InstallRequest) (*Inst
 		return nil, err
 	}
 
-	home, err := uc.providerHome(ctx)
+	home, err := uc.determineProviderHomeDirectory(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	fs, err := uc.openRegistry(ctx)
+	fs, err := uc.getRegistryFilesystem(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,9 +107,9 @@ func (uc *InstallUseCase) validate(in InstallRequest) error {
 	return nil
 }
 
-// providerHome resolves the active provider's home-relative directory, failing
+// determineProviderHomeDirectory resolves the active provider's home-relative directory, failing
 // with a non-usage runtime error when no provider is set (FR-005).
-func (uc *InstallUseCase) providerHome(ctx context.Context) (string, error) {
+func (uc *InstallUseCase) determineProviderHomeDirectory(ctx context.Context) (string, error) {
 	provider, err := uc.providers.Get(ctx)
 	if err != nil {
 		return "", ioErr("read provider", err)
@@ -121,9 +121,9 @@ func (uc *InstallUseCase) providerHome(ctx context.Context) (string, error) {
 	return providerDirs[provider.Metadata.Name], nil
 }
 
-// openRegistry resolves the single registry and opens its source live; an
+// getRegistryFilesystem resolves the single registry and opens its source live; an
 // unreachable source surfaces as a runtime error (FR-007).
-func (uc *InstallUseCase) openRegistry(ctx context.Context) (source.FileSystem, error) {
+func (uc *InstallUseCase) getRegistryFilesystem(ctx context.Context) (source.FileSystem, error) {
 	registry, err := requireRegistry(ctx, uc.registries)
 	if err != nil {
 		return nil, err
@@ -207,12 +207,12 @@ func (uc *InstallUseCase) applyUpdate(ctx context.Context, run installRun, up Up
 func (uc *InstallUseCase) commit(
 	ctx context.Context, run installRun, want DesiredArtifact, priorInstalledAt string,
 ) (types.Artifact, error) {
-	files, err := run.fs.Fetch(ctx, fetchURI(run.kind, want.Name))
+	files, err := run.fs.Fetch(ctx, uc.fetchURI(run.kind, want.Name))
 	if err != nil {
 		return types.Artifact{}, fmt.Errorf("fetch %s: %w", want.Name, err)
 	}
 
-	path := installPath(run.kind, want.Name)
+	path := uc.installPath(run.kind, want.Name)
 	if err := uc.writeTree(ctx, filepath.Join(run.home, path), files); err != nil {
 		return types.Artifact{}, err
 	}
@@ -237,6 +237,17 @@ func (uc *InstallUseCase) commit(
 	}
 
 	return artifact, nil
+}
+
+// installPath returns the path relative to the provider home where an artifact
+// of the given kind and name is installed: "<kindDir>/sauron-<name>".
+func (uc *InstallUseCase) installPath(kind, name string) string {
+	return fmt.Sprintf("%s/sauron-%s", artifactKindDirs[kind], name)
+}
+
+// fetchURI builds the source URI for an artifact of the given kind and name.
+func (uc *InstallUseCase) fetchURI(kind, name string) string {
+	return artifactKindDirs[kind] + "/" + name
 }
 
 // writeTree writes every file entry under base, recreating the artifact-relative

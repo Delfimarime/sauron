@@ -22,7 +22,7 @@ List the installed agents, paginated.
 | Field | Description |
 |---|---|
 | `name` | The agent's name |
-| `version` | Optional human-meaningful version; `—` when none |
+| `version` | Human-meaningful version identifier, always present |
 | `lastUpdatedAt` | When the artifact was last updated |
 
 ## Output

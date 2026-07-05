@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 
@@ -37,7 +36,7 @@ func NewDiffUseCase(params DiffUseCaseParams) *DiffUseCase {
 func (uc *DiffUseCase) Execute(ctx context.Context, in DiffRequest) (*DiffResponse, error) {
 	tracked, err := uc.track.List(ctx)
 	if err != nil {
-		return nil, NewIOError(fmt.Sprintf("read installed set: %v", err))
+		return nil, ioErr("read installed set", err)
 	}
 
 	index := make(map[string]types.Artifact, len(tracked))
@@ -83,4 +82,9 @@ func (d *DiffResponse) removals(tracked []types.Artifact, desired map[string]str
 			d.Remove = append(d.Remove, artifact)
 		}
 	}
+}
+
+// trackKey is the reconciliation key for a recorded or desired artifact.
+func trackKey(kind, name string) string {
+	return kind + "/" + name
 }
