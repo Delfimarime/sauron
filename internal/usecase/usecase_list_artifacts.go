@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -13,21 +12,15 @@ import (
 	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
-// The fields a tracked-artifact listing may sort by.
 const (
+	// The fields a tracked-artifact listing may sort by.
 	artifactSortName          = "name"
 	artifactSortLastUpdatedAt = "lastUpdatedAt"
+
+	// artifactOrderDesc is the descending sort direction; anything else (including
+	// empty) sorts ascending.
+	artifactOrderDesc = "desc"
 )
-
-// artifactOrderDesc is the descending sort direction; anything else (including
-// empty) sorts ascending.
-const artifactOrderDesc = "desc"
-
-// artifactKinds are the document kinds ListArtifactsRequest accepts.
-var artifactKinds = map[string]struct{}{
-	types.KindSkill: {},
-	types.KindAgent: {},
-}
 
 // ListArtifactsUseCaseParams injects the collaborator the use case composes.
 type ListArtifactsUseCaseParams struct {
@@ -35,25 +28,22 @@ type ListArtifactsUseCaseParams struct {
 	Track storage.TrackStore
 }
 
-// NewListArtifactsUseCase builds the artifact listing use case: the generic
-// ListUseCase, whose resolve step validates the requested kind and window,
-// then builds a trackLister bound to it — the same validate-then-build shape
-// NewListCatalogueUseCase's resolve closure follows, ending in a local rather
+// NewListArtifactsUseCase builds the artifact listing use case on the shared
+// listing pipeline: validateKind and validateWindow run before produce builds
+// a trackLister bound to the requested kind — the same shape
+// NewListCatalogueUseCase's produce closure follows, ending in a local rather
 // than a remote Lister. ListArtifactsResponse needs nothing beyond
 // ListResult[types.Artifact] (the caller already has Kind before Execute
 // runs), so no wrapping type is needed here — the generic Execute is the
 // artifact listing use case.
 func NewListArtifactsUseCase(params ListArtifactsUseCaseParams) *ListUseCase[ListArtifactsRequest, types.Artifact] {
-	return NewListUseCase(func(_ context.Context, in ListArtifactsRequest) (Lister[types.Artifact], ListWindow, error) {
-		if _, ok := artifactKinds[in.Kind]; !ok {
-			return nil, ListWindow{}, NewUsageError(fmt.Sprintf("unknown kind %q", in.Kind))
-		}
-		if err := in.validate(); err != nil {
-			return nil, ListWindow{}, err
-		}
-
-		return trackLister{track: params.Track, kind: in.Kind}, in.ListWindow, nil
-	})
+	return NewPipelineListUseCase(
+		func(_ context.Context, in ListArtifactsRequest) (Lister[types.Artifact], error) {
+			return trackLister{track: params.Track, kind: in.Kind}, nil
+		},
+		func(_ context.Context, in ListArtifactsRequest) error { return validateKind(in.Kind) },
+		validateWindow[ListArtifactsRequest],
+	)
 }
 
 // trackLister adapts storage.TrackStore, scoped to one kind, to the shared
@@ -81,15 +71,15 @@ func (l trackLister) List(ctx context.Context, opts ...source.Option) ([]types.A
 	}
 
 	artifacts = filterBy(artifacts, func(a types.Artifact) bool { return a.Kind == l.kind })
-	artifacts = filterBy(artifacts, matchesSearch(resolved.Search))
-	sortArtifacts(artifacts, resolved.Sort, resolved.Order)
+	artifacts = filterBy(artifacts, l.matchesSearch(resolved.Search))
+	l.sortArtifacts(artifacts, resolved.Sort, resolved.Order)
 
-	return windowArtifacts(artifacts, resolved.Offset, resolved.Limit), nil
+	return l.windowArtifacts(artifacts, resolved.Offset, resolved.Limit), nil
 }
 
 // matchesSearch builds the predicate keeping artifacts whose name contains term,
 // case-insensitive; a nil or empty term keeps every artifact.
-func matchesSearch(term *string) predicate[types.Artifact] {
+func (l trackLister) matchesSearch(term *string) predicate[types.Artifact] {
 	if term == nil || *term == "" {
 		return func(types.Artifact) bool { return true }
 	}
@@ -104,7 +94,7 @@ func matchesSearch(term *string) predicate[types.Artifact] {
 // "lastUpdatedAt"), reversing the comparison when order is "desc". Both fields
 // are RFC3339 UTC strings or plain names, so a lexicographic string compare
 // needs no parsing.
-func sortArtifacts(artifacts []types.Artifact, field, order *string) {
+func (l trackLister) sortArtifacts(artifacts []types.Artifact, field, order *string) {
 	key := artifactSortName
 	if field != nil && *field != "" {
 		key = *field
@@ -113,14 +103,14 @@ func sortArtifacts(artifacts []types.Artifact, field, order *string) {
 
 	sort.SliceStable(artifacts, func(i, j int) bool {
 		if desc {
-			return lessArtifact(artifacts[j], artifacts[i], key)
+			return l.lessArtifact(artifacts[j], artifacts[i], key)
 		}
-		return lessArtifact(artifacts[i], artifacts[j], key)
+		return l.lessArtifact(artifacts[i], artifacts[j], key)
 	})
 }
 
 // lessArtifact compares a and b by the given sort key.
-func lessArtifact(a, b types.Artifact, key string) bool {
+func (l trackLister) lessArtifact(a, b types.Artifact, key string) bool {
 	if key == artifactSortLastUpdatedAt {
 		return a.Spec.UpdatedAt < b.Spec.UpdatedAt
 	}
@@ -131,7 +121,7 @@ func lessArtifact(a, b types.Artifact, key string) bool {
 // windowArtifacts slices items at offset (defaulting to 0), capped to limit
 // (defaulting to the remainder); an offset at or past the end yields an empty,
 // non-nil slice rather than an error.
-func windowArtifacts(items []types.Artifact, offset, limit *int64) []types.Artifact {
+func (l trackLister) windowArtifacts(items []types.Artifact, offset, limit *int64) []types.Artifact {
 	start := int64(0)
 	if offset != nil {
 		start = *offset

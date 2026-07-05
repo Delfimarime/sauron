@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/delfimarime/sauron/internal/usecase"
+	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 // catalogue-cmd test literals, named to satisfy goconst across the package.
@@ -148,11 +149,11 @@ func TestNewListCatalogueInputMapsFlags(t *testing.T) {
 	flags := listFlags{Search: "rev", Sort: sortName, Order: orderDesc, paging: pagingFlags{Page: 2, Limit: 5}}
 
 	// Act.
-	input, err := newListCatalogueInput(usecase.CatalogueSkill, &flags)
+	input, err := newListCatalogueInput(types.KindSkill, &flags)
 
 	// Assert.
 	require.NoError(t, err)
-	assert.Equal(t, usecase.CatalogueSkill, input.Kind)
+	assert.Equal(t, types.KindSkill, input.Kind)
 	assert.Equal(t, "rev", input.Search)
 	assert.Equal(t, sortName, input.Sort)
 	assert.Equal(t, orderDesc, input.Order)
@@ -167,7 +168,7 @@ func TestNewListCatalogueInputDefaults(t *testing.T) {
 	flags := listFlags{paging: pagingFlags{Page: defaultPage, Limit: defaultLimit}}
 
 	// Act.
-	input, err := newListCatalogueInput(usecase.CatalogueAgent, &flags)
+	input, err := newListCatalogueInput(types.KindAgent, &flags)
 
 	// Assert.
 	require.NoError(t, err)

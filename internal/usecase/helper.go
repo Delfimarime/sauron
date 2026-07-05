@@ -36,24 +36,18 @@ var providerDirs = map[string]string{
 // holds artifacts of that type. Mirrors the provider home layout used by
 // migrate's providerDirs.
 var artifactKindDirs = map[string]string{
-	types.KindSkill: "skills",
-	types.KindAgent: "agents",
+	types.KindSkill: rootSkills,
+	types.KindAgent: rootAgents,
 }
 
-// installPath returns the path relative to the provider home where an artifact
-// of the given kind and name is installed: "<kindDir>/sauron-<name>".
-func installPath(kind, name string) string {
-	return fmt.Sprintf("%s/sauron-%s", artifactKindDirs[kind], name)
-}
-
-// fetchURI builds the source URI for an artifact of the given kind and name.
-func fetchURI(kind, name string) string {
-	return artifactKindDirs[kind] + "/" + name
-}
-
-// trackKey is the reconciliation key for a recorded or desired artifact.
-func trackKey(kind, name string) string {
-	return kind + "/" + name
+// validateKind rejects a kind absent from artifactKindDirs — the single source
+// of truth for what kinds exist, shared by catalogue browsing, tracked-artifact
+// listing, and install.
+func validateKind(kind string) error {
+	if _, ok := artifactKindDirs[kind]; !ok {
+		return NewUsageError(fmt.Sprintf("unknown kind %q", kind))
+	}
+	return nil
 }
 
 // listAll pages the source listing under root until it is exhausted, returning

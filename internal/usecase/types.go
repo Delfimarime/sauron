@@ -111,22 +111,12 @@ type MigrateFailure struct {
 
 // -- List Catalogue types --
 
-// CatalogueKind is the kind of artifact a catalogue listing browses; it fixes
-// the source root listed and the projection applied.
-type CatalogueKind string
-
-// The kinds a catalogue listing can browse.
-const (
-	// CatalogueSkill browses the skills the registry offers under skills.
-	CatalogueSkill CatalogueKind = "skill"
-	// CatalogueAgent browses the agents the registry offers under agents.
-	CatalogueAgent CatalogueKind = "agent"
-)
-
 // ListCatalogueRequest is the per-invocation input for browsing the registry's
-// catalogue of one kind.
+// catalogue of one kind (types.KindSkill or types.KindAgent — the document Kind
+// reused directly, mirroring ListArtifactsRequest.Kind, rather than a parallel
+// enum).
 type ListCatalogueRequest struct {
-	Kind CatalogueKind
+	Kind string
 	ListWindow
 }
 

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/delfimarime/sauron/internal/usecase"
+	"github.com/delfimarime/sauron/pkg/sauron/types"
 )
 
 const (
@@ -35,7 +37,7 @@ func Catalogue() *cobra.Command {
 // ListCatalogueSkill builds the `skill` subcommand of `catalogue`.
 func ListCatalogueSkill() *cobra.Command {
 	return newCatalogueCommand(
-		usecase.CatalogueSkill, "skill",
+		types.KindSkill, "skill",
 		"List the skills the registry offers",
 		"Skill lists the skills the registry offers as a NAME KIND table followed by a paging line.",
 	)
@@ -44,7 +46,7 @@ func ListCatalogueSkill() *cobra.Command {
 // ListCatalogueAgent builds the `agent` subcommand of `catalogue`.
 func ListCatalogueAgent() *cobra.Command {
 	return newCatalogueCommand(
-		usecase.CatalogueAgent, "agent",
+		types.KindAgent, "agent",
 		"List the agents the registry offers",
 		"Agent lists the agents the registry offers as a NAME KIND table followed by a paging line.",
 	)
@@ -53,7 +55,7 @@ func ListCatalogueAgent() *cobra.Command {
 // newCatalogueCommand builds one catalogue leaf command bound to its kind; the
 // leaves differ only by the kind their run closure captures and passes to
 // listCatalogue.
-func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *cobra.Command {
+func newCatalogueCommand(kind string, use, short, long string) *cobra.Command {
 	var flags listFlags
 	return newCommand(use, short,
 		withLong(long),
@@ -74,7 +76,7 @@ func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *c
 
 			ew := newErrWriter(stdout)
 			rows := buildTable([]string{tableHeaderName, tableHeaderKind}, result.Items, func(name string) []string {
-				return []string{name, string(kind)}
+				return []string{name, strings.ToLower(kind)}
 			})
 			ew.record(rows.render(stdout))
 			ew.printf("%s\n", pagingLine(result.Page, result.Limit, result.Offset, len(result.Items)))
@@ -87,7 +89,7 @@ func newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string) *c
 // input, defaulting and validating the view options (--sort, --order) at this
 // boundary; an invalid value yields a usage error before the use case runs.
 // --search is a free substring and is not validated.
-func newListCatalogueInput(kind usecase.CatalogueKind, flags *listFlags) (usecase.ListCatalogueRequest, error) {
+func newListCatalogueInput(kind string, flags *listFlags) (usecase.ListCatalogueRequest, error) {
 	sort := catalogueSortName
 	if flags.Sort != "" {
 		sort = flags.Sort
