@@ -136,6 +136,24 @@ type ListCatalogueRequest struct {
 // caller already knows the Kind it asked for, so there is nothing to add back.
 type ListCatalogueResponse = ListResult[string]
 
+// -- List Artifacts types --
+
+// ListArtifactsRequest is the per-invocation input for listing the installed
+// artifacts of one kind (types.KindSkill or types.KindAgent — the document Kind
+// already stamped on every tracked Artifact, reused directly rather than a
+// parallel enum).
+type ListArtifactsRequest struct {
+	Kind string
+	ListWindow
+}
+
+// ListArtifactsResponse is the presentation-agnostic outcome of listing the
+// installed artifacts: the matching artifacts and the paging window applied.
+// It is an alias, not a wrapper — the use case needs nothing beyond
+// ListResult[types.Artifact], and the caller already knows the Kind it asked
+// for, so there is nothing to add back.
+type ListArtifactsResponse = ListResult[types.Artifact]
+
 // -- Set Registry types --
 
 // SetRegistryRequest is the per-invocation input for configuring the registry.

@@ -22,14 +22,18 @@ paging line and exits 0 (FR-006). An unreadable `track.yaml` is a runtime error
 section — landed ahead of this feature, together with `list catalogue`'s
 refactor onto it — fixes the generic `ListUseCase[I, T]`
 (`internal/usecase/list.go`, composing `Lister[T]`/`ListWindow`/`ListResult[T]`/
-`listWith[T]`) as the standing shape for any command that lists a collection, and
-`newListCommand` (`internal/cmd/helper.go`) as the standing cobra scaffold every
-listing leaf command builds on — it carries no notion of "kind" itself, so it is
-not generic; a caller closes over its own kind (or any other bound value) in the
-`bind`/`run` closures it passes in. This feature supplies the second adapter at
-each layer: a `trackLister` composing `storage.TrackStore` instead of a live
-registry, and `ListSkills()`/`ListAgents()` built on `newListCommand` exactly as
-`ListCatalogueSkill()`/`ListCatalogueAgent()` are. No new store method is needed.
+`listWith[T]`) as the standing shape for any use case that lists a collection.
+There is no analogous list-specific scaffold at the command layer — every
+command, listing or not, builds on the same `newCommand` (`internal/cmd/helper.go`);
+a listing leaf command builder (e.g. `newCatalogueCommand(kind
+usecase.CatalogueKind, use, short, long string)`) simply closes over its own
+kind and a `listFlags`/`fieldsFlags`-based flag struct in the `withFlags`/
+`withRunE` options it passes to `newCommand`. This feature supplies the second
+adapter at each layer: a `trackLister` composing `storage.TrackStore` instead
+of a live registry, and `ListSkills()`/`ListAgents()` built via a
+`newListArtifactsCommand(kind, use, short, long)` that closes over `kind`
+exactly as `newCatalogueCommand` does, itself calling `newCommand` directly.
+No new store method is needed.
 
 **Out of scope (YAGNI):** a total count in the paging line (matches `list
 catalogue`'s own convention, by choice rather than constraint — see D4); a `kind`
@@ -40,7 +44,7 @@ beyond `name`/`version`/`lastUpdatedAt`.
 
 - **Outer loop — acceptance first.** The `test/e2e` Gherkin scenarios are authored
   first (T1) and fail (the commands don't exist); they turn green at T3.
-- **Inner loop — unit first.** `ListArtifactsUseCase` (T2) and the command/view
+- **Inner loop — unit first.** `NewListArtifactsUseCase` (T2) and the command
   (T3) each start from a failing test.
 - **Mocks at the seams.** The use-case test mocks `storage.TrackStore` (the
   existing `MockBasedTrackStore`); no adapter or network fixture is needed. The
@@ -56,38 +60,48 @@ beyond `name`/`version`/`lastUpdatedAt`.
   `ListResult[T]` (`Items`/`Page`/`Limit`/`Offset`, embedded by a listing
   response), `listWith[T]` (validates the window, calls the `Lister`, wraps the
   page), and the generic `ListUseCase[I, T]` (`resolve func(ctx, in I) (Lister[T],
-  ListWindow, error)`, `Execute` calling `listWith`). `ListCatalogueUseCase`
-  already **wraps** a `*ListUseCase[ListCatalogueRequest, string]` — its
-  constructor builds `resolve` as the validate→get→open pipeline ending in a
-  `catalogueLister`, and its own `Execute` projects the inner `ListResult[string]`
-  onto `ListCatalogueResponse`. This feature's `ListArtifactsUseCase` mirrors that
-  wrapping exactly, with a `trackLister` in place of `catalogueLister`.
-- **The shared list-command scaffold** — `internal/cmd/helper.go`'s
-  `newListCommand(use, short, long string, bind func(*cobra.Command),
-  run func(ctx context.Context, stdout io.Writer) error) *cobra.Command`. It
-  carries no "kind" of its own — `newCatalogueCommand(kind usecase.CatalogueKind,
-  use, short, long string)` closes over `kind` in the `bind`/`run` closures it
-  passes to it, and already builds `ListCatalogueSkill()`/`ListCatalogueAgent()`
-  this way; this feature's `newListArtifactsCommand` mirrors that call exactly.
-- **The shared paging renderer** — `internal/cmd/view_helper.go`'s
-  `pagingLine(page, limit, offset int64, count int) string`, already extracted
-  and used by `view_catalogue.go`; this feature's view reuses it verbatim.
+  ListWindow, error)`, `Execute` calling `listWith`). `NewListCatalogueUseCase`
+  returns a `*ListUseCase[ListCatalogueRequest, string]` **directly** — no
+  wrapping type, per [no pointless wrappers](../contracts/architecture.md#coding-standards)
+  — with `resolve` built as the validate→get→open pipeline ending in a
+  `catalogueLister`; `ListCatalogueResponse` is correspondingly a **type
+  alias** (`= ListResult[string]`), not a struct, since the caller already
+  knows `Kind` before `Execute` runs. This feature's `NewListArtifactsUseCase`
+  mirrors that exactly: `resolve` ends in a `trackLister` in place of a
+  `catalogueLister`, and it likewise returns `*ListUseCase[ListArtifactsRequest,
+  types.Artifact]` directly, with `ListArtifactsResponse` as the equivalent
+  type alias.
+- **The shared command scaffold** — `internal/cmd/helper.go`'s
+  `newCommand(use, short string, opts ...commandOption) *cobra.Command`, with
+  its `withLong`/`withArgs`/`withFlags`/`withRunE`/`withSubcommands` options.
+  It carries no "kind" or listing-specific notion of its own —
+  `newCatalogueCommand(kind usecase.CatalogueKind, use, short, long string)`
+  closes over `kind` and a `listFlags` value in the `withFlags`/`withRunE`
+  options it passes to `newCommand`, and already builds
+  `ListCatalogueSkill()`/`ListCatalogueAgent()` this way; this feature's
+  `newListArtifactsCommand` mirrors that call exactly, additionally closing
+  over a `fieldsFlags` value for `--fields`.
+- **The shared paging renderer** — `internal/cmd/helper_view.go`'s
+  `pagingLine(page, limit, offset int64, count int) string`, already used
+  inline by `newCatalogueCommand`'s `withRunE` closure in `cmd_catalogue.go`
+  (there is no separate per-command view file); this feature's handler reuses
+  it verbatim.
 - `storage.TrackStore.List(ctx) ([]types.Artifact, error)` — reads Skill+Agent
   documents, each discriminated by `TypeMeta.Kind` (`types.KindSkill`/`KindAgent`).
 - `types.Artifact` / `ArtifactSpec` (`Metadata.Name`, `Spec.Version`, `Spec.UpdatedAt`).
-- Shared command/view helpers: `selectFields`, `table`, `defaultOrder`/
-  `validateOrder`, `pagingFlags`/`bindPagingFlags`, `newGroup`/`usageArgs`/
-  `silenceFlagErrors`/`runUseCase`.
+- Shared command helpers: `selectFields`, `table`/`buildTable`, `defaultOrder`/
+  `validateOrder`, `pagingFlags`/`bindPagingFlags`, `listFlags`/`bindListFlags`,
+  `fieldsFlags`/`bindFieldsFlags`, `newCommand`/`usageArgs`/`silenceFlagErrors`/
+  `runUseCase`.
 
 ## Design (implementation map)
 
 | File | Change |
 |---|---|
-| `internal/usecase/types.go` | add `ListArtifactsRequest{Kind string; ListWindow}` / `ListArtifactsResponse{Kind string; ListResult[types.Artifact]}` — the same embedding shape as `ListCatalogueRequest`/`Response` |
-| `internal/usecase/usecase_list_artifacts.go` | **new** — a `trackLister{track storage.TrackStore, kind string}` implementing `Lister[types.Artifact]` (`List`: `TrackStore.List` → filter to `kind` → resolve the received `source.Option`s into a local `source.Options` value → `--search` substring on `Metadata.Name` → sort by `name`/`lastUpdatedAt` + order → window at offset/limit); `NewListArtifactsUseCase`'s `resolve` closure validates the kind and window then builds a `trackLister`, wrapping a `*ListUseCase[ListArtifactsRequest, types.Artifact]`; `ListArtifactsUseCase.Execute` delegates to the wrapped `ListUseCase.Execute` and projects `ListResult[types.Artifact]` onto `ListArtifactsResponse` — the same shape as `ListCatalogueUseCase.Execute` |
-| `internal/usecase/fx.go` | provide `NewListArtifactsUseCase` |
-| `internal/cmd/cmd_list_artifacts.go` | **new** — `ListSkills()`/`ListAgents()` → shared `newListArtifactsCommand(kind, use, short, long)`, itself built on `newListCommand` (closing over `kind` in its `bind`/`run` closures), binding search/sort/order/fields plus the existing shared `pagingFlags`; cobra-free `listArtifacts()` handler via `fx.Populate`/`runUseCase` |
-| `internal/cmd/view_list_artifacts.go` | **new** — field set (`name`/`version`/`lastUpdatedAt`), `selectListArtifactsFields` (via shared `selectFields`), sort validation, table render, the already-shared `pagingLine` |
+| `internal/usecase/types.go` | add `ListArtifactsRequest{Kind string; ListWindow}` and `ListArtifactsResponse = ListResult[types.Artifact]` — a **type alias**, not a struct, mirroring `ListCatalogueRequest`/`ListCatalogueResponse` exactly |
+| `internal/usecase/usecase_list_artifacts.go` | **new** — a `trackLister{track storage.TrackStore, kind string}` implementing `Lister[types.Artifact]` (`List`: `TrackStore.List` → filter to `kind` → resolve the received `source.Option`s into a local `source.Options` value → `--search` substring on `Metadata.Name` → sort by `name`/`lastUpdatedAt` + order → window at offset/limit); `NewListArtifactsUseCase`'s `resolve` closure validates the kind and window then builds a `trackLister`, and the constructor returns `NewListUseCase(resolve)` **directly** — `*ListUseCase[ListArtifactsRequest, types.Artifact]`, no wrapping type — exactly as `NewListCatalogueUseCase` does |
+| `internal/usecase/fx.go` | `fx.Annotate(NewListArtifactsUseCase, fx.As(new(UseCase[ListArtifactsRequest, ListArtifactsResponse])))`, alongside the existing entries |
+| `internal/cmd/cmd_list_artifacts.go` | **new** — `ListSkills()`/`ListAgents()` → shared `newListArtifactsCommand(kind, use, short, long)`, itself built directly on `newCommand` (closing over `kind` and a `listFlags`+`fieldsFlags` struct in `withFlags`/`withRunE`, exactly as `newCatalogueCommand` does); the `withRunE` closure calls `listArtifacts` via `fx.Populate`/`runUseCase`, then renders the table (`buildTable`/`selectFields`) and the shared `pagingLine` inline — no separate render function or view file, per [Command structure](../contracts/architecture.md#command-structure) |
 | `internal/cmd/cmd_list.go` | register `ListSkills()`, `ListAgents()` alongside `Catalogue()` |
 | `test/e2e/internal/gherkin/seed_controller.go` | add a `the track file contains:` doc-string step (mirrors the existing `the settings file contains:`) |
 | `test/e2e/internal/gherkin/list_artifacts_controller.go` | **new** — row-match step; reuses the existing generic `the paging line reads (.+)$` step verbatim |
@@ -116,17 +130,17 @@ the slice `TrackStore.List` returns: `--search` is a case-insensitive
 lexicographically correct with no parsing needed. The *mechanism* (local vs.
 remote) stays inside the adapter: `NewListArtifactsUseCase`'s `resolve` closure
 and `NewListCatalogueUseCase`'s are structurally identical (validate → build the
-feature-specific `Lister[T]` → return it with the window), both wrapping the same
-generic `*ListUseCase[I, T]`.
+feature-specific `Lister[T]` → return it with the window), and both return the
+same generic `*ListUseCase[I, T]` directly rather than a wrapping type.
 
 ### D3 — Table header casing
 
 List tables render lowercase headers — the field name verbatim (`name`,
 `version`, `lastUpdatedAt`) — matching the shipped `list catalogue` view
-(`headerName = "name"`, `headerKind = "kind"`) and this feature's own contract
-examples. The CLI contract's "uppercase headers" prose is stale against shipped
-behavior; this plan follows precedent rather than the prose. Confirmed by the
-maintainer.
+(`tableHeaderName = "name"`, `tableHeaderKind = "kind"` in `cmd_catalogue.go`)
+and this feature's own contract examples. The CLI contract's "uppercase
+headers" prose is stale against shipped behavior; this plan follows precedent
+rather than the prose. Confirmed by the maintainer.
 
 ### D4 — Paging without a total count
 
@@ -145,30 +159,32 @@ rendering is a table + one paging line, no total), not a technical constraint.
   contract's uppercase prose.
 - **D4** — paging reports no total count, by choice, for output consistency with
   `list catalogue`.
-- **D5** — `ListArtifactsUseCase` wraps the generic `*ListUseCase[ListArtifactsRequest,
-  types.Artifact]`, and `newListArtifactsCommand` is built on `newListCommand`
+- **D5** — `NewListArtifactsUseCase` returns the generic `*ListUseCase[ListArtifactsRequest,
+  types.Artifact]` directly (no wrapping type; `ListArtifactsResponse` a type
+  alias), and `newListArtifactsCommand` is built directly on `newCommand`
   (closing over its `kind`, never threading it through the shared constructor) —
   the same composition `list catalogue` uses at both layers, not a parallel
   implementation that merely resembles it.
 - Mirror `describe provider` for `--fields` selection, `list catalogue` for the
-  table/sort/paging-flag shape, the generic `ListUseCase[I, T]` composition, and
-  the (non-generic) `newListCommand` scaffold.
+  table/sort/paging-flag shape and the inline (no separate view file) rendering,
+  the generic `ListUseCase[I, T]` composition, and the shared `newCommand`
+  scaffold — there is no list-specific cobra scaffold to build on.
 
 ## Checkpoints (RED → GREEN)
 
 | # | Milestone | Verify |
 |---|---|---|
 | C1 | acceptance scenarios authored and **failing** (commands absent) | `task gate-integration` fails only on the new list scenarios |
-| C2 | `ListArtifactsUseCase`/`trackLister`: failing test → green (filter/search/sort/paging window/out-of-range page/empty/read-error) | `go test ./internal/usecase/...` |
-| C3 | command + view: failing test → green; C1 scenarios now **pass** | `go test ./internal/cmd/... && task gate-integration` |
+| C2 | `NewListArtifactsUseCase`/`trackLister`: failing test → green (filter/search/sort/paging window/out-of-range page/empty/read-error) | `go test ./internal/usecase/...` |
+| C3 | command: failing test → green; C1 scenarios now **pass** | `go test ./internal/cmd/... && task gate-integration` |
 | C4 | full gate green; coverage ≥90% | `task all` |
 
 ## Execution flow
 
 ```
 T1  acceptance e2e (outer RED — fails until T3)  ─┐ parallel, worktree-isolated
-T2  ListArtifactsUseCase (RED→GREEN)              ─┘
-T3  cmd + view (RED→GREEN) — turns T1 GREEN
+T2  NewListArtifactsUseCase (RED→GREEN)           ─┘
+T3  cmd (RED→GREEN) — turns T1 GREEN
 T4  gates (task all, coverage ≥90%)
 ```
 

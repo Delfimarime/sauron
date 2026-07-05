@@ -22,7 +22,7 @@ List the installed skills, paginated.
 | Field | Description |
 |---|---|
 | `name` | The skill's name |
-| `version` | Optional human-meaningful version; `—` when none |
+| `version` | Human-meaningful version identifier, always present |
 | `lastUpdatedAt` | When the artifact was last updated |
 
 ## Output
@@ -38,7 +38,7 @@ limit <n>)`), and exits `0`.
 $ sauron list skills --limit 20
 name        version  lastUpdatedAt
 go-style    v1.4.0   2026-06-15
-sql-review  —        2026-06-12
+sql-review  v2.0.0   2026-06-12
 showing 1–2 (page 1, limit 20)
 ```
 
