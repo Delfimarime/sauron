@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"text/template"
@@ -72,4 +73,49 @@ func renderFeatures(srcDir, dstDir string, data any) error {
 	}
 
 	return nil
+}
+
+// resolveFeaturePaths returns the godog Paths to run: every rendered feature in
+// dir when raw is empty, or only the rendered files named in raw (a
+// comma-separated list of feature-file basenames) otherwise. An unknown name is
+// a hard error — a typo should fail loudly, not silently run nothing extra.
+func resolveFeaturePaths(dir, raw string) ([]string, error) {
+	if raw == "" {
+		return []string{dir}, nil
+	}
+
+	var paths []string
+	for _, name := range strings.Split(raw, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err != nil {
+			return nil, fmt.Errorf("feature %q not found under %q: %w", name, dir, err)
+		}
+		paths = append(paths, path)
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("-features was set but resolved to no valid feature files")
+	}
+	return paths, nil
+}
+
+// resolveConcurrency returns explicit if it's a positive override, or a
+// CPU-aware default otherwise: min(5, max(1, runtime.NumCPU()/2)). Each
+// scenario runs its own Docker Compose stack, so this leaves headroom for the
+// Docker daemon rather than using every core for the test process itself.
+func resolveConcurrency(explicit int) int {
+	if explicit > 0 {
+		return explicit
+	}
+	n := runtime.NumCPU() / 2
+	if n < 1 {
+		n = 1
+	}
+	if n > 5 {
+		n = 5
+	}
+	return n
 }

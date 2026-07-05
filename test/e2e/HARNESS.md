@@ -263,3 +263,15 @@ host binary, points `$SAURON_BIN` at it, pins `$SAURON_HOME` to a temp dir, and
 runs `go test ./...` under godog **strict** mode (undefined, pending, or
 ambiguous steps fail). Gating shipping on this suite passing on Linux is fixed by
 the root [Constitution](../../CONSTITUTION.md) Chapter IV Article 2.
+
+By default the suite runs every rendered feature with scenarios in parallel,
+capped by `resolveConcurrency` (`min(5, max(1, runtime.NumCPU()/2))` — each
+scenario owns a Docker Compose stack, so this leaves headroom for the daemon
+rather than saturating every core). `task gate-integration FEATURES=<a.feature,b.feature>`
+restricts the run to specific feature-file basenames (`-features`); `task
+gate-integration CONCURRENCY=<n>` overrides the parallelism (`-concurrency`;
+`1` runs serially, handy while chasing a flaky scenario). The formatter follows
+concurrency: `pretty` when serial, `progress` (dots per step) once concurrency
+is greater than 1 — `pretty`'s per-scenario blocks interleave and garble under
+concurrent scenarios, while `progress`'s one-character-per-step output stays
+coherent.

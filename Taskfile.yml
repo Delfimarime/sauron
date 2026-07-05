@@ -119,6 +119,12 @@ tasks:
       # The version decoration the e2e binary carries. Local default SNAPSHOT;
       # CI overrides via the environment (SAURON_APP_TAG).
       APP_TAG: '{{.SAURON_APP_TAG | default "SNAPSHOT"}}'
+      # Optional caller overrides: FEATURES restricts the run to specific
+      # comma-separated feature-file basenames (e.g. list_skills.feature);
+      # CONCURRENCY caps parallel scenarios (0 = CPU-aware default; 1 = serial,
+      # handy while chasing a flaky scenario).
+      FEATURES: '{{.FEATURES | default ""}}'
+      CONCURRENCY: '{{.CONCURRENCY | default "0"}}'
     cmds:
       # Build two binaries with the SAME tagged identity (so the harness banner
       # matches): a host binary for the @no-sandbox (host-runtime) scenarios, and a
@@ -142,10 +148,20 @@ tasks:
           SAURON_APP_TAG="{{.APP_TAG}}" \
           SAURON_GIT_HASH="{{.APP_HASH}}" \
           SAURON_HOME="${home}" \
-          go test ./...
+          go test ./... -features="{{.FEATURES}}" -concurrency={{.CONCURRENCY}}
         status=$?
         rm -rf "${home}"
         exit ${status}
+
+  dev-integration:
+    desc: 'Fast, focused e2e run for iterating on one feature (not part of `task all`): task dev-integration -- list_skills.feature'
+    preconditions:
+      - sh: '[ -n "{{.CLI_ARGS}}" ]'
+        msg: "dev-integration needs a feature file, e.g.: task dev-integration -- list_skills.feature (comma-separate for more than one). Use 'task gate-integration' to run the whole suite."
+    cmds:
+      - task: gate-integration
+        vars:
+          FEATURES: '{{.CLI_ARGS}}'
 
   all:
     desc: Build and run every gate in the contract's dependency order.
