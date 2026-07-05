@@ -19,10 +19,8 @@ import (
 // list-artifacts-cmd test literals, named to satisfy goconst across the
 // package.
 const (
-	subcmdSkills = "skills"
-	subcmdAgents = "agents"
-	flagPage     = "--page"
-	nameGoStyle  = "go-style"
+	flagPage    = "--page"
+	nameGoStyle = "go-style"
 )
 
 // twoSkillsTrack is a track.yaml stream carrying two installed skills, used to

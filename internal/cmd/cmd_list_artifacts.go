@@ -18,6 +18,13 @@ const (
 	artifactFieldLastUpdatedAt = "lastUpdatedAt"
 )
 
+// the `list` group's leaf subcommand names, shared with the artifact-kind
+// headings used elsewhere (install summaries, set-provider reports).
+const (
+	subcmdSkills = "skills"
+	subcmdAgents = "agents"
+)
+
 // artifactFieldOrder is the ordered set --fields may select from; name is the
 // artifact's identity and is always present and first.
 var artifactFieldOrder = []string{tableHeaderName, artifactFieldVersion, artifactFieldLastUpdatedAt}
@@ -29,7 +36,7 @@ var artifactSortFields = []string{tableHeaderName, artifactFieldLastUpdatedAt}
 // ListSkills builds the `skills` subcommand of `list`.
 func ListSkills() *cobra.Command {
 	return newListArtifactsCommand(
-		types.KindSkill, "skills",
+		types.KindSkill, subcmdSkills,
 		"List the installed skills",
 		"Skills lists the installed skills as a name/version/lastUpdatedAt table (name only by default) followed by a paging line.",
 	)
@@ -38,7 +45,7 @@ func ListSkills() *cobra.Command {
 // ListAgents builds the `agents` subcommand of `list`.
 func ListAgents() *cobra.Command {
 	return newListArtifactsCommand(
-		types.KindAgent, "agents",
+		types.KindAgent, subcmdAgents,
 		"List the installed agents",
 		"Agents lists the installed agents as a name/version/lastUpdatedAt table (name only by default) followed by a paging line.",
 	)

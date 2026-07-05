@@ -175,7 +175,7 @@ func TestDescribeRegistryEndToEnd(t *testing.T) {
 		{
 			name:      "invalid field is a usage error",
 			seed:      authRegistries,
-			args:      []string{flagFields, "bogus"},
+			args:      []string{flagFields, nameBogus},
 			wantErr:   true,
 			wantUsage: true,
 		},

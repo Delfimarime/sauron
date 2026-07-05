@@ -99,8 +99,8 @@ func install(ctx context.Context, kind string, names []string, stdout io.Writer)
 
 // kindHeadings maps each artifact kind to its plural output heading token.
 var kindHeadings = map[string]string{
-	types.KindSkill: "skills",
-	types.KindAgent: "agents",
+	types.KindSkill: subcmdSkills,
+	types.KindAgent: subcmdAgents,
 }
 
 // installSummary produces the tail summary line; an empty string is returned

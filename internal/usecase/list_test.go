@@ -42,7 +42,7 @@ func TestListWith(t *testing.T) {
 	}{
 		{
 			name:       "search/sort/order/page/limit resolve into the fetched window",
-			window:     ListWindow{Search: "go", Sort: "name", Order: "asc", Page: 2, Limit: 10},
+			window:     ListWindow{Search: "go", Sort: artifactSortName, Order: "asc", Page: 2, Limit: 10},
 			lister:     &fakeLister[string]{items: []string{"a", "b"}},
 			wantResult: &ListResult[string]{Items: []string{"a", "b"}, Page: 2, Limit: 10, Offset: 10},
 		},
